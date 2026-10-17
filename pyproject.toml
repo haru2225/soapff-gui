@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soapff-gui"
+version = "0.1.0"
+description = "GUI for soapff: clay structure in, LAMMPS run out, without touching the input files"
+requires-python = ">=3.9"
+dependencies = []   # soapff-cui (not pip-installable) is found next to this folder or in $SOAPFF_HOME
+
+[project.scripts]
+soapff-gui = "soapff_gui.app:main"
+
+[tool.setuptools.packages.find]
+include = ["soapff_gui*"]
+
+[tool.setuptools.package-data]
+soapff_gui = ["data/*.npz"]
