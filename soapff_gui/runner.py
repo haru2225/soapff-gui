@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-BUNDLED_LIBRARY = os.path.join(HERE, "data", "library_clayff.npz")
+BUNDLED_LIBRARY = os.path.join(HERE, "data", "library_clayff_bulk.npz")
 PACKAGES = ("soapff_cui", "soapff")     # soapff was renamed soapff-cui (package soapff_cui); the old name still works
 
 
@@ -34,13 +34,14 @@ def import_soapff():
 
 
 def default_library():
-    """the library of the soapff-cui checkout (examples/minerals/library_clayff.npz, the newest), else the copy
-    bundled with the GUI."""
+    """the library of the soapff-cui checkout (examples/minerals/library_clayff_bulk.npz: SOAP <-> charge of the
+    artificial initial structures), else the copy bundled with the GUI."""
     try:
         core = import_soapff()
-        p = os.path.join(os.path.dirname(os.path.dirname(core.__file__)), "examples", "minerals", "library_clayff.npz")
-        if os.path.isfile(p):
-            return os.path.abspath(p)
+        for name in ("library_clayff_bulk.npz", "library_clayff.npz"):
+            p = os.path.join(os.path.dirname(os.path.dirname(core.__file__)), "examples", "minerals", name)
+            if os.path.isfile(p):
+                return os.path.abspath(p)
     except ImportError:
         pass
     return BUNDLED_LIBRARY
@@ -87,6 +88,39 @@ def prepare(structure, workdir, library=None, log=print, **md):
     return core.make(structure, workdir, library or default_library(), log=log, **md)
 
 
+def find_sova():
+    """(python, home) of a SOVA installation for the structure analyses: ("", "") when sovapy is importable here;
+    else $SOVA_PYTHON / $SOVA_HOME; else a source checkout named sova-cui in the home folder or one level below
+    (with its virtual environment in sovapy/, .venv/ or venv/)."""
+    try:
+        import sovapy  # noqa: F401
+        return "", ""
+    except ImportError:
+        pass
+    if os.environ.get("SOVA_PYTHON"):
+        return os.environ["SOVA_PYTHON"], os.environ.get("SOVA_HOME", "")
+    import glob
+    home = os.path.expanduser("~")
+    for d in [os.path.join(home, "sova-cui")] + sorted(glob.glob(os.path.join(home, "*", "sova-cui"))):
+        for venv in ("sovapy", ".venv", "venv"):
+            py = os.path.join(d, venv, "bin", "python")
+            if os.path.isfile(py) and os.path.isdir(os.path.join(d, "sovapy", "computation")):
+                return py, d
+    return "", ""
+
+
+def analyze(out_dir, log=print, skip_ps=None, sova_python=None, sova_home=None):
+    """soapff-cui's analyses of a finished (or running) MD in out_dir: LAMMPS compute msd (self-diffusion) and SOVA
+    (PDF g(r), RDF) -> out_dir/analysis/.  Returns the summary."""
+    import importlib
+    core = import_soapff()
+    try:
+        an = importlib.import_module(core.__name__.rsplit(".", 1)[0] + ".analysis")
+    except ImportError:
+        raise RuntimeError("this soapff-cui has no analysis module; update soapff-cui")
+    return an.analyze(out_dir, skip_ps=skip_ps, sova_python=sova_python or None, sova_home=sova_home or None, log=log)
+
+
 def open_in_ovito(path):
     """soapff-cui's open_in_ovito: an output folder (traj.lammpstrj, else final.data / system.data) or a file in OVITO."""
     core = import_soapff()
@@ -95,9 +129,19 @@ def open_in_ovito(path):
     return core.open_in_ovito(path)
 
 
+def timestep_fs():
+    """time step (fs) of the in.lammps soapff-cui writes."""
+    return float(getattr(import_soapff(), "TIMESTEP_FS", 1.0))
+
+
+def md_steps(ps):
+    """number of MD steps of a run of `ps` picoseconds (soapff rounds each run to an integer)."""
+    return int(round(ps * 1000.0 / timestep_fs())) if ps > 0 else 0
+
+
 def total_md_steps(nvt_ps, npt_ps):
-    """number of MD steps in.lammps runs (1 fs time step; soapff rounds each run to an integer)."""
-    return int(round(nvt_ps * 1000)) * (nvt_ps > 0) + int(round(npt_ps * 1000)) * (npt_ps > 0)
+    """number of production MD steps in.lammps runs (NVT, then NPT)."""
+    return md_steps(nvt_ps) + md_steps(npt_ps)
 
 
 class LammpsJob:
@@ -132,11 +176,14 @@ class LammpsJob:
 
 
 class ThermoParser:
-    """follows the LAMMPS screen output: phase (minimisation / MD), thermo columns and MD progress.
-    soapff's in.lammps resets the step to 0 after minimisation, and the NPT run continues the NVT step count."""
+    """follows the LAMMPS screen output: phase (minimisation / relaxation / MD), thermo columns and progress.
+    soapff's in.lammps resets the step to 0 after the minimisation and after the relaxation NVT (relax_steps > 0, the
+    first Verlet run), and the NPT run continues the NVT step count."""
 
-    def __init__(self, md_steps):
+    def __init__(self, md_steps, relax_steps=0):
         self.md_steps = max(md_steps, 1)
+        self.relax_steps = relax_steps
+        self.runs = 0
         self.phase = "start"
         self.columns = None
         self.values = {}
@@ -148,7 +195,9 @@ class ThermoParser:
             self.phase, self.columns, self.values = "minimize", None, {}
             return True
         if s.startswith("Setting up Verlet run"):
-            self.phase, self.columns, self.values = "md", None, {}
+            self.runs += 1
+            self.phase = "relax" if (self.relax_steps > 0 and self.runs == 1) else "md"
+            self.columns, self.values = None, {}
             return True
         if s.startswith("Loop time of"):
             self.columns = None
@@ -169,10 +218,11 @@ class ThermoParser:
 
     @property
     def progress(self):
-        """0..1 over the MD steps (0 during minimisation)."""
-        if self.phase != "md" or "Step" not in self.values:
+        """0..1 over the relaxation and production MD steps (0 during minimisation)."""
+        if self.phase not in ("relax", "md") or "Step" not in self.values:
             return 0.0
-        return min(self.values["Step"] / self.md_steps, 1.0)
+        done = self.values["Step"] + (self.relax_steps if self.phase == "md" else 0)
+        return min(done / (self.md_steps + self.relax_steps), 1.0)
 
 
 def which(path_or_name):

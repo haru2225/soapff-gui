@@ -34,9 +34,10 @@ def boundary_help(b):
     return txt
 
 
-PHASE_JP = {"start": "準備中", "minimize": "構造最小化", "md": "MD"}
-DEFAULTS = dict(temp=300.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p", nproc=max(1, min(4, (os.cpu_count() or 2) // 2)),
-                threshold=0.95, cutoff=10.0, library="", lmp="", mpirun="", last_dir=os.path.expanduser("~"))
+PHASE_JP = {"start": "準備中", "minimize": "構造最小化", "relax": "緩和 NVT", "md": "MD", "analysis": "解析中"}
+DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p", nproc=max(1, min(4, (os.cpu_count() or 2) // 2)),
+                threshold=0.95, cutoff=10.0, library="", lmp="", mpirun="", last_dir=os.path.expanduser("~"),
+                dump_ps=1.0, auto_analyze=True, skip_ps="", sova_python="", sova_home="")
 
 
 def load_settings():
@@ -48,6 +49,8 @@ def load_settings():
     if not os.path.isfile(s["library"]):
         s["library"] = runner.default_library()
     lmp, mpirun = runner.find_executables()
+    if not s.get("sova_python"):
+        s["sova_python"], s["sova_home"] = runner.find_sova()
     s["lmp"] = s["lmp"] or lmp or ""
     s["mpirun"] = s["mpirun"] or mpirun or ""
     return s
@@ -110,7 +113,8 @@ class App:
         md = ttk.LabelFrame(f, text="MD の条件", padding=8)
         md.grid(row=3, column=0, columnspan=3, sticky="ew", pady=8)
         self.v = {}
-        fields = [("temp", "温度 (K)"), ("nvt_ps", "NVT (ps)"), ("npt_ps", "NPT (ps, 0 でなし)"), ("press", "圧力 (atm)")]
+        fields = [("temp", "温度 (K)"), ("relax_ps", "緩和 NVT (ps)"), ("nvt_ps", "NVT (ps)"), ("npt_ps", "NPT (ps, 0 でなし)"), ("press", "圧力 (atm)"),
+                  ("dump_ps", "出力間隔 (ps)")]
         for i, (k, lab) in enumerate(fields):
             ttk.Label(md, text=lab).grid(row=0, column=2 * i, sticky="e", padx=(8 if i else 0, 2))
             self.v[k] = tk.StringVar(value=str(self.s[k]))
@@ -148,12 +152,17 @@ class App:
         self.adv.columnconfigure(1, weight=1)
         for i, (k, lab, pick) in enumerate([("library", "SOAP ライブラリ", "file"), ("lmp", "LAMMPS (lmp)", "file"),
                                             ("mpirun", "mpirun", "file"), ("threshold", "類似度のしきい値", None),
-                                            ("cutoff", "カットオフ (Å)", None)]):
+                                            ("cutoff", "カットオフ (Å)", None),
+                                            ("skip_ps", "解析で除く平衡化 (ps、空欄で 20%)", None),
+                                            ("sova_python", "SOVA の Python（空欄でこの Python）", "file"),
+                                            ("sova_home", "SOVA のフォルダ（ソースのとき）", "dir")]):
             ttk.Label(self.adv, text=lab).grid(row=i, column=0, sticky="w")
             self.v[k] = tk.StringVar(value=str(self.s[k]))
             ttk.Entry(self.adv, textvariable=self.v[k], width=10 if pick is None else 50).grid(
                 row=i, column=1, sticky="ew" if pick else "w", padx=4)
-            if pick:
+            if pick == "dir":
+                ttk.Button(self.adv, text="選ぶ…", command=lambda k=k: self.pick_dir(k)).grid(row=i, column=2)
+            elif pick:
                 ttk.Button(self.adv, text="選ぶ…", command=lambda k=k: self.pick_file(k)).grid(row=i, column=2)
 
         bar = ttk.Frame(f)
@@ -164,10 +173,14 @@ class App:
         self.b_stop.pack(side="left", padx=4)
         self.b_inp = ttk.Button(bar, text="入力だけ作る", command=lambda: self.run(prepare_only=True))
         self.b_inp.pack(side="left", padx=4)
+        self.v_auto = tk.BooleanVar(value=bool(self.s.get("auto_analyze", True)))
+        ttk.Checkbutton(bar, text="終わったら解析", variable=self.v_auto).pack(side="left", padx=(8, 0))
         self.b_open = ttk.Button(bar, text="出力フォルダを開く", command=self.open_out)
         self.b_open.pack(side="right")
         self.b_ovito = ttk.Button(bar, text="OVITO で開く", command=self.open_ovito)
         self.b_ovito.pack(side="right", padx=4)
+        self.b_an = ttk.Button(bar, text="解析", command=self.analyze_now)
+        self.b_an.pack(side="right", padx=4)
 
         st = ttk.LabelFrame(f, text="状態", padding=8)
         st.grid(row=7, column=0, columnspan=3, sticky="ew")
@@ -222,6 +235,11 @@ class App:
         if p:
             self.v[key].set(p)
 
+    def pick_dir(self, key):
+        p = filedialog.askdirectory(title=key)
+        if p:
+            self.v[key].set(p)
+
     def open_out(self):
         d = self.v_out.get()
         if d and os.path.isdir(d):
@@ -244,23 +262,32 @@ class App:
     def collect(self):
         """read and check the form; returns a settings dict or raises ValueError with a Japanese message."""
         s = dict(self.s)
-        for k in ("temp", "nvt_ps", "npt_ps", "press", "threshold", "cutoff"):
+        for k in ("temp", "relax_ps", "nvt_ps", "npt_ps", "press", "threshold", "cutoff", "dump_ps"):
             try:
                 s[k] = float(self.v[k].get())
             except ValueError:
                 raise ValueError(f"{k} が数値ではありません：{self.v[k].get()!r}")
+        if s["dump_ps"] <= 0:
+            raise ValueError("出力間隔は正の値にしてください（拡散係数には 0.1〜0.5 ps）")
+        s["skip_ps"] = self.v["skip_ps"].get().strip()
+        if s["skip_ps"]:
+            try:
+                float(s["skip_ps"])
+            except ValueError:
+                raise ValueError("解析で除く平衡化の時間は数値か空欄にしてください")
+        s["auto_analyze"] = bool(self.v_auto.get())
         try:
             s["nproc"] = int(self.v["nproc"].get())
         except ValueError:
             raise ValueError("並列数は整数で指定してください")
-        for k in ("baro", "library", "lmp", "mpirun"):
+        for k in ("baro", "library", "lmp", "mpirun", "sova_python", "sova_home"):
             s[k] = self.v[k].get().strip()
         b = [v.get() for v in self.v_bnd]
         s["boundary"] = " ".join(b)
         if s["npt_ps"] > 0 and b != ["p", "p", "p"]:
             raise ValueError("周期でない方向があるときは NPT を使えません（真空を含む箱の圧力は決まらないため）。NPT を 0 にしてください")
-        if s["temp"] <= 0 or s["nvt_ps"] < 0 or s["npt_ps"] < 0 or s["nvt_ps"] + s["npt_ps"] <= 0:
-            raise ValueError("温度は正、NVT と NPT の長さは 0 以上（どちらかは正）にしてください")
+        if s["temp"] <= 0 or s["relax_ps"] < 0 or s["nvt_ps"] < 0 or s["npt_ps"] < 0 or s["nvt_ps"] + s["npt_ps"] <= 0:
+            raise ValueError("温度は正、緩和・NVT・NPT の長さは 0 以上（NVT か NPT のどちらかは正）にしてください")
         if not os.path.isfile(self.v_struct.get()):
             raise ValueError("初期構造のファイルを選んでください")
         if not self.v_out.get().strip():
@@ -297,7 +324,7 @@ class App:
         self.pb["value"] = 0
         self.l_pct.config(text="")
         self.stopping = False
-        md = {k: s[k] for k in ("temp", "nvt_ps", "npt_ps", "press", "baro", "boundary", "threshold", "cutoff")}
+        md = {k: s[k] for k in ("temp", "relax_ps", "nvt_ps", "npt_ps", "press", "baro", "boundary", "threshold", "cutoff", "dump_ps")}
         self.worker = threading.Thread(target=self.work, args=(self.v_struct.get(), out, s, md, lmp, mpirun, prepare_only),
                                        daemon=True)
         self.worker.start()
@@ -320,7 +347,7 @@ class App:
                 return
             self.job = runner.LammpsJob(out, lmp, mpirun, s["nproc"])
             put(("log", "\n$ " + " ".join(self.job.cmd) + f"   (in {out})\n", None))
-            tp = runner.ThermoParser(runner.total_md_steps(md["nvt_ps"], md["npt_ps"]))
+            tp = runner.ThermoParser(runner.total_md_steps(md["nvt_ps"], md["npt_ps"]), runner.md_steps(md["relax_ps"]))
             for line in self.job.lines():
                 put(("log", line + "\n", "err" if line.startswith("ERROR") else ("warn" if line.startswith("WARNING") else None)))
                 if tp.feed(line):
@@ -329,6 +356,8 @@ class App:
             if self.stopping:
                 put(("done", "停止しました", rc))
             elif rc == 0:
+                if s.get("auto_analyze"):
+                    self._analyze(out, s.get("skip_ps"), put, s.get("sova_python"), s.get("sova_home"))
                 put(("done", "完了", 0))
             else:
                 put(("done", f"LAMMPS が異常終了しました（終了コード {rc}）。ログと {out}/log.lammps を確認してください", rc))
@@ -337,6 +366,56 @@ class App:
             put(("done", f"エラー：{e}", 1))
         finally:
             self.job = None
+
+    def _analyze(self, out, skip, put, sova_python=None, sova_home=None):
+        """run the analyses (worker thread) and ask the GUI to show them."""
+        put(("phase", "解析中"))
+        put(("log", "\n解析（LAMMPS compute msd による拡散係数、SOVA による PDF と RDF）\n", None))
+        try:
+            runner.analyze(out, log=lambda m: put(("log", m + "\n", None)), skip_ps=float(skip) if skip else None,
+                           sova_python=sova_python, sova_home=sova_home)
+            put(("analysis", out))
+        except Exception as e:
+            put(("log", f"解析できませんでした：{e}\n", "warn"))
+
+    def analyze_now(self):
+        """analyse the output folder now (a finished run, or the frames written so far)."""
+        d = self.v_out.get().strip()
+        if not d or not os.path.isfile(os.path.join(d, "traj.lammpstrj")):
+            messagebox.showerror("soapff-GUI", "出力フォルダにトラジェクトリ（traj.lammpstrj）がありません。先に MD を実行してください")
+            return
+        skip = self.v["skip_ps"].get().strip()
+        sp, sh = self.v["sova_python"].get().strip(), self.v["sova_home"].get().strip()
+        self.b_an.config(state="disabled")
+        def go():
+            self._analyze(os.path.abspath(d), skip, self.q.put, sp, sh)
+            self.q.put(("analysis_end",))
+        threading.Thread(target=go, daemon=True).start()
+
+    def show_analysis(self, out):
+        """a window with the summary and the figure of out/analysis."""
+        dest = os.path.join(out, "analysis")
+        w = tk.Toplevel(self.root)
+        w.title(f"解析結果 – {os.path.basename(out)}")
+        txt = scrolledtext.ScrolledText(w, height=12, width=110, font=("Menlo", 11))
+        txt.insert("end", open(os.path.join(dest, "summary.txt")).read())
+        txt.config(state="disabled")
+        txt.pack(fill="x", padx=8, pady=(8, 4))
+        png = os.path.join(dest, "analysis.png")
+        try:
+            img = tk.PhotoImage(file=png)
+            k = max(1, -(-img.width() // 900))                  # shrink to <= 900 px wide
+            img = img.subsample(k, k) if k > 1 else img
+            lab = ttk.Label(w, image=img)
+            lab.image = img
+            lab.pack(padx=8)
+        except tk.TclError as e:
+            ttk.Label(w, text=f"図を表示できません：{e}").pack()
+        bar = ttk.Frame(w)
+        bar.pack(fill="x", padx=8, pady=8)
+        ttk.Button(bar, text="図を開く", command=lambda: open_folder(png)).pack(side="left")
+        ttk.Button(bar, text="解析フォルダを開く（CSV）", command=lambda: open_folder(dest)).pack(side="left", padx=4)
+        ttk.Button(bar, text="閉じる", command=w.destroy).pack(side="right")
 
     def stop(self):
         self.stopping = True
@@ -362,6 +441,10 @@ class App:
                     self.show_report(msg[1])
                 elif kind == "thermo":
                     self.show_thermo(*msg[1:])
+                elif kind == "analysis":
+                    self.show_analysis(msg[1])
+                elif kind == "analysis_end":
+                    self.b_an.config(state="normal")
                 elif kind == "done":
                     self.set_running(False)
                     self.l_phase.config(text="完了" if msg[2] == 0 else "終了")
@@ -377,7 +460,7 @@ class App:
 
     def show_thermo(self, phase, v, progress):
         self.l_phase.config(text=PHASE_JP.get(phase, phase))
-        if phase == "md":
+        if phase in ("relax", "md"):
             self.pb["value"] = progress
             self.l_pct.config(text=f"{100 * progress:.0f}%")
         keys = [("Step", "step {:.0f}"), ("Temp", "T {:.1f} K"), ("Press", "P {:.0f} atm"), ("PotEng", "PE {:.1f}"),
