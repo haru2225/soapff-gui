@@ -28,7 +28,7 @@ soapff-gui              # = python -m soapff_gui
 - Python には tkinter が必要です（多くの配布に含まれます）。
 - LAMMPS（`lmp`）と、並列にするなら `mpirun` は別に必要です（SSH で別のコンピュータを使うときは、そのコンピュータの LAMMPS を使います）。
 - 解析の PDF・RDF には SOVA（sovapy）が要ります。`pip install -e "soapff-gui[sova]"` で一緒に入れるか、計算設定で SOVA の入った Python を指定します。
-- コマンドで使う `soapff-cui`（`soapff-cui make 構造ファイル -o 出力 --library …`）も一緒に入ります。ライブラリを作り直すなどの開発は、別のリポジトリ soapff-cui で行い、その `soapff_cui/` をこちらの `src/soapff_cui/` に写します（mincharge の import は `._clayff` に置き換え）。
+- コマンドで使う `soapff-cui`（`soapff-cui make 構造ファイル -o 出力 --library …`）も一緒に入ります。力場の作成と解析の本体は `src/soapff_cui/` です。
 
 ## 起動
 
