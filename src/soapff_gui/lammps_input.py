@@ -1,6 +1,5 @@
 """in.lammps as a list of lines for the editor of soapff-GUI: split a line into command / arguments / comment, name the
-arguments of the common commands (the form under the editor), count the MD steps of the runs (progress bar)."""
-import re
+arguments (the form under the editor), the basic part up to the minimisation, unique IDs, progress over the runs."""
 
 # command -> labels of its first arguments; the remaining arguments get generic labels
 SCHEMA = {
@@ -41,24 +40,6 @@ FIX_STYLE = {
     "shake": ["ID", "対象グループ", "スタイル", "許容誤差", "反復", "出力間隔"],
     "wall/reflect": ["ID", "対象グループ", "スタイル"],
 }
-
-# commands offered by "＋ コマンドを挿入" (label, line)
-TEMPLATES = [
-    ("NVT（温度一定）", "fix nvt all nvt temp 300 300 100"),
-    ("NPT（温度・圧力一定、面に垂直）", "fix npt all npt temp 300 300 100 z 1.0 1.0 1000"),
-    ("fix を外す", "unfix nvt"),
-    ("MD を回す", "run 20000"),
-    ("時間刻み", "timestep 0.5"),
-    ("出力間隔（thermo）", "thermo 1000"),
-    ("速度を与える", "velocity all create 300 4928459 mom yes rot no dist gaussian"),
-    ("エネルギー最小化", "minimize 1.0e-6 1.0e-6 5000 50000"),
-    ("トラジェクトリの出力", "dump d2 all custom 2000 traj2.lammpstrj id type x y z"),
-    ("平均二乗変位", "compute msd_all all msd"),
-    ("構造の書き出し", "write_data final.data"),
-    ("ステップを 0 に戻す", "reset_timestep 0"),
-    ("コメント", "# コメント"),
-]
-
 
 def split(line):
     """(command, args, comment) of one input line; command '' for a blank or comment-only line."""
@@ -125,9 +106,6 @@ def describe_run(lines, index):
             fixes.pop(a[0], None)
     kinds = sorted(set(fixes.values()))
     return "・".join(k.upper() for k in kinds) if kinds else "MD"
-
-
-KEYWORD = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_/]*)")
 
 
 class StepTracker:

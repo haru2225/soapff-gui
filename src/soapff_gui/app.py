@@ -155,10 +155,6 @@ class App:
         root.bind_all("<Command-n>" if sys.platform == "darwin" else "<Control-n>", lambda e: self.new_calc())
         root.bind_all("<Command-z>" if sys.platform == "darwin" else "<Control-z>", lambda e: self.do_undo())
         root.after(100, self.poll)
-        try:
-            runner.import_soapff()
-        except ImportError as e:
-            root.after(200, lambda: messagebox.showerror("soapff-GUI", f"soapff-cui が見つかりません。\n{e}"))
         self.refresh_recent()
         self.show_tab("in.lammps")
         self.update_status()
@@ -495,7 +491,7 @@ class App:
         ed.configure(state="normal")
         ed.delete("1.0", "end")
         if not self.lines:
-            ed.insert("end", f"\n   構造ファイルを選ぶと、soapff-cui が LAMMPS の入力（in.lammps、system.settings）を作り、ここに表示します。\n", "comment")
+            ed.insert("end", "\n   構造ファイルを選ぶと、soapff-cui が LAMMPS の入力（in.lammps、system.settings）を作り、ここに表示します。\n", "comment")
             ed.insert("end", "   上の「新規計算」か「構造を変更」から始めてください。\n", "comment")
         for i, line in enumerate(self.lines):
             sel = i == self.sel
@@ -717,16 +713,6 @@ class App:
         self.build_form()
         self.schedule_save()
 
-    def insert_menu(self):
-        if not self.lines:
-            messagebox.showinfo("soapff-GUI", "先に構造ファイルを選んで、入力を作ってください")
-            return
-        m = tk.Menu(self.root, tearoff=0)
-        for label, line in L.TEMPLATES:
-            m.add_command(label=f"{label}    {line}", command=lambda l=line: self.insert_line(l))
-        x, y = self.b_insert_anchor.winfo_rootx() + 14, self.b_insert_anchor.winfo_rooty() - 10
-        m.tk_popup(x, y)
-
     def open_catalog(self, kind):
         """LAMMPS fix / compute styles (and run, timestep ...) to insert after the selected line of in.lammps."""
         if not self.docs["in.lammps"]:
@@ -905,13 +891,6 @@ class App:
             return
         self.insert_lines([""])
         self.focus_form()
-
-    def insert_line(self, line):
-        self.push_undo()
-        i = (self.sel + 1) if self.sel is not None else len(self.lines)
-        self.lines.insert(i, line)
-        self.select(i)
-        self.schedule_save()
 
     def delete_line(self):
         if self.tab in READONLY:
@@ -1352,7 +1331,8 @@ class App:
                     r = self.make_remote(c, pw)
                     info = r.check()
                     vers = "　".join(f"{k[15:-1]}：{v}" for k, v in info.items() if k.startswith("mpirun_version["))
-                    msg = (f"接続できました：{c['name']} = {info.get('host')}（{info.get('os')}、CPU {info.get('cpus')}）\n"
+                    msg = (f"接続できました：{c['name']} = {info.get('host')}（{info.get('os')}、CPU {info.get('cpus')}、"
+                           f"物理コア {info.get('cores') or '?'}。並列数は物理コア数以下に）\n"
                            f"lmp：{info.get('lmp')}（{info.get('lmp_mpi') or 'MPI 不明'}）\n"
                            f"使う mpirun：{info.get('mpirun_used')}　{vers}\nフォルダ：{info.get('root')}")
                     if info.get("mpi_warning"):
@@ -1592,7 +1572,7 @@ class App:
                 ("user", "ユーザー", ""), ("port", "ポート", "SSH のポート（既定 22）"),
                 ("root", "相手側のフォルダ", "計算を置くフォルダ（ホームからの相対パス可）"),
                 ("lmp", "相手側の lmp", "名前かフルパス"), ("mpirun", "相手側の mpirun", "名前かフルパス"),
-                ("setup", "最初に実行するコマンド", "例：module load lammps、source ~/.bashrc"), ("nproc", "並列数", ""))
+                ("setup", "最初に実行するコマンド", "例：module load lammps、source ~/.bashrc"), ("nproc", "並列数", "相手の物理コア数以下"))
         for i, (k, lab, note) in enumerate(rows):
             ttk.Label(f, text=lab).grid(row=i, column=0, sticky="w", pady=4, padx=(0, 10))
             v[k] = tk.StringVar(value=str(c.get(k, "")))
@@ -1731,13 +1711,21 @@ class App:
             r = self.make_remote(comp, password)
             put(("phase", f"{comp['name']} に接続中"))
             info = r.check()
-            put(("log", f"接続：{info.get('host')}（{info.get('os')}、CPU {info.get('cpus')}）\n", None))
+            put(("log", f"接続：{info.get('host')}（{info.get('os')}、CPU {info.get('cpus')}、物理コア {info.get('cores') or '?'}）\n", None))
             put(("log", f"lmp：{info.get('lmp')}（{info.get('lmp_mpi') or 'MPI 不明'}）\nmpirun：{info.get('mpirun_used')}\n", None))
             if info.get("mpi_warning") and int(comp.get("nproc", 1)) > 1:
                 put(("log", "WARNING " + info["mpi_warning"] + "\n", "warn"))
             rdir = r.upload(self.out, name)
             put(("log", f"入力を送りました：{r.target}:{rdir}\n", None))
-            pid = r.start(name, int(comp.get("nproc", 1)))
+            nproc = int(comp.get("nproc", 1))
+            cores = int(info.get("cores") or 0) if str(info.get("cores") or "").isdigit() else 0
+            if cores and nproc > cores:
+                put(("log", f"WARNING 並列数 {nproc} が相手の物理コア数 {cores} より多いので、{cores} 並列にします"
+                            "（Open MPI は既定で物理コア数までしか起動しません。ハイパースレッドでは LAMMPS はほとんど速くなりません）\n",
+                     "warn"))
+                nproc = cores
+            comp = dict(comp, nproc=nproc)
+            pid = r.start(name, nproc)
             self.rjob = (r, name, pid)
             put(("log", f"LAMMPS を起動しました（{comp['name']}、pid {pid}、{comp.get('nproc')} 並列）。"
                         "接続が切れても計算は続きます\n", None))
@@ -1960,9 +1948,6 @@ class App:
 
 
 def main():
-    if "--classic" in sys.argv:
-        from .app_classic import main as classic
-        return classic()
     root = tk.Tk()
     App(root)
     root.mainloop()

@@ -1,0 +1,111 @@
+"""What the GUI does besides the window: the bundled soapff-cui (force field, analysis, OVITO), the library, LAMMPS and
+mpirun on this computer, SOVA, and running LAMMPS."""
+import glob
+import os
+import shutil
+import signal
+import subprocess
+import sys
+
+from soapff_cui import core
+
+LIBRARY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "library_clayff_bulk.npz")
+
+
+def import_soapff():
+    """the force-field writer (soapff_cui.core, bundled)."""
+    return core
+
+
+def default_library():
+    return LIBRARY
+
+
+def which(path_or_name):
+    """absolute path of an executable given by path or name, or None."""
+    if not path_or_name:
+        return None
+    if os.path.isfile(path_or_name):
+        return os.path.abspath(path_or_name)
+    return shutil.which(path_or_name)
+
+
+def find_executables():
+    """(lmp, mpirun): first next to this Python, then on PATH; the mpirun next to lmp (same MPI) is preferred."""
+    dirs = [os.path.dirname(sys.executable)] + os.environ.get("PATH", "").split(os.pathsep)
+
+    def first(names):
+        for d in dirs:
+            for n in names:
+                p = os.path.join(d, n)
+                if os.path.isfile(p) and os.access(p, os.X_OK):
+                    return p
+        return None
+    lmp = first(["lmp", "lmp_mpi", "lmp_serial"])
+    mpirun = None
+    if lmp and not lmp.endswith("lmp_serial"):
+        mpirun = next((os.path.join(os.path.dirname(lmp), n) for n in ("mpirun", "mpiexec")
+                       if os.path.isfile(os.path.join(os.path.dirname(lmp), n))), None) or first(["mpirun", "mpiexec"])
+    return lmp, mpirun
+
+
+def find_sova():
+    """(python, home) of SOVA for the PDF / RDF: ("", "") when sovapy is importable here; else $SOVA_PYTHON / $SOVA_HOME;
+    else a checkout named sova-cui in the home folder or one level below."""
+    try:
+        import sovapy  # noqa: F401
+        return "", ""
+    except ImportError:
+        pass
+    if os.environ.get("SOVA_PYTHON"):
+        return os.environ["SOVA_PYTHON"], os.environ.get("SOVA_HOME", "")
+    home = os.path.expanduser("~")
+    for d in [os.path.join(home, "sova-cui")] + sorted(glob.glob(os.path.join(home, "*", "sova-cui"))):
+        for venv in ("sovapy", ".venv", "venv"):
+            py = os.path.join(d, venv, "bin", "python")
+            if os.path.isfile(py) and os.path.isdir(os.path.join(d, "sovapy", "computation")):
+                return py, d
+    return "", ""
+
+
+def prepare(structure, workdir, library=None, log=print, **md):
+    """soapff-cui make: structure -> workdir/{system.data, system.settings, in.lammps, charges.csv, report.json}."""
+    return core.make(structure, workdir, library or LIBRARY, log=log, **md)
+
+
+def analyze(out_dir, log=print, skip_ps=None, sova_python=None, sova_home=None):
+    """diffusion from LAMMPS compute msd and SOVA PDF / RDF -> out_dir/analysis/."""
+    from soapff_cui import analysis
+    return analysis.analyze(out_dir, skip_ps=skip_ps, sova_python=sova_python or None, sova_home=sova_home or None, log=log)
+
+
+def open_in_ovito(path):
+    return core.open_in_ovito(path)
+
+
+class LammpsJob:
+    """lmp -in in.lammps in workdir (with mpirun when nproc > 1); lines() yields the screen output."""
+
+    def __init__(self, workdir, lmp, mpirun=None, nproc=1):
+        cmd = [mpirun, "-np", str(nproc), lmp] if nproc > 1 and mpirun else [lmp]
+        self.cmd = cmd + ["-in", "in.lammps", "-log", "log.lammps"]
+        env = dict(os.environ, OMP_NUM_THREADS="1")
+        env.setdefault("FI_PROVIDER", "tcp")    # MPICH/libfabric on a laptop
+        self.proc = subprocess.Popen(self.cmd, cwd=workdir, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                     text=True, bufsize=1, start_new_session=True)
+
+    def lines(self):
+        for line in self.proc.stdout:
+            yield line.rstrip("\n")
+        self.proc.wait()
+
+    def stop(self):
+        if self.proc.poll() is None:
+            try:
+                os.killpg(self.proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+
+    @property
+    def returncode(self):
+        return self.proc.poll()

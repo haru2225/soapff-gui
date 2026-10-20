@@ -1,11 +1,8 @@
 # soapff-GUI：粘土鉱物の初期構造を選ぶだけで LAMMPS を回す
 
-[soapff-cui](../soapff-cui) のウィンドウ版です。初期構造のファイルを選んで「実行」を押すと、
+構造ファイル（元素・座標・箱だけ）を選ぶと、同梱の soapff-cui が SOAP で全原子の電荷と ClayFF の型を決め、LAMMPS の入力（`system.data`、`system.settings`、エネルギー最小化までの `in.lammps`）を作ります。その下に MD（fix、compute、run など）を一覧から選んで足し、「計算を開始」でこのコンピュータか SSH の先の LAMMPS を回し、拡散係数と PDF・RDF の解析、OVITO での表示までを行います。力場は ClayFF（Cygan et al. 2004 の表 1・表 2）と柔軟な SPC 水です（時間刻み 0.5 fs）。
 
-1. soapff-cui が出力フォルダに LAMMPS の入力一式（`system.data`、`system.settings`、`in.lammps`、`charges.csv`、`report.json`）を書き出し、
-2. そのまま LAMMPS（`mpirun -np N lmp -in in.lammps`）を起動します。LAMMPS は、最小化 → 10 ps の緩和 NVT（記録しない）→ 本計算の NVT（→ 指定すれば NPT）の順に、ClayFF（Cygan et al. 2004 の表 1・表 2）と柔軟な SPC 水、時間刻み 0.5 fs で回ります。
-
-入力ファイルを開いたり書き換えたりする必要はありません。SOAP のライブラリは、隣の soapff-cui の `examples/minerals/library_clayff_bulk.npz`（Na モンモリロナイトと 4 つの鉱物のバルクの結晶による SOAP と電荷の一対一の対応、5 構造、3,432 原子）を自動で使うので、指定は不要です。それが見つからないときは、GUI に同梱したコピー（`soapff_gui/data/library_clayff_bulk.npz`）を使います。以前の設定で別のライブラリを保存しているときは、「詳細設定」で変えてください。
+SOAP のライブラリ（Na モンモリロナイトと 4 つの鉱物のバルクの結晶による SOAP と電荷の一対一の対応、5 構造、3,432 原子）は `src/soapff_gui/data/library_clayff_bulk.npz` に同梱していて、指定は不要です。別のライブラリは「計算設定」の「ライブラリと詳細」で選べます。
 
 ## 例
 
@@ -27,27 +24,21 @@ git clone git@github.com:haru2225/soapff-gui.git && pip install -e soapff-gui
 soapff-gui              # = python -m soapff_gui
 ```
 
-- numpy、scipy、ASE、dscribe、matplotlib は pip が自動で入れます。SOAP のライブラリ（`soapff_gui/data/library_clayff_bulk.npz`）も入っています。
+- numpy、scipy、ASE、dscribe、matplotlib は pip が自動で入れます。SOAP のライブラリも入っています。
 - Python には tkinter が必要です（多くの配布に含まれます）。
 - LAMMPS（`lmp`）と、並列にするなら `mpirun` は別に必要です（SSH で別のコンピュータを使うときは、そのコンピュータの LAMMPS を使います）。
 - 解析の PDF・RDF には SOVA（sovapy）が要ります。`pip install -e "soapff-gui[sova]"` で一緒に入れるか、計算設定で SOVA の入った Python を指定します。
-- コマンドで使う `soapff-cui`（`soapff-cui make 構造ファイル -o 出力 --library …`）も一緒に入ります。ライブラリを作り直すなどの開発は、別のリポジトリ soapff-cui で行い、`python tools/sync_soapff_cui.py ../soapff-cui` でこちらに写します。
+- コマンドで使う `soapff-cui`（`soapff-cui make 構造ファイル -o 出力 --library …`）も一緒に入ります。ライブラリを作り直すなどの開発は、別のリポジトリ soapff-cui で行い、その `soapff_cui/` をこちらの `src/soapff_cui/` に写します（mincharge の import は `._clayff` に置き換え）。
 
 ## 起動
 
 ```
-# A. macOS：Finder で soapff-gui.command をダブルクリック
-#    （Python は既定で ~/ScoreMD/.pixi/envs/default/bin/python。PY で変えられます）
-
-# B. ターミナルから
-PYTHONPATH=~/clay/soapff-gui ~/ScoreMD/.pixi/envs/default/bin/python -m soapff_gui
+soapff-gui              # = python -m soapff_gui
 ```
 
-LAMMPS（`lmp`、`lmp_mpi`、`lmp_serial`）と `mpirun` は、Python と同じ環境の `bin` を先に、次に PATH を探します。見つからないときは「計算設定」の「実行先」で場所を指定してください。
+LAMMPS（`lmp`、`lmp_mpi`、`lmp_serial`）と `mpirun` は、Python と同じ環境の `bin` を先に、次に PATH を探します（`lmp` と同じフォルダの `mpirun` を優先）。見つからないときは「計算設定」の「実行先」で場所を指定してください。
 
 ## 画面
-
-![画面の構成](design/soapff-gui-ui-concept.png)
 
 | 場所 | 内容 |
 |---|---|
@@ -59,7 +50,7 @@ LAMMPS（`lmp`、`lmp_mpi`、`lmp_serial`）と `mpirun` は、Python と同じ�
 | 実行 | 実行先（このコンピュータ、または登録したコンピュータ）、「計算を開始」、状態（段階と進み具合）、温度・圧力・ポテンシャルエネルギー、実行ログ。「解析」「OVITO で開く」「フォルダ」 |
 | 状態の帯 | 構造と原子数、実行先 |
 
-進み具合は `in.lammps` の `run` の合計ステップに対する割合です（行を直すと自動で変わります）。前の画面は `soapff-gui --classic`（`python -m soapff_gui --classic`）で使えます。
+進み具合は `in.lammps` の `run` の合計ステップに対する割合です（行を直すと自動で変わります）。
 
 ### fix・compute の追加
 
@@ -102,10 +93,16 @@ soapff-cui の出力（`system.data`、`system.settings`、`in.lammps`、`charge
 
 ## 構成
 
-- `soapff_gui/runner.py`：GUI を使わない部分（soapff と LAMMPS を探す、soapff-cui の `make` を呼ぶ、LAMMPS を起動する）。
-- `soapff_gui/lammps_input.py`：`in.lammps` を行ごとに扱う部分（コマンドと引数への分解、欄の名前、挿入のひな形、`run` のステップ数からの進み具合）。
-- `soapff_gui/remote.py`：SSH で別のコンピュータを使う部分（`ssh` / `scp`、接続の共有、パスワードは `SSH_ASKPASS` で渡して保存しない、`nohup` での起動と停止、結果の受け取り）。
-- `soapff_gui/app.py`：tkinter のウィンドウ（design/soapff-gui-ui-concept.png の構成）。計算は別スレッドで行い、画面はキューで更新します。`app_classic.py` は前の画面です。
+```
+src/soapff_gui/   app.py           ウィンドウ（tkinter）。計算は別スレッドで行い、画面はキューで更新
+                  lammps_input.py  in.lammps を行ごとに扱う（分解、欄の名前、最小化までの基本部分、ID、進み具合）
+                  catalog.py       追加できる LAMMPS の fix・compute・その他のコマンドの一覧
+                  remote.py        SSH で別のコンピュータを使う（ssh / scp、nohup での起動と停止、受け取り）
+                  runner.py        同梱の soapff-cui、LAMMPS・mpirun・SOVA の場所、LAMMPS の起動
+                  data/            SOAP のライブラリ（library_clayff_bulk.npz）
+src/soapff_cui/   同梱の soapff-cui（構造ファイル → ClayFF の LAMMPS 入力、解析）。_clayff は型付けの部品
+examples/         例：Na モンモリロナイト 2 水和層
+```
 
 ## 限界
 

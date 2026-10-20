@@ -3,8 +3,7 @@
 The force field is written here (soapff-cui), the three input files are copied to <remote_root>/<name>/ on the remote
 computer, LAMMPS is started there with nohup (it keeps running if the connection drops), its screen output is followed
 with tail, and the results are copied back.  One SSH connection is shared by all commands (ControlMaster), so a password
-is asked once; it is handed to ssh through SSH_ASKPASS and never written to disk.  Key login (recommended) needs no
-password: register_key() copies the public key once (ssh-copy-id)."""
+is asked once; it is handed to ssh through SSH_ASKPASS and never written to disk (an empty password: key login)."""
 import os
 import shlex
 import stat
@@ -131,6 +130,9 @@ class Remote:
         q = shlex.quote
         body = ("echo host=$(hostname); echo os=$(uname -sm); "
                 "echo cpus=$( (nproc || sysctl -n hw.ncpu) 2>/dev/null); "
+                # physical cores (Open MPI allows that many processes by default; hyperthreads hardly speed up LAMMPS)
+                "C=$(lscpu -p=core,socket 2>/dev/null | grep -v '^#' | sort -u | wc -l | tr -d ' '); "
+                "[ \"${C:-0}\" -gt 0 ] 2>/dev/null || C=$(sysctl -n hw.physicalcpu 2>/dev/null); echo cores=$C; "
                 f"L=$(command -v {q(self.lmp)}); echo lmp=${{L:-NOTFOUND}}; "
                 f"M=$(command -v {q(self.mpirun)}); echo mpirun=${{M:-NOTFOUND}}; "
                 'if [ -n "$L" ] && [ -x "$(dirname "$L")/mpirun" ]; then echo mpirun_next=$(dirname "$L")/mpirun; fi; '
@@ -147,18 +149,6 @@ class Remote:
         info["mpirun_used"] = self.mpirun_used
         info["mpi_warning"] = mpi_warning(info, self.mpirun_used)
         return info
-
-    def register_key(self, pubkey=None):
-        """copy the public key into the remote ~/.ssh/authorized_keys (ssh-copy-id); needs the password once."""
-        pub = pubkey or next((p for p in (os.path.expanduser(f"~/.ssh/id_{k}.pub") for k in ("ed25519", "rsa", "ecdsa"))
-                              if os.path.isfile(p)), None)
-        if not pub:
-            raise RemoteError("公開鍵（~/.ssh/id_ed25519.pub など）がありません。ssh-keygen -t ed25519 で作ってください")
-        cmd = ["ssh-copy-id", "-i", pub, "-p", str(self.port), "-o", "StrictHostKeyChecking=accept-new", self.target]
-        p = subprocess.run(cmd, env=self._env(), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
-        if p.returncode != 0:
-            raise RemoteError(explain(p.stderr + p.stdout))
-        return pub
 
     def run_dir(self, name):
         return f"{self.remote_root}/{name}"
@@ -221,21 +211,6 @@ class Remote:
         tree = ("k() { for c in $(pgrep -P $1 2>/dev/null); do k $c; done; kill -TERM $1 2>/dev/null; }; "
                 f"k {int(pid)}; true")
         self.run(tree, check=False)
-
-    def download(self, name, local_dir):
-        """copy the results back into local_dir."""
-        rdir = self.run_dir(name)
-        os.makedirs(local_dir, exist_ok=True)
-        _, out, _ = self.run(f"cd {shlex.quote(rdir)} && ls {' '.join(RESULTS)} 2>/dev/null", check=False)
-        names = [n for n in out.split() if n]
-        if not names:
-            return []
-        p = subprocess.run([self.scp_cmd, "-P", str(self.port)] + self._opts() + [f"{self.target}:{rdir}/{n}" for n in names]
-                           + [local_dir + "/"], env=self._env(), stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                           timeout=3600)
-        if p.returncode != 0:
-            raise RemoteError(explain(p.stderr) or "結果を受け取れませんでした")
-        return names
 
     def list_dir(self, path=None):
         """the folders and files in a remote folder (default: the folder of the runs): [(name, is_dir)]."""

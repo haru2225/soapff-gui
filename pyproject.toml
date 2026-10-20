@@ -18,7 +18,7 @@ soapff-gui = "soapff_gui.app:main"
 soapff-cui = "soapff_cui.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["soapff_gui*", "soapff_cui*"]
+where = ["src"]
 
 [tool.setuptools.package-data]
 soapff_gui = ["data/*.npz"]
