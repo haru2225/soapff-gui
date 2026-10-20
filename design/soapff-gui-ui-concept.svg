@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000">
+<defs>
+ <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity=".12"/></filter>
+</defs>
+<!-- desktop application frame -->
+<rect width="1440" height="1000" fill="#e9edf0"/>
+<!-- native title bar -->
+<rect width="1440" height="34" fill="#f5f6f7"/><line x1="0" y1="33.5" x2="1440" y2="33.5" stroke="#cbd1d6"/>
+<circle cx="17" cy="17" r="5" fill="#d7dadd"/><circle cx="35" cy="17" r="5" fill="#d7dadd"/><circle cx="53" cy="17" r="5" fill="#d7dadd"/>
+<text x="720" y="22" text-anchor="middle" fill="#45525d" font-family="Arial,sans-serif" font-size="12" font-weight="600">soapff-GUI — 新しい計算</text>
+<!-- app menu -->
+<rect y="34" width="1440" height="34" fill="#fff"/><line x1="0" y1="67.5" x2="1440" y2="67.5" stroke="#d5dbe0"/>
+<text x="22" y="56" fill="#23313b" font-family="Arial,sans-serif" font-size="13" font-weight="700">soapff</text>
+<text x="91" y="56" fill="#45525d" font-family="Arial,sans-serif" font-size="12">ファイル</text><text x="151" y="56" fill="#45525d" font-family="Arial,sans-serif" font-size="12">編集</text><text x="205" y="56" fill="#45525d" font-family="Arial,sans-serif" font-size="12">表示</text><text x="265" y="56" fill="#45525d" font-family="Arial,sans-serif" font-size="12">計算</text><text x="325" y="56" fill="#45525d" font-family="Arial,sans-serif" font-size="12">ヘルプ</text>
+<text x="1413" y="56" text-anchor="end" fill="#67737d" font-family="Arial,sans-serif" font-size="11">soapff-GUI  v0.1</text>
+<!-- toolbar -->
+<rect y="68" width="1440" height="56" fill="#f8f9fa"/><line x1="0" y1="123.5" x2="1440" y2="123.5" stroke="#cbd2d8"/>
+<rect x="18" y="79" width="102" height="34" rx="4" fill="#fff" stroke="#cbd2d8"/><text x="69" y="101" text-anchor="middle" fill="#384751" font-family="Arial,sans-serif" font-size="12">新規計算</text>
+<line x1="136" y1="80" x2="136" y2="112" stroke="#d2d8dc"/><text x="155" y="100" fill="#68757f" font-family="Arial,sans-serif" font-size="12">計算設定</text><text x="224" y="100" fill="#9aa3aa" font-family="Arial,sans-serif" font-size="12">›</text><text x="244" y="100" fill="#68757f" font-family="Arial,sans-serif" font-size="12">実行・解析</text>
+<rect x="1292" y="79" width="130" height="34" rx="4" fill="#216e83"/><text x="1357" y="101" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="12" font-weight="600">計算を開始</text>
+<!-- work area -->
+<rect x="0" y="124" width="1440" height="824" fill="#e9edf0"/>
+<!-- left project navigator -->
+<rect x="0" y="124" width="226" height="824" fill="#f4f6f7"/><line x1="225.5" y1="124" x2="225.5" y2="948" stroke="#cbd2d8"/>
+<text x="20" y="155" fill="#68757f" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing=".8">プロジェクト</text>
+<rect x="10" y="170" width="206" height="32" rx="4" fill="#dce9ed"/><rect x="10" y="170" width="3" height="32" fill="#28788d"/><text x="25" y="191" fill="#244c5a" font-family="Arial,sans-serif" font-size="12" font-weight="600">▣　新しい計算</text>
+<text x="25" y="232" fill="#4c5963" font-family="Arial,sans-serif" font-size="12">▤　計算履歴</text><text x="25" y="264" fill="#4c5963" font-family="Arial,sans-serif" font-size="12">▧　構造ライブラリ</text>
+<line x1="16" y1="286" x2="210" y2="286" stroke="#d7dde1"/><text x="20" y="311" fill="#68757f" font-family="Arial,sans-serif" font-size="10" font-weight="700" letter-spacing=".8">最近使った計算</text>
+<circle cx="24" cy="339" r="3" fill="#5d9a80"/><text x="36" y="343" fill="#48565f" font-family="Arial,sans-serif" font-size="11">montmorillonite_2W</text><text x="36" y="358" fill="#87929a" font-family="Arial,sans-serif" font-size="10">完了 · 2 時間前</text>
+<circle cx="24" cy="386" r="3" fill="#5d9a80"/><text x="36" y="390" fill="#48565f" font-family="Arial,sans-serif" font-size="11">quartz_bulk</text><text x="36" y="405" fill="#87929a" font-family="Arial,sans-serif" font-size="10">完了 · 昨日</text>
+<!-- main content heading -->
+<text x="250" y="160" fill="#26343e" font-family="Arial,sans-serif" font-size="19" font-weight="700">入力ファイル</text><text x="250" y="182" fill="#6e7a83" font-family="Arial,sans-serif" font-size="11">コマンドの行を選択して編集できます。</text>
+<!-- selected structure and file controls -->
+<rect x="250" y="198" width="1170" height="43" rx="4" fill="#fff" stroke="#cbd2d8"/><text x="266" y="216" fill="#849099" font-family="Arial,sans-serif" font-size="9">構造</text><text x="266" y="232" fill="#35434c" font-family="Arial,sans-serif" font-size="11" font-weight="600">montmorillonite_2W.extxyz　·　2,502 atoms</text><line x1="650" y1="206" x2="650" y2="233" stroke="#e0e4e7"/><text x="670" y="216" fill="#849099" font-family="Arial,sans-serif" font-size="9">出力ファイル</text><text x="670" y="232" fill="#35434c" font-family="monospace" font-size="11">in.lammps</text><rect x="1300" y="207" width="102" height="25" rx="3" fill="#f8f9fa" stroke="#cbd2d8"/><text x="1351" y="224" text-anchor="middle" fill="#43525c" font-family="Arial,sans-serif" font-size="10">構造を変更</text>
+<!-- central input script editor -->
+<rect x="250" y="254" width="1170" height="480" rx="5" fill="#fff" stroke="#bfc9cf" filter="url(#shadow)"/><rect x="250" y="254" width="1170" height="38" rx="5" fill="#f3f5f6"/><path d="M250 291.5h1170" stroke="#cbd2d8"/><rect x="267" y="261" width="87" height="25" rx="3" fill="#fff" stroke="#cbd2d8"/><text x="310" y="278" text-anchor="middle" fill="#35434c" font-family="monospace" font-size="11" font-weight="600">in.lammps</text><text x="1378" y="278" text-anchor="end" fill="#77848d" font-family="Arial,sans-serif" font-size="10">LAMMPS input　·　自動保存</text>
+<rect x="251" y="293" width="1168" height="440" fill="#fff"/>
+<!-- selectable source lines -->
+<g font-family="monospace" font-size="12">
+ <rect x="251" y="294" width="1168" height="23" fill="#f8f9fa"/><text x="273" y="310" fill="#a2abb1" text-anchor="end">1</text><text x="294" y="310" fill="#75828a"># SOAPFF generated input</text>
+ <text x="273" y="334" fill="#a2abb1" text-anchor="end">2</text><text x="294" y="334" fill="#7257a3">units</text><text x="339" y="334" fill="#35434c">real</text>
+ <rect x="251" y="340" width="1168" height="23" fill="#f8f9fa"/><text x="273" y="358" fill="#a2abb1" text-anchor="end">3</text><text x="294" y="358" fill="#7257a3">atom_style</text><text x="385" y="358" fill="#35434c">charge</text>
+ <text x="273" y="382" fill="#a2abb1" text-anchor="end">4</text><text x="294" y="382" fill="#7257a3">boundary</text><text x="370" y="382" fill="#35434c">p p p</text><text x="650" y="382" fill="#8b969d" font-family="Arial,sans-serif" font-size="10">クリックして編集</text>
+ <rect x="251" y="388" width="1168" height="23" fill="#f8f9fa"/><text x="273" y="406" fill="#a2abb1" text-anchor="end">5</text><text x="294" y="406" fill="#7257a3">read_data</text><text x="385" y="406" fill="#35434c">structure.data</text>
+ <text x="273" y="430" fill="#a2abb1" text-anchor="end">6</text><text x="294" y="430" fill="#7257a3">pair_style</text><text x="385" y="430" fill="#35434c">soap</text>
+ <rect x="251" y="436" width="1168" height="23" fill="#f8f9fa"/><text x="273" y="454" fill="#a2abb1" text-anchor="end">7</text><text x="294" y="454" fill="#7257a3">pair_coeff</text><text x="385" y="454" fill="#35434c">* *</text>
+ <text x="273" y="478" fill="#a2abb1" text-anchor="end">8</text><text x="294" y="478" fill="#7257a3">thermo_style</text><text x="412" y="478" fill="#35434c">custom step temp pe ke etotal press</text><text x="789" y="478" fill="#8b969d" font-family="Arial,sans-serif" font-size="10">クリックして編集</text>
+ <rect x="251" y="484" width="1168" height="23" fill="#f8f9fa"/><text x="273" y="502" fill="#a2abb1" text-anchor="end">9</text><text x="294" y="502" fill="#7257a3">group</text><text x="348" y="502" fill="#35434c">oxygen type 3</text>
+ <text x="273" y="526" fill="#a2abb1" text-anchor="end">10</text><text x="294" y="526" fill="#7257a3">minimize</text><text x="375" y="526" fill="#35434c">1.0e-6 1.0e-8 1000 10000</text>
+ <rect x="251" y="532" width="1168" height="23" fill="#f8f9fa"/><text x="273" y="550" fill="#a2abb1" text-anchor="end">11</text><text x="294" y="550" fill="#75828a"># NVT production</text>
+ <rect x="251" y="556" width="1168" height="25" fill="#e8f1f4"/><rect x="251" y="556" width="3" height="25" fill="#28788d"/><text x="273" y="574" fill="#809099" text-anchor="end">12</text><text x="294" y="574" fill="#7257a3" font-weight="700">fix</text><text x="321" y="574" fill="#35434c">nvt all nvt temp 300 300 100</text><text x="650" y="574" fill="#28788d" font-family="Arial,sans-serif" font-size="10">選択中 · クリックして編集</text>
+ <text x="273" y="598" fill="#a2abb1" text-anchor="end">13</text><text x="294" y="598" fill="#7257a3">compute</text><text x="366" y="598" fill="#35434c">msd all msd</text>
+ <rect x="251" y="604" width="1168" height="23" fill="#f8f9fa"/><text x="273" y="622" fill="#a2abb1" text-anchor="end">14</text><text x="294" y="622" fill="#7257a3">thermo</text><text x="357" y="622" fill="#35434c">100</text>
+ <text x="273" y="646" fill="#a2abb1" text-anchor="end">15</text><text x="294" y="646" fill="#7257a3">run</text><text x="330" y="646" fill="#35434c">50000</text>
+</g>
+<rect x="267" y="693" width="126" height="27" rx="3" fill="#fff" stroke="#bfc9cf"/><text x="330" y="711" text-anchor="middle" fill="#286f82" font-family="Arial,sans-serif" font-size="10" font-weight="600">＋ コマンドを挿入</text><text x="1400" y="711" text-anchor="end" fill="#77848d" font-family="Arial,sans-serif" font-size="10">行を選択して値を編集　·　上下キーで移動</text>
+<!-- selected command inspector -->
+<rect x="250" y="748" width="700" height="170" rx="5" fill="#fff" stroke="#cbd2d8"/><rect x="250" y="748" width="700" height="34" rx="5" fill="#f6f7f8"/><path d="M250 777.5h700" stroke="#d7dde1"/><text x="266" y="770" fill="#35434c" font-family="Arial,sans-serif" font-size="12" font-weight="700">選択したコマンド: fix</text><text x="933" y="770" text-anchor="end" fill="#849099" font-family="Arial,sans-serif" font-size="10">12 行目</text>
+<text x="268" y="805" fill="#58656e" font-family="Arial,sans-serif" font-size="10">ID</text><rect x="268" y="812" width="100" height="29" rx="3" fill="#fff" stroke="#cbd2d8"/><text x="279" y="831" fill="#35434c" font-family="monospace" font-size="11">nvt</text>
+<text x="380" y="805" fill="#58656e" font-family="Arial,sans-serif" font-size="10">対象グループ</text><rect x="380" y="812" width="130" height="29" rx="3" fill="#fff" stroke="#cbd2d8"/><text x="391" y="831" fill="#35434c" font-family="monospace" font-size="11">all</text>
+<text x="522" y="805" fill="#58656e" font-family="Arial,sans-serif" font-size="10">スタイル</text><rect x="522" y="812" width="130" height="29" rx="3" fill="#fff" stroke="#cbd2d8"/><text x="533" y="831" fill="#35434c" font-family="monospace" font-size="11">nvt</text>
+<text x="664" y="805" fill="#58656e" font-family="Arial,sans-serif" font-size="10">開始温度 (K)</text><rect x="664" y="812" width="110" height="29" rx="3" fill="#fff" stroke="#cbd2d8"/><text x="675" y="831" fill="#35434c" font-family="monospace" font-size="11">300</text>
+<text x="786" y="805" fill="#58656e" font-family="Arial,sans-serif" font-size="10">終了温度 (K)</text><rect x="786" y="812" width="146" height="29" rx="3" fill="#fff" stroke="#cbd2d8"/><text x="797" y="831" fill="#35434c" font-family="monospace" font-size="11">300</text>
+<text x="268" y="865" fill="#75828a" font-family="Arial,sans-serif" font-size="10">生成される行</text><rect x="268" y="873" width="664" height="29" rx="3" fill="#f4f6f7"/><text x="280" y="892" fill="#35434c" font-family="monospace" font-size="11">fix nvt all nvt temp 300 300 100</text>
+<!-- run and log panel -->
+<rect x="970" y="748" width="450" height="170" rx="5" fill="#fff" stroke="#cbd2d8"/><rect x="970" y="748" width="450" height="34" rx="5" fill="#f6f7f8"/><path d="M970 777.5h450" stroke="#d7dde1"/><text x="986" y="770" fill="#35434c" font-family="Arial,sans-serif" font-size="12" font-weight="700">実行</text><rect x="1283" y="754" width="119" height="23" rx="3" fill="#216e83"/><text x="1342" y="770" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="10" font-weight="600">計算を開始</text>
+<circle cx="991" cy="803" r="4" fill="#a2abb1"/><text x="1003" y="807" fill="#738089" font-family="Arial,sans-serif" font-size="10">待機中</text><text x="1402" y="807" text-anchor="end" fill="#738089" font-family="Arial,sans-serif" font-size="10">0%</text><rect x="988" y="817" width="414" height="4" rx="2" fill="#e8ecef"/><rect x="988" y="834" width="414" height="68" rx="3" fill="#f7f8f9" stroke="#e1e5e8"/><text x="1000" y="854" fill="#77848d" font-family="monospace" font-size="9">実行ログはここに表示されます。</text>
+<!-- footer status -->
+<rect y="948" width="1440" height="52" fill="#f5f6f7"/><line x1="0" y1="948" x2="1440" y2="948" stroke="#cbd2d8"/><text x="18" y="979" fill="#67747d" font-family="Arial,sans-serif" font-size="10">構造: montmorillonite_2W.extxyz　|　2,502 atoms</text><text x="1420" y="979" text-anchor="end" fill="#67747d" font-family="Arial,sans-serif" font-size="10">LAMMPS　·　SOAP</text>
+</svg>

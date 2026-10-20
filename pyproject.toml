@@ -4,16 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "soapff-gui"
-version = "0.1.0"
-description = "GUI for soapff: clay structure in, LAMMPS run out, without touching the input files"
+version = "0.2.0"
+description = "GUI for soapff: clay structure in, ClayFF force field with SOAP charges, LAMMPS run (here or over SSH), analysis"
 requires-python = ">=3.9"
-dependencies = []   # soapff-cui: pip install it first (see README), or keep its checkout next to this folder / in $SOAPFF_HOME
+# soapff-cui (the force field writer) is bundled as the package soapff_cui; tkinter comes with Python
+dependencies = ["numpy", "scipy", "ase", "dscribe", "matplotlib"]
+
+[project.optional-dependencies]
+sova = ["sovapy"]          # PDF / RDF of the analysis (or point soapff-gui to another Python that has SOVA)
 
 [project.scripts]
 soapff-gui = "soapff_gui.app:main"
+soapff-cui = "soapff_cui.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["soapff_gui*"]
+include = ["soapff_gui*", "soapff_cui*"]
 
 [tool.setuptools.package-data]
 soapff_gui = ["data/*.npz"]

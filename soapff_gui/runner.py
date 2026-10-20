@@ -85,6 +85,9 @@ def prepare(structure, workdir, library=None, log=print, **md):
     """soapff make: structure -> workdir/{system.data, system.settings, in.lammps, charges.csv, report.json}.
     md: temp, nvt_ps, npt_ps, press, baro, threshold, cutoff (soapff.core.make keywords)."""
     core = import_soapff()
+    import inspect
+    if "md" in md and "md" not in inspect.signature(core.make).parameters:   # an older soapff-cui: always the full MD
+        md = {k: v for k, v in md.items() if k != "md"}
     return core.make(structure, workdir, library or default_library(), log=log, **md)
 
 
