@@ -1933,11 +1933,13 @@ class App:
             put(("log", f"入力を送りました：{r.target}:{rdir}\n", None))
             nproc = int(comp.get("nproc", 1))
             cores = int(info.get("cores") or 0) if str(info.get("cores") or "").isdigit() else 0
-            if cores and nproc > cores:
-                put(("log", f"WARNING 並列数 {nproc} が相手の物理コア数 {cores} より多いので、{cores} 並列にします"
-                            "（Open MPI は既定で物理コア数までしか起動しません。ハイパースレッドでは LAMMPS はほとんど速くなりません）\n",
-                     "warn"))
-                nproc = cores
+            cpus = int(info.get("cpus") or 0) if str(info.get("cpus") or "").isdigit() else 0
+            if cpus and nproc > cpus:
+                put(("log", f"WARNING 並列数 {nproc} が相手の CPU（スレッド）数 {cpus} より多いので、{cpus} 並列にします\n", "warn"))
+                nproc = cpus
+            elif cores and nproc > cores:
+                put(("log", f"並列数 {nproc} は物理コア数 {cores} より多いので、ハードウェアスレッドも使います"
+                            "（Open MPI では --use-hwthread-cpus。LAMMPS はコア数を超えるとあまり速くなりません）\n", None))
             comp = dict(comp, nproc=nproc)
             pid = r.start(name, nproc)
             self.rjob = (r, name, pid)

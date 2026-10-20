@@ -148,6 +148,9 @@ class Remote:
             self.mpirun_used = nxt
         info["mpirun_used"] = self.mpirun_used
         info["mpi_warning"] = mpi_warning(info, self.mpirun_used)
+        run = next((v for k, v in info.items() if k.startswith("mpirun_version[") and k[15:-1] == self.mpirun_used), "")
+        self.openmpi = _family(run or info.get("lmp_mpi", "")) == "openmpi"
+        self.cores = int(info["cores"]) if str(info.get("cores", "")).isdigit() else 0
         return info
 
     def run_dir(self, name):
@@ -173,7 +176,12 @@ class Remote:
         and writes its exit code to exit_code)."""
         rdir = shlex.quote(self.run_dir(name))
         mpirun = getattr(self, "mpirun_used", None) or self.mpirun
-        lmp = f"{mpirun} -np {int(nproc)} {self.lmp}" if int(nproc) > 1 else self.lmp
+        opts = ""
+        if getattr(self, "openmpi", False) and int(nproc) > 1:
+            # several jobs at once: Open MPI binds each job to the same first cores ('--bind-to none' leaves the placement
+            # to the OS); more processes than physical cores need the hardware threads counted as slots
+            opts = " --bind-to none" + (" --use-hwthread-cpus" if getattr(self, "cores", 0) and int(nproc) > self.cores else "")
+        lmp = f"{mpirun}{opts} -np {int(nproc)} {self.lmp}" if int(nproc) > 1 else self.lmp
         # HWLOC_COMPONENTS=-gl: Open MPI's hwloc would ask the X server of a desktop machine ('Authorization required')
         job = (f"OMP_NUM_THREADS=1 HWLOC_COMPONENTS=-gl {lmp} -in in.lammps -log log.lammps > screen.txt 2>&1; "
                "echo $? > exit_code")

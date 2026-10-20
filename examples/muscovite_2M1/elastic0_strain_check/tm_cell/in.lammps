@@ -1,0 +1,166 @@
+# soapff-cui: ClayFF + SOAP charges.  lmp -in in.lammps
+include system.settings
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo_style custom step temp press pe ke etotal vol density lx ly lz
+thermo 1000
+# minimisation with a small step limit first (built structures may contain overlapping water)
+min_style cg
+min_modify dmax 0.01
+minimize 1.0e-4 1.0e-6 1000 10000
+min_modify dmax 0.1
+minimize 1.0e-6 1.0e-6 5000 50000
+change_box all triclinic
+kspace_style pppm 1.0e-5
+
+# ここから下に MD（fix、compute、run など）を追加します（＋ fix / ＋ compute / ＋ その他）
+
+# ===== soapff：物性の計算（弾性定数 0 K、引張・圧縮、せん断）=====
+# (change_box all triclinic is needed for the tilt factors: it is placed before any dump)
+
+# soapff-property: elastic0 strain=0.001 file=elastic0.dat
+# 0 K elastic constants (LAMMPS examples/ELASTIC): zero-stress box, then +-strain per direction, atoms relaxed
+velocity all set 0.0 0.0 0.0
+# zero-stress box: box/relax and fixed-box minimisations alternated 4 times (box/relax alone leaves the
+# atoms unrelaxed); the last fixed-box minimisation is the reference, relaxed as the strained states
+fix soapff_br all box/relax tri 0.0 vmax 0.001 nreset 20
+minimize 0.0 1.0e-8 20000 200000
+unfix soapff_br
+minimize 0.0 1.0e-8 20000 200000
+fix soapff_br all box/relax tri 0.0 vmax 0.001 nreset 20
+minimize 0.0 1.0e-8 20000 200000
+unfix soapff_br
+minimize 0.0 1.0e-8 20000 200000
+fix soapff_br all box/relax tri 0.0 vmax 0.001 nreset 20
+minimize 0.0 1.0e-8 20000 200000
+unfix soapff_br
+minimize 0.0 1.0e-8 20000 200000
+fix soapff_br all box/relax tri 0.0 vmax 0.001 nreset 20
+minimize 0.0 1.0e-8 20000 200000
+unfix soapff_br
+minimize 0.0 1.0e-8 20000 200000
+print "# dir sign strain pxx pyy pzz pyz pxz pxy (atm) lx ly lz xy xz yz" file elastic0.dat screen no
+print "0 0 0 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+reset_timestep 0
+write_dump all custom soapff_e0.dump id x y z ix iy iz modify sort id
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all x delta 0 $(-0.001*lx) xy delta $(-0.001*xy) xz delta $(-0.001*xz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "1 -1 -0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all x delta 0 $(0.001*lx) xy delta $(0.001*xy) xz delta $(0.001*xz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "1 1 0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all y delta 0 $(-0.001*ly) yz delta $(-0.001*yz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "2 -1 -0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all y delta 0 $(0.001*ly) yz delta $(0.001*yz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "2 1 0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all z delta 0 $(-0.001*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "3 -1 -0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all z delta 0 $(0.001*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "3 1 0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all yz delta $(-0.001*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "4 -1 -0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all yz delta $(0.001*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "4 1 0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all xz delta $(-0.001*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "5 -1 -0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all xz delta $(0.001*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "5 1 0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all xy delta $(-0.001*ly) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "6 -1 -0.001 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all xy delta $(0.001*ly) remap units box
+minimize 0.0 1.0e-8 20000 200000
+change_box all triclinic
+kspace_style pppm 1.0e-5
+# box of Teich-McGoldrick et al. (2012): a b c = 5.2022 9.0243 20.0788 A, beta = 95.7566 (2x2x1); atoms relaxed only
+change_box all x final 0 20.808800 y final 0 18.048600 z final 0 19.977542 xz final -2.013957 xy final 0 yz final 0 remap units box
+
+# ===== soapff：物性の計算（弾性定数 0 K）=====
+# (change_box all triclinic is needed for the tilt factors: it is placed before any dump)
+
+# soapff-property: elastic0 strain=0.005 file=elastic0.dat
+# 0 K elastic constants (LAMMPS examples/ELASTIC): zero-stress box, then +-strain per direction, atoms relaxed
+velocity all set 0.0 0.0 0.0
+# zero-stress box: box/relax and fixed-box minimisations alternated 4 times (box/relax alone leaves the
+# atoms unrelaxed); the last fixed-box minimisation is the reference, relaxed as the strained states
+minimize 0.0 1.0e-8 20000 200000
+minimize 0.0 1.0e-8 20000 200000
+minimize 0.0 1.0e-8 20000 200000
+minimize 0.0 1.0e-8 20000 200000
+minimize 0.0 1.0e-8 20000 200000
+minimize 0.0 1.0e-8 20000 200000
+minimize 0.0 1.0e-8 20000 200000
+minimize 0.0 1.0e-8 20000 200000
+print "# dir sign strain pxx pyy pzz pyz pxz pxy (atm) lx ly lz xy xz yz" file elastic0.dat screen no
+print "0 0 0 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+reset_timestep 0
+write_dump all custom soapff_e0.dump id x y z ix iy iz modify sort id
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all x delta 0 $(-0.005*lx) xy delta $(-0.005*xy) xz delta $(-0.005*xz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "1 -1 -0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all x delta 0 $(0.005*lx) xy delta $(0.005*xy) xz delta $(0.005*xz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "1 1 0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all y delta 0 $(-0.005*ly) yz delta $(-0.005*yz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "2 -1 -0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all y delta 0 $(0.005*ly) yz delta $(0.005*yz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "2 1 0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all z delta 0 $(-0.005*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "3 -1 -0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all z delta 0 $(0.005*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "3 1 0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all yz delta $(-0.005*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "4 -1 -0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all yz delta $(0.005*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "4 1 0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all xz delta $(-0.005*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "5 -1 -0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all xz delta $(0.005*lz) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "5 1 0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all xy delta $(-0.005*ly) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "6 -1 -0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all xy delta $(0.005*ly) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "6 1 0.005 $(pxx) $(pyy) $(pzz) $(pyz) $(pxz) $(pxy) $(lx) $(ly) $(lz) $(xy) $(xz) $(yz)" append elastic0.dat screen no
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes

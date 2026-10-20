@@ -1,0 +1,77 @@
+# soapff-cui: ClayFF + SOAP charges.  lmp -in in.lammps
+include system.settings
+group water type 10 3
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo_style custom step temp press pe ke etotal vol density lx ly lz
+thermo 1000
+# minimisation with a small step limit first (built structures may contain overlapping water)
+min_style cg
+min_modify dmax 0.01
+minimize 1.0e-4 1.0e-6 1000 10000
+min_modify dmax 0.1
+minimize 1.0e-6 1.0e-6 5000 50000
+
+# ここから下に MD（fix、compute、run など）を追加します（＋ fix / ＋ compute / ＋ その他）
+velocity all create 330.0 4928459 mom yes rot no dist gaussian
+timestep 0.5
+# relaxation of the initial structure: NVT, not recorded
+fix relax all nvt temp 330.0 330.0 100.0
+run 20000
+unfix relax
+reset_timestep 0
+fix nvt all nvt temp 330 330 100.0
+run 40000
+unfix nvt
+fix npt all npt temp 330 330 100.0 z 0 0 1000.0
+run 200000
+dump d all custom 20000 traj.lammpstrj id type element x y z ix iy iz q
+# mean squared displacement by LAMMPS (read by soapff-cui analyze)
+group a_Ow type 10
+compute msd_s1_Ow a_Ow msd
+fix msd_s1_Ow all ave/time 1 1 200 c_msd_s1_Ow[*] file msd_s1_Ow.dat
+group a_Na type 5
+compute msd_s1_Na a_Na msd
+fix msd_s1_Na all ave/time 1 1 200 c_msd_s1_Na[*] file msd_s1_Na.dat
+run 400000
+unfix msd_s1_Ow
+unfix msd_s1_Na
+uncompute msd_s1_Ow
+uncompute msd_s1_Na
+# mean squared displacement by LAMMPS (read by soapff-cui analyze)
+group a_Ow type 10
+compute msd_s2_Ow a_Ow msd
+fix msd_s2_Ow all ave/time 1 1 200 c_msd_s2_Ow[*] file msd_s2_Ow.dat
+group a_Na type 5
+compute msd_s2_Na a_Na msd
+fix msd_s2_Na all ave/time 1 1 200 c_msd_s2_Na[*] file msd_s2_Na.dat
+run 400000
+unfix msd_s2_Ow
+unfix msd_s2_Na
+uncompute msd_s2_Ow
+uncompute msd_s2_Na
+# mean squared displacement by LAMMPS (read by soapff-cui analyze)
+group a_Ow type 10
+compute msd_s3_Ow a_Ow msd
+fix msd_s3_Ow all ave/time 1 1 200 c_msd_s3_Ow[*] file msd_s3_Ow.dat
+group a_Na type 5
+compute msd_s3_Na a_Na msd
+fix msd_s3_Na all ave/time 1 1 200 c_msd_s3_Na[*] file msd_s3_Na.dat
+run 400000
+unfix msd_s3_Ow
+unfix msd_s3_Na
+uncompute msd_s3_Ow
+uncompute msd_s3_Na
+# mean squared displacement by LAMMPS (read by soapff-cui analyze)
+group a_Ow type 10
+compute msd_s4_Ow a_Ow msd
+fix msd_s4_Ow all ave/time 1 1 200 c_msd_s4_Ow[*] file msd_s4_Ow.dat
+group a_Na type 5
+compute msd_s4_Na a_Na msd
+fix msd_s4_Na all ave/time 1 1 200 c_msd_s4_Na[*] file msd_s4_Na.dat
+run 400000
+unfix msd_s4_Ow
+unfix msd_s4_Na
+uncompute msd_s4_Ow
+uncompute msd_s4_Na
+write_data final.data
