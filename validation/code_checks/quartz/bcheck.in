@@ -1,0 +1,15 @@
+include system.settings
+change_box all triclinic
+kspace_style pppm 1.0e-5
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+thermo_style custom step pe press vol
+minimize 0.0 1.0e-8 20000 200000
+print "REF $(vol) $(press) $(pe)"
+variable s index 0.998 1.002 0.99 1.01
+label lp
+read_dump soapff_e0.dump 0 x y z ix iy iz box yes replace yes
+change_box all x scale ${s} y scale ${s} z scale ${s} xy final $(xy*v_s) xz final $(xz*v_s) yz final $(yz*v_s) remap units box
+minimize 0.0 1.0e-8 20000 200000
+print "S ${s} $(vol) $(press) $(pe)"
+next s
+jump SELF lp

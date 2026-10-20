@@ -21,4 +21,4 @@ soapff-cui = "soapff_cui.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-soapff_gui = ["data/*.npz"]
+soapff_gui = ["data/*.npz", "data/*.png"]

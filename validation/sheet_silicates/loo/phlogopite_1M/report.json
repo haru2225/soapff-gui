@@ -1,0 +1,112 @@
+{
+ "structure": "Atoms",
+ "atoms": 352,
+ "library": "/Users/harutokono/clay/soapff-cui/examples/minerals/eval_sheet/loo/lib_without_phlogopite_1M.npz",
+ "soap": {
+  "r_cut": 5.0,
+  "n_max": 4,
+  "l_max": 3,
+  "sigma": 0.4
+ },
+ "threshold": 0.95,
+ "boundary": "p p p",
+ "kspace": [
+  "kspace_style pppm 1.0e-5"
+ ],
+ "vacuum_gap": {},
+ "charge_sum_before": 1.8975999999999935,
+ "charge_sum": -1.9539925233402755e-14,
+ "from_soap": 352,
+ "fallback": 0,
+ "warnings": [],
+ "roles": {
+  "mineral": 336,
+  "water": 0,
+  "ion": 16
+ },
+ "per_type": {
+  "K": {
+   "atoms": 16,
+   "charges": [
+    1.0
+   ],
+   "from_soap": 16,
+   "fallback": 0,
+   "min_similarity": 0.9944545030593872
+  },
+  "at": {
+   "atoms": 16,
+   "charges": [
+    1.5694
+   ],
+   "from_soap": 16,
+   "fallback": 0,
+   "min_similarity": 0.9600298404693604
+  },
+  "ho": {
+   "atoms": 32,
+   "charges": [
+    0.4194
+   ],
+   "from_soap": 32,
+   "fallback": 0,
+   "min_similarity": 0.9639814496040344
+  },
+  "mgh": {
+   "atoms": 48,
+   "charges": [
+    1.0444
+   ],
+   "from_soap": 48,
+   "fallback": 0,
+   "min_similarity": 0.9795274138450623
+  },
+  "ob": {
+   "atoms": 112,
+   "charges": [
+    -1.0556
+   ],
+   "from_soap": 112,
+   "fallback": 0,
+   "min_similarity": 0.9640361070632935
+  },
+  "obts": {
+   "atoms": 48,
+   "charges": [
+    -1.1744
+   ],
+   "from_soap": 48,
+   "fallback": 0,
+   "min_similarity": 0.9858767986297607
+  },
+  "oh": {
+   "atoms": 32,
+   "charges": [
+    -0.9556
+   ],
+   "from_soap": 32,
+   "fallback": 0,
+   "min_similarity": 0.9798682332038879
+  },
+  "st": {
+   "atoms": 48,
+   "charges": [
+    2.0944
+   ],
+   "from_soap": 48,
+   "fallback": 0,
+   "min_similarity": 0.9750775098800659
+  }
+ },
+ "consistency": [],
+ "md": {
+  "temp": 300.0,
+  "relax_ps": 10.0,
+  "nvt_ps": 1,
+  "npt_ps": 0.0,
+  "press": 1.0,
+  "baro": "aniso",
+  "dump_ps": 1.0,
+  "timestep_fs": 0.5
+ }
+}

@@ -1,5 +1,6 @@
 """Library building, charge assignment and the LAMMPS writer of soapff-cui."""
 import csv
+import collections
 import json
 import os
 
@@ -616,6 +617,24 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
         m = TYPE_ALIAS.get(str(match[i]), str(match[i]))
         types.append(m if (not unknown[i] and m in LJ) else types_geo[i])
     tarr = np.array(types)
+    # cross-check: the type found by SOAP against the bond-graph ClayFF type of the same atom (the rule used for
+    # fallback).  A library without the environment can give a similar but wrong type (e.g. obts -> ob) at a
+    # similarity above the threshold; such atoms are reported (not changed).
+    # Only types with the same protonation are compared (bridging O: ob obts obos obss; OH O: oh ohs; cations): in
+    # built initial structures water may overlap the mineral, and then the bond graph, not SOAP, misreads which O
+    # carry H (ob -> oh, ow -> oaq, hw -> ho); substitution errors (obts -> ob, ohs -> oh, at -> st ...) are kept.
+    geo = np.array([TYPE_ALIAS.get(str(t), str(t)) for t in types_geo])
+    cls = lambda t: ("bridge" if t in ("ob", "obts", "obos", "obss") else "oh" if t in ("oh", "ohs") else
+                     "water" if t in ("ow", "oaq", "hw") else "h" if t == "ho" else "cation")
+    same_class = np.array([cls(a) == cls(b) and cls(a) in ("bridge", "oh", "cation") for a, b in zip(tarr, geo)])
+    differ = (~unknown) & same_class & (tarr != geo)
+    type_check = dict(compared=int(((~unknown) & same_class).sum()), differ=int(differ.sum()),
+                      kinds=dict(collections.Counter(f"{g}->{t}" for g, t in zip(geo[differ], tarr[differ]))))
+    if differ.any():
+        warn.append(f"{int(differ.sum())} atoms: the SOAP type differs from the bond-graph ClayFF type "
+                    f"({', '.join(f'{k} x{v}' for k, v in type_check['kinds'].items())}); the library may lack these "
+                    "environments - see charges.csv (column bond_type)")
+        log("WARNING " + warn[-1])
     role = np.where(np.isin(tarr, ["ow", "hw"]), "water", np.where(np.isin(tarr, list(FORMAL_ION) + ["Na", "K", "Ca", "Cs", "Cl"]), "ion", "mineral"))
     total = float(q.sum())
     # neutrality: a residual (only from fallback atoms or a library of another composition) goes to mineral atoms
@@ -687,10 +706,10 @@ write_data final.data
     el = at.get_chemical_symbols()
     with open(os.path.join(out_dir, "charges.csv"), "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["id", "element", "role", "clayff_type", "charge", "source", "matched_library_type", "similarity"])
+        w.writerow(["id", "element", "role", "clayff_type", "charge", "source", "matched_library_type", "similarity", "bond_type"])
         for i in range(len(at)):
             w.writerow([i + 1, el[i], role[i], types[i], f"{q[i]:+.6f}", "fallback" if unknown[i] else ("rule" if by_rule[i] else "soap-low" if low[i] else "soap"),
-                        "" if unknown[i] else match[i], f"{sim[i]:.5f}"])
+                        "" if unknown[i] else match[i], f"{sim[i]:.5f}", geo[i]])
     per = {}
     for t in sorted(set(types)):
         m = np.array(types) == t
@@ -699,7 +718,7 @@ write_data final.data
     rep = dict(structure=structure if isinstance(structure, str) else "Atoms", atoms=len(at), library=os.path.abspath(library),
                soap=lib["soap"], threshold=threshold, boundary=" ".join(bnd), kspace=info["kspace"], vacuum_gap=gaps,
                charge_sum_before=total, charge_sum=float(q.sum()),
-               from_soap=int((~unknown).sum()), fallback=int(unknown.sum()), warnings=warn,
+               from_soap=int((~unknown).sum()), fallback=int(unknown.sum()), type_check=type_check, warnings=warn,
                roles={r: int((role == r).sum()) for r in ("mineral", "water", "ion")}, per_type=per,
                consistency=problems, md=dict(temp=temp, relax_ps=relax_ps, nvt_ps=nvt_ps, npt_ps=npt_ps, press=press, baro=baro, dump_ps=dump_ps, timestep_fs=timestep_fs))
     json.dump(rep, open(os.path.join(out_dir, "report.json"), "w"), indent=1)

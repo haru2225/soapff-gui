@@ -1,6 +1,7 @@
 """soapff-GUI: choose a clay structure; soapff-cui writes the LAMMPS input (ClayFF + SOAP charges), which is shown line by
 line and can be edited (select a line, change its values below); press 計算を開始 to run LAMMPS on this computer or on
-another one over SSH, then analyse (diffusion coefficients, PDF, RDF) and look at the result in OVITO.
+another one over SSH, then analyse (diffusion coefficients; SOVA PDF, RDF, S(Q); the results of the computes;
+XRD with Debyer) and look at the result in OVITO.
 
 Layout (design/soapff-gui-ui-concept.png): menu row, toolbar (新規計算 / 計算設定 › 実行・解析 / 計算を開始), project sidebar
 (新しい計算, 計算履歴, 構造ライブラリ, 最近使った計算), the input file (in.lammps) as an editor, the form of the selected
@@ -28,7 +29,17 @@ BARO = {"z": "z：面に垂直な方向だけ（層間・界面）", "aniso": "a
 DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p",
                 nproc=max(1, min(3, (os.cpu_count() or 2) // 2)), threshold=0.95, cutoff=10.0, library="", lmp="", mpirun="",
                 last_dir=os.path.expanduser("~"), dump_ps=1.0, auto_analyze=True, skip_ps="", sova_python="", sova_home="",
+                analyses=["msd", "sova", "compute", "xrd", "props"], debyer="", props_selected=["elastic0", "tensile"],
+                props_params={}, xrd_wavelength=1.5406, xrd_from=3.0, xrd_to=80.0,
+                xrd_step=0.02, xrd_frames=3, xrd_mode="cluster", xrd_size=50.0,
                 where="local", computers=[], history=[])
+# the analyses (soapff_cui.analysis): key, label
+ANALYSES = (("msd", "拡散係数（LAMMPS compute msd）"), ("sova", "SOVA：PDF g(r)・RDF N(r)・配位数・X 線 S(Q)"),
+            ("compute", "compute の結果（fix ave/time・ave/chunk などのファイル）"),
+            ("xrd", "XRD（debyer、粉末 X 線回折パターン）"),
+            ("props", "物性（粘度・熱伝導率・弾性定数・引張・圧縮・せん断。＋ 物性 で入れたもの）"))
+XRD_MODES = {"cluster": "結晶子：セルを並べた有限の結晶（結晶・粘土鉱物）",
+             "periodic": "周期境界：カットオフ = 箱の半分（液体・ガラス、直方体の箱のみ）"}
 # a registered computer (SSH): name, host, user, port, root (folder for the runs there), lmp, mpirun, setup (shell commands
 # run first, e.g. 'module load lammps'), nproc.  The password is never stored: it is asked every time.
 COMPUTER = dict(name="", host="", user="", port=22, root="soapff_runs", lmp="lmp", mpirun="mpirun", setup="", nproc=4)
@@ -51,6 +62,12 @@ def load_settings():
     lmp, mpirun = runner.find_executables()
     if not s.get("sova_python"):
         s["sova_python"], s["sova_home"] = runner.find_sova()
+    if not s.get("debyer"):
+        s["debyer"] = runner.find_debyer() or ""
+    # analyses added in a later version are on: those not known when the settings were saved
+    known = s.get("analyses_known") or ["msd", "sova", "compute", "xrd"]
+    s["analyses"] = list(s.get("analyses") or []) + [k for k, _ in ANALYSES if k not in known and k not in (s.get("analyses") or [])]
+    s["analyses_known"] = [k for k, _ in ANALYSES]
     s["lmp"] = s.get("lmp") or lmp or ""
     s["mpirun"] = s.get("mpirun") or mpirun or ""
     s["history"] = [h for h in s.get("history", []) if isinstance(h, dict)][:50]
@@ -185,6 +202,7 @@ class App:
         st.configure("TLabelframe.Label", background=PANEL, foreground=MUTED)
         st.configure("TCheckbutton", background=PANEL)
         st.configure("TRadiobutton", background=PANEL)
+        st.configure("Section.TLabel", font=self.f_bold, foreground=ACCENT_DARK)
         st.configure("Treeview", rowheight=26)
 
     # ================================================================================================== layout
@@ -249,6 +267,7 @@ class App:
                           ("別のコンピュータからフォルダを受け取る…", self.fetch_dialog), None,
                           ("出力フォルダを開く", self.open_out), None, ("終了", self.on_close)]),
             ("編集", [("行を追加（自由入力）", self.new_line), ("minimize より後をすべて消す", self.cut_after_minimize), None,
+                      ("物性の計算を追加…", self.open_properties),
                       ("fix を追加…", lambda: self.open_catalog("fix")), ("compute を追加…", lambda: self.open_catalog("compute")),
                       ("その他のコマンドを追加…", lambda: self.open_catalog("other")), None, ("行を削除", self.delete_line), None,
                       ("上へ移動", lambda: self.move_line(-1)), ("下へ移動", lambda: self.move_line(1)), None,
@@ -391,6 +410,7 @@ class App:
         for text, kind in (("＋ fix", "fix"), ("＋ compute", "compute"), ("＋ その他（run・timestep など）", "other")):
             ttk.Button(foot, text=text, style="Link.TButton", command=lambda k=kind: self.open_catalog(k)).pack(side="left", padx=(0, 6))
         ttk.Button(foot, text="＋ 行を追加（自由入力）", style="Link.TButton", command=self.new_line).pack(side="left", padx=(0, 6))
+        ttk.Button(foot, text="＋ 物性", style="Small.Accent.TButton", command=self.open_properties).pack(side="left", padx=(0, 6))
         tk.Label(foot, text="行を選択して値を編集 · 上下キーで移動 · Enter で下に行を追加 · Delete で削除", bg=PANEL, fg=MUTED,
                  font=self.f_small).pack(side="right")
         self.b_insert_anchor = foot
@@ -825,6 +845,194 @@ class App:
         self.build_form()
         self.schedule_save()
 
+    # ================================================================================================== properties
+    PROP_FIELDS = (("共通", (("temp", "温度 (K)", ""), ("press", "圧力 (atm)", ""), ("relax_ps", "緩和 NVT (ps)", ""),
+                             ("npt_ps", "NPT 平衡化 (ps)", "0 でなし。終わると箱を NPT の平均に"),
+                             ("prod_ps", "有限温度の弾性定数の MD (ps)", "数百 ps〜ns 要る"))),
+                   ("弾性定数", (("e0_strain", "0 K：ひずみ", "± この大きさで 6 方向"),
+                                 ("eT_stress_every", "有限温度：応力の記録間隔（ステップ）", ""),
+                                 ("eT_born_every", "有限温度：Born 項の間隔（ステップ）", "1 回で力の計算 12 回分"))),
+                   ("引張・圧縮", (("tensile_rate", "ひずみ速度 (1/s)", ""), ("tensile_max", "最大ひずみ", ""))),
+                   ("せん断", (("shear_rate", "ひずみ速度 (1/s)", ""), ("shear_max", "最大ひずみ", ""))))
+
+    def open_properties(self):
+        """choose the properties to compute: their LAMMPS commands (soapff_cui.properties) are added to in.lammps."""
+        from soapff_cui import properties as PR
+        if not self.docs["in.lammps"]:
+            messagebox.showinfo("soapff-GUI", "先に構造ファイルを選んで、入力を作ってください")
+            return
+        lines = self.docs["in.lammps"]
+        dt = L.timestep(lines, default=float(getattr(runner.import_soapff(), "TIMESTEP_FS", 0.5)))
+        p = dict(PR.DEFAULTS, temp=self.s["temp"], press=self.s["press"], relax_ps=self.s["relax_ps"],
+                 baro=self.s.get("baro", "aniso"), dump_ps=self.s["dump_ps"], timestep=dt)
+        p.update(self.s.get("props_params") or {})
+        p["timestep"] = dt
+        w = tk.Toplevel(self.root)
+        w.title("物性の計算を追加")
+        w.configure(bg=PANEL)
+        w.transient(self.root)
+        body = ttk.Frame(w, padding=14)
+        body.pack(fill="both", expand=True)
+        left, right = ttk.Frame(body), ttk.Frame(body)
+        left.pack(side="left", fill="y", padx=(0, 18))
+        right.pack(side="left", fill="both", expand=True)
+        ttk.Label(left, text="知りたい物性", style="Section.TLabel").pack(anchor="w")
+        sel = {}
+        for k, lab in PR.PROPS:
+            sel[k] = tk.BooleanVar(value=k in self.s.get("props_selected", []))
+            ttk.Checkbutton(left, text=lab, variable=sel[k]).pack(anchor="w", pady=2)
+        note = ("in.lammps の最後に、0 K の弾性定数 → 平衡化（NVT・NPT）→ 有限温度の弾性定数の MD → 引張・圧縮、せん断\n"
+                "（それぞれ平衡化した状態から）の順に入ります。周期境界（p p p）の構造ならどの鉱物でも使えます。\n"
+                "NPT の方向は 計算設定 の「圧力の方向」（バルクは aniso か tri、層状で層間が広がるなら z）です。")
+        ttk.Label(left, text=note.replace("\n", ""), foreground=MUTED, justify="left", font=self.f_small,
+                  wraplength=380).pack(anchor="w", pady=(10, 0))
+        v = {}
+        nbp = ttk.Notebook(right)
+        nbp.pack(fill="both", expand=True)
+        for sec, fields in self.PROP_FIELDS:
+            tab = ttk.Frame(nbp, padding=12)
+            nbp.add(tab, text=sec.split("（")[0])
+            row = 0
+            for k, lab, nt in fields:
+                ttk.Label(tab, text=lab).grid(row=row, column=0, sticky="w", padx=(8, 10), pady=2)
+                v[k] = tk.StringVar(value=f"{p[k]:g}" if isinstance(p[k], float) else str(p[k]))
+                ttk.Entry(tab, textvariable=v[k], width=10, style="Field.TEntry").grid(row=row, column=1, sticky="w", pady=2)
+                if nt:
+                    ttk.Label(tab, text=nt, foreground=MUTED, wraplength=300, justify="left").grid(row=row, column=2,
+                                                                                                    sticky="w", padx=6)
+                row += 1
+            if sec == "共通":
+                ttk.Label(tab, text="NPT の方向").grid(row=row, column=0, sticky="w", padx=(8, 10), pady=2)
+                v["baro"] = tk.StringVar(value=p["baro"])
+                ttk.Combobox(tab, textvariable=v["baro"], values=list(BARO), width=8, state="readonly").grid(
+                    row=row, column=1, sticky="w")
+                ttk.Label(tab, text=BARO.get(p["baro"], ""), foreground=MUTED).grid(row=row, column=2, sticky="w", padx=6)
+                row += 1
+            if sec in ("引張・圧縮", "せん断"):
+                f = ttk.Frame(tab)
+                f.grid(row=row, column=0, columnspan=3, sticky="w", padx=(8, 0), pady=2)
+                key, axes = ("tensile_dirs", ("x", "y", "z")) if sec == "引張・圧縮" else ("shear_planes", ("xy", "xz", "yz"))
+                ttk.Label(f, text="方向" if sec == "引張・圧縮" else "面").pack(side="left", padx=(0, 8))
+                chosen = str(p[key]).replace(",", " ").split()
+                for a in axes:
+                    v[f"{key}:{a}"] = tk.BooleanVar(value=a in chosen)
+                    ttk.Checkbutton(f, text=a, variable=v[f"{key}:{a}"]).pack(side="left")
+                mkey, modes = (("tensile_mode", (("tension", "引張"), ("compression", "圧縮"), ("both", "両方")))
+                               if sec == "引張・圧縮" else ("shear_mode", (("solid", "固体（fix nvt）"),
+                                                                       ("flow", "流れ（fix nvt/sllod → 粘度）"))))
+                v[mkey] = tk.StringVar(value=p[mkey])
+                ttk.Label(f, text="　").pack(side="left")
+                for val, lab in modes:
+                    ttk.Radiobutton(f, text=lab, value=val, variable=v[mkey]).pack(side="left")
+                row += 1
+        est = tk.StringVar()
+        ttk.Label(w, textvariable=est, foreground=MUTED, padding=(14, 0)).pack(anchor="w")
+
+        def collect():
+            q = dict(p)
+            for _, fields in self.PROP_FIELDS:
+                for k, lab, _ in fields:
+                    try:
+                        q[k] = float(v[k].get())
+                    except ValueError:
+                        raise ValueError(f"{lab} が数値ではありません")
+            for k in ("eT_stress_every", "eT_born_every"):
+                q[k] = max(1, int(q[k]))
+            q["baro"] = v["baro"].get()
+            q["tensile_dirs"] = " ".join(a for a in "xyz" if v[f"tensile_dirs:{a}"].get()) or "x"
+            q["shear_planes"] = " ".join(a for a in ("xy", "xz", "yz") if v[f"shear_planes:{a}"].get()) or "xy"
+            q["tensile_mode"], q["shear_mode"] = v["tensile_mode"].get(), v["shear_mode"].get()
+            props = [k for k, _ in PR.PROPS if sel[k].get()]
+            return props, q
+
+        def make(props, q):
+            tid = self.type_ids()
+            existing = set(L.ids(self.docs["in.lammps"], "fix")) | set(L.ids(self.docs["in.lammps"], "compute"))
+            return PR.lines(props, q, tid, runner.import_soapff().analysis_lines, existing)
+
+        def update(*_):
+            try:
+                props, q = collect()
+            except ValueError as e:
+                est.set(str(e))
+                return
+            if not props:
+                est.set("物性を選んでください")
+                return
+            new = make(props, q)
+            n = sum(L.run_steps(new))
+            nmin = sum(1 for l in new if l.startswith("minimize"))
+            est.set(f"追加される行 {len(new)}、MD 合計 {n:,} ステップ（{n * q['timestep'] / 1000:g} ps）"
+                    + (f"、最小化 {nmin} 回" if nmin else ""))
+        for var in list(v.values()) + list(sel.values()):
+            var.trace_add("write", update)
+        update()
+
+        def add():
+            try:
+                props, q = collect()
+            except ValueError as e:
+                messagebox.showerror("soapff-GUI", str(e), parent=w)
+                return
+            if not props:
+                messagebox.showinfo("soapff-GUI", "物性を選んでください", parent=w)
+                return
+            bnd = self.s.get("boundary", "p p p")
+            if bnd.split() != ["p", "p", "p"] and any(k in props for k in ("elastic0", "elasticT", "tensile", "shear")):
+                messagebox.showerror("soapff-GUI", f"境界条件が {bnd} です。弾性定数・引張・せん断は周期境界（p p p）でだけ計算できます",
+                                     parent=w)
+                return
+            if any(l.startswith("# soapff-property:") for l in self.docs["in.lammps"]) and not messagebox.askyesno(
+                    "soapff-GUI", "in.lammps にはもう物性の計算があります。後ろにもう 1 つ足しますか？"
+                                  "（出力ファイルは後のもので上書きされます）", parent=w):
+                return
+            new = make(props, q)
+            if self.tab != "in.lammps":
+                self.show_tab("in.lammps")
+            self.push_undo()
+            cur = list(self.lines)
+            if PR.needs_triclinic(props) and not any(l.split()[:3] == ["change_box", "all", "triclinic"] for l in cur):
+                k = max((i for i, l in enumerate(cur) if L.split(l)[0] == "minimize"), default=len(cur) - 1)
+                cur[k + 1:k + 1] = PR.triclinic_lines(self.out)
+            self.lines = cur + new
+            self.sel = len(self.lines) - 1
+            self.render()
+            self.build_form()
+            self.schedule_save()
+            self.s["props_selected"], self.s["props_params"] = props, {k: q[k] for k in q if k != "timestep"}
+            save_settings(self.s)
+            self.log_add(f"物性の計算を in.lammps に追加しました：{', '.join(props)}（{len(new)} 行）。"
+                         "計算が終わったら「解析」で結果の図が出ます\n", None)
+            w.destroy()
+        bar = ttk.Frame(w, padding=(14, 8, 14, 14))
+        bar.pack(fill="x")
+        ttk.Button(bar, text="in.lammps に追加", style="Accent.TButton", command=add).pack(side="right")
+        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="left")
+
+    def warn_assignment(self, rep):
+        """after the force field is made: a clear warning when atoms were not found in the library (fallback) or their
+        SOAP type differs from the bond-graph ClayFF type (the library may lack the mineral)."""
+        if not isinstance(rep, dict):
+            return
+        fb = int(rep.get("fallback", 0))
+        tc = rep.get("type_check") or {}
+        nd = int(tc.get("differ", 0))
+        if not fb and not nd:
+            return
+        lines = [f"ライブラリ：{rep.get('library', '?')}"]
+        if fb:
+            per = rep.get("per_type") or {}
+            kinds = "、".join(f"{t} {v['fallback']}" for t, v in per.items() if v.get("fallback"))
+            lines.append(f"・ライブラリで決まらず、結合のつながりから型を決めた原子：{fb} 個（{kinds}）")
+        if nd:
+            kinds = "、".join(f"{k} が {v} 個" for k, v in (tc.get("kinds") or {}).items())
+            lines.append(f"・SOAP の型が結合のつながりの型と違う原子：{nd} 個（{kinds}。「結合の型→SOAP の型」）")
+        lines.append("この鉱物の環境がライブラリにない可能性があります。計算設定 › ライブラリと詳細 で同梱のライブラリ"
+                     f"（{runner.default_library()}）を選ぶか、この鉱物の参照をライブラリに加えてください。"
+                     "原子ごとの値は charges.csv（列 source、bond_type）にあります。")
+        self.log_add("警告：" + " ".join(lines) + "\n", "warn")
+        messagebox.showwarning("soapff-GUI", "\n".join(lines))
+
     def type_ids(self):
         """{ClayFF type name: type number} from the Masses of system.data."""
         out = {}
@@ -1223,7 +1431,7 @@ class App:
     def open_settings(self):
         w = tk.Toplevel(self.root)
         w.title("計算設定")
-        w.geometry("760x620")
+        w.withdraw()                              # shown at the size of its largest tab (below)
         w.configure(bg=PANEL)
         nb = ttk.Notebook(w)
         nb.pack(fill="both", expand=True, padx=12, pady=12)
@@ -1363,14 +1571,15 @@ class App:
         nb.add(de, text="ライブラリと詳細")
         de.columnconfigure(1, weight=1)
         entry(de, 0, "library", "SOAP ライブラリ", width=50, browse="file")
+        ttk.Button(de, text="同梱のものに戻す", style="Ghost.TButton",
+                   command=lambda: v["library"].set(runner.default_library())).grid(row=0, column=3, padx=(0, 6))
         entry(de, 1, "threshold", "類似度のしきい値", width=8)
         entry(de, 2, "cutoff", "カットオフ (Å)", width=8)
-        entry(de, 3, "skip_ps", "解析で除く時間 (ps)", width=8, note="空欄で最初の 20 %")
-        entry(de, 4, "sova_python", "SOVA の Python", width=50, browse="file")
-        entry(de, 5, "sova_home", "SOVA のフォルダ", width=50, browse="dir")
-        v["auto_analyze"] = tk.BooleanVar(value=bool(self.s.get("auto_analyze", True)))
-        ttk.Checkbutton(de, text="計算が終わったら解析する", variable=v["auto_analyze"]).grid(row=6, column=0, columnspan=2,
-                                                                                           sticky="w", pady=(8, 0))
+
+        # --- analysis
+        an = ttk.Frame(nb, padding=16)
+        nb.add(an, text="解析")
+        self.analysis_form(an, v, self.s, auto=True)
 
         def collect():
             s2 = dict(self.s)
@@ -1382,13 +1591,13 @@ class App:
                 raise ValueError(f"数値ではありません：{e}")
             if s2["dump_ps"] <= 0 or s2["temp"] <= 0:
                 raise ValueError("温度と出力間隔は正の値にしてください")
-            for k in ("baro", "lmp", "mpirun", "library", "skip_ps", "sova_python", "sova_home"):
+            for k in ("baro", "lmp", "mpirun", "library"):
                 s2[k] = v[k].get().strip()
+            self.collect_analysis(v, s2)
             s2["boundary"] = " ".join(x.get() for x in vb)
             s2["computers"] = [dict(c) for c in comps]
             if s2["where"] != "local" and not any(c["name"] == s2["where"] for c in comps):
                 s2["where"] = "local"
-            s2["auto_analyze"] = bool(v["auto_analyze"].get())
             if s2["npt_ps"] > 0 and s2["boundary"] != "p p p":
                 raise ValueError("周期でない方向があるときは NPT を使えません")
             return s2
@@ -1410,6 +1619,9 @@ class App:
         ttk.Button(bar, text="保存", style="Accent.TButton", command=ok).pack(side="right")
         ttk.Button(bar, text="保存して入力を作り直す", style="Ghost.TButton", command=lambda: ok(True)).pack(side="right", padx=8)
         ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        w.update_idletasks()                      # the largest tab decides the size; not beyond the screen
+        w.geometry(f"{min(w.winfo_reqwidth(), w.winfo_screenwidth() - 40)}x{min(w.winfo_reqheight(), w.winfo_screenheight() - 90)}")
+        w.deiconify()
 
     def regenerate(self):
         if not self.structure or not os.path.isfile(self.structure):
@@ -1749,7 +1961,7 @@ class App:
         if self.stopping:
             put(("done", "停止しました", rc if rc else 1))
         elif rc == 0:
-            if s.get("auto_analyze") and os.path.isfile(os.path.join(self.out, "traj.lammpstrj")):
+            if s.get("auto_analyze") and runner.analyzable(self.out):
                 self._analyze(put, s)
             put(("done", "完了", 0))
         else:
@@ -1767,59 +1979,203 @@ class App:
             threading.Thread(target=lambda: r.stop(pid), daemon=True).start()
 
     # ================================================================================================== analysis
+    def analysis_form(self, f, v, s, auto=False):
+        """the analysis choices and their parameters (settings tab and the 解析 dialog); values in v."""
+        f.columnconfigure(1, weight=1)
+        row = 0
+        if auto:
+            v["auto_analyze"] = tk.BooleanVar(value=bool(s.get("auto_analyze", True)))
+            ttk.Checkbutton(f, text="計算が終わったら解析する", variable=v["auto_analyze"]).grid(row=row, column=0, columnspan=4,
+                                                                                               sticky="w", pady=(0, 6))
+            row += 1
+        ttk.Label(f, text="解析", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w")
+        row += 1
+        for k, lab in ANALYSES:
+            v["an_" + k] = tk.BooleanVar(value=k in s.get("analyses", []))
+            ttk.Checkbutton(f, text=lab, variable=v["an_" + k]).grid(row=row, column=0, columnspan=4, sticky="w", padx=(8, 0))
+            row += 1
+
+        def ent(key, label, width=10, browse=None, note=None):
+            nonlocal row
+            ttk.Label(f, text=label).grid(row=row, column=0, sticky="w", pady=3, padx=(0, 10))
+            v[key] = tk.StringVar(value=str(s.get(key, "")))
+            rf = ttk.Frame(f)                 # entry, button and note side by side: a wide entry does not push other notes
+            rf.grid(row=row, column=1, columnspan=3, sticky="ew", pady=3)
+            ttk.Entry(rf, textvariable=v[key], width=width, style="Field.TEntry").pack(side="left", fill="x",
+                                                                                      expand=width >= 30)
+            if browse:
+                ttk.Button(rf, text="選ぶ…", style="Ghost.TButton",
+                           command=lambda: v[key].set((filedialog.askdirectory() if browse == "dir" else
+                                                       filedialog.askopenfilename()) or v[key].get())).pack(side="left", padx=6)
+            if note:
+                ttk.Label(rf, text=note, foreground=MUTED).pack(side="left", padx=6)
+            row += 1
+        ent("skip_ps", "平衡化として除く時間 (ps)", 8, note="空欄で最初の 20 %")
+        ttk.Label(f, text="XRD（debyer）", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w", pady=(10, 0))
+        row += 1
+        ent("xrd_wavelength", "波長 λ (Å)", 8, note="Cu Kα 1.5406、Mo Kα 0.7107")
+        ttk.Label(f, text="2θ の範囲 (°)").grid(row=row, column=0, sticky="w", pady=3)
+        rg = ttk.Frame(f)
+        rg.grid(row=row, column=1, columnspan=3, sticky="w")
+        for i, (k, lab) in enumerate((("xrd_from", "から"), ("xrd_to", "まで"), ("xrd_step", "刻み"))):
+            v[k] = tk.StringVar(value=str(s.get(k, "")))
+            ttk.Entry(rg, textvariable=v[k], width=6, style="Field.TEntry").pack(side="left")
+            ttk.Label(rg, text=lab, foreground=MUTED).pack(side="left", padx=(3, 10))
+        row += 1
+        ent("xrd_frames", "平均するフレーム数", 6, note="最後のフレームから")
+        ttk.Label(f, text="方式").grid(row=row, column=0, sticky="nw", pady=3)
+        v["xrd_mode"] = tk.StringVar(value=s.get("xrd_mode", "cluster"))
+        mf = ttk.Frame(f)
+        mf.grid(row=row, column=1, columnspan=3, sticky="w")
+        for k, lab in XRD_MODES.items():
+            ttk.Radiobutton(mf, text=lab, value=k, variable=v["xrd_mode"]).pack(anchor="w")
+        row += 1
+        ent("xrd_size", "結晶子の大きさ (Å)", 8, note="各辺がこれ以上になるようセルを並べる（時間は原子数の 2 乗）")
+        ttk.Label(f, text="プログラム", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w", pady=(10, 0))
+        row += 1
+        ent("sova_python", "SOVA の Python", 40, browse="file")
+        ent("sova_home", "SOVA のフォルダ", 40, browse="dir")
+        ent("debyer", "debyer", 40, browse="file", note="" if runner.find_debyer(s.get("debyer")) else "見つかりません")
+
+    @staticmethod
+    def collect_analysis(v, s2):
+        """the values of analysis_form into the settings s2 (ValueError when a number is wrong)."""
+        if "auto_analyze" in v:
+            s2["auto_analyze"] = bool(v["auto_analyze"].get())
+        s2["analyses"] = [k for k, _ in ANALYSES if v["an_" + k].get()]
+        for k in ("skip_ps", "sova_python", "sova_home", "debyer", "xrd_mode"):
+            s2[k] = v[k].get().strip()
+        try:
+            if s2["skip_ps"]:
+                float(s2["skip_ps"])
+            for k in ("xrd_wavelength", "xrd_from", "xrd_to", "xrd_step", "xrd_size"):
+                s2[k] = float(v[k].get())
+            s2["xrd_frames"] = max(1, int(float(v["xrd_frames"].get())))
+        except ValueError as e:
+            raise ValueError(f"数値ではありません：{e}")
+        if not (0 < s2["xrd_from"] < s2["xrd_to"] < 180 and s2["xrd_step"] > 0 and s2["xrd_wavelength"] > 0):
+            raise ValueError("XRD の 2θ の範囲か波長が正しくありません")
+
     def _analyze(self, put, s):
+        what = [k for k, _ in ANALYSES if k in s.get("analyses", [])]
         put(("phase", "解析中"))
-        put(("log", "\n解析（LAMMPS compute msd による拡散係数、SOVA による PDF と RDF）\n", None))
+        put(("log", "\n解析：" + "、".join(lab.split("（")[0] for k, lab in ANALYSES if k in what) + "\n", None))
+        if not what:
+            put(("log", "解析が 1 つも選ばれていません（計算設定 › 解析）\n", "warn"))
+            return
         try:
             skip = s.get("skip_ps")
             runner.analyze(self.out, log=lambda m: put(("log", m + "\n", None)), skip_ps=float(skip) if skip else None,
-                           sova_python=s.get("sova_python"), sova_home=s.get("sova_home"))
+                           sova_python=s.get("sova_python"), sova_home=s.get("sova_home"), what=what,
+                           debyer=s.get("debyer"), traj=s.get("_traj"),
+                           xrd_opts=dict(wavelength=float(s.get("xrd_wavelength", 1.5406)),
+                                         two_theta=(float(s.get("xrd_from", 3)), float(s.get("xrd_to", 80)),
+                                                    float(s.get("xrd_step", 0.02))),
+                                         frames=int(s.get("xrd_frames", 3)), mode=s.get("xrd_mode", "cluster"),
+                                         size_A=float(s.get("xrd_size", 50))))
             put(("analysis", self.out))
         except Exception as e:
             put(("log", f"解析できませんでした：{e}\n", "warn"))
 
     def analyze_now(self):
-        if not self.out or not os.path.isfile(os.path.join(self.out, "traj.lammpstrj")):
-            messagebox.showinfo("soapff-GUI", "トラジェクトリ（traj.lammpstrj）がありません。先に計算してください")
+        if not runner.analyzable(self.out):
+            messagebox.showinfo("soapff-GUI", "解析できる出力（軌道 *.lammpstrj、MSD、物性の計算や fix ave/* のファイル）が"
+                                              "まだありません。先に計算してください")
             return
         if self.busy():
             messagebox.showinfo("soapff-GUI", "計算中です。終わってから解析してください")
             return
-        s = dict(self.s)
-        self.worker = threading.Thread(target=lambda: (self._analyze(self.q.put, s), self.q.put(("idle",))), daemon=True)
-        self.set_running(True)
-        self.worker.start()
+        w = tk.Toplevel(self.root)
+        w.title(f"解析 – {os.path.basename(self.out)}")
+        w.configure(bg=PANEL)
+        w.transient(self.root)
+        from soapff_cui import analysis as AN
+        trajs = AN.trajectories(self.out)
+        v = {}
+        if trajs:
+            tf = ttk.Frame(w, padding=(16, 14, 16, 0))
+            tf.pack(fill="x")
+            ttk.Label(tf, text="SOVA と XRD に使う軌道").pack(side="left", padx=(0, 10))
+            v["traj"] = tk.StringVar(value=trajs[0])
+            ttk.Combobox(tf, textvariable=v["traj"], values=trajs, state="readonly", width=34).pack(side="left")
+            ttk.Label(tf, text="（引張・せん断の軌道は変形の途中の構造）", foreground=MUTED).pack(side="left", padx=8)
+        f = ttk.Frame(w, padding=16)
+        f.pack(fill="both", expand=True)
+        self.analysis_form(f, v, self.s)
+
+        def go():
+            s2 = dict(self.s)
+            try:
+                self.collect_analysis(v, s2)
+            except ValueError as e:
+                messagebox.showerror("soapff-GUI", str(e), parent=w)
+                return
+            self.s = s2
+            save_settings(self.s)
+            s2 = dict(s2, _traj=v["traj"].get() if "traj" in v else None)
+            w.destroy()
+            self.worker = threading.Thread(target=lambda: (self._analyze(self.q.put, s2), self.q.put(("idle",))), daemon=True)
+            self.set_running(True)
+            self.worker.start()
+        bar = ttk.Frame(w)
+        bar.pack(fill="x", padx=16, pady=(0, 14))
+        ttk.Button(bar, text="解析する", style="Accent.TButton", command=go).pack(side="right")
+        if os.path.isfile(os.path.join(self.out, "analysis", "summary.txt")):
+            ttk.Button(bar, text="前回の結果を見る", style="Ghost.TButton",
+                       command=lambda: (w.destroy(), self.show_analysis(self.out))).pack(side="right", padx=8)
+        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="left")
 
     def show_results(self):
         if self.out and os.path.isfile(os.path.join(self.out, "analysis", "summary.txt")):
             self.show_analysis(self.out)
-        elif self.out and os.path.isfile(os.path.join(self.out, "traj.lammpstrj")):
+        elif runner.analyzable(self.out):
             self.analyze_now()
         else:
             messagebox.showinfo("soapff-GUI", "まだ結果がありません。「計算を開始」で計算してください")
 
     def show_analysis(self, out):
+        """the summary and every figure of out/analysis in tabs."""
         dest = os.path.join(out, "analysis")
+        try:
+            figs = [tuple(x) for x in json.load(open(os.path.join(dest, "summary.json"))).get("figures", [])]
+        except (OSError, ValueError):
+            figs = []
+        if not figs and os.path.isfile(os.path.join(dest, "analysis.png")):     # analysis of an earlier version
+            figs = [("MSD・PDF・RDF", "analysis.png")]
         w = tk.Toplevel(self.root)
         w.title(f"解析結果 – {os.path.basename(out)}")
-        txt = scrolledtext.ScrolledText(w, height=12, width=110, font=self.f_mono_s)
+        w.configure(bg=PANEL)
+        nb = ttk.Notebook(w)
+        nb.pack(fill="both", expand=True, padx=8, pady=(8, 4))
+        tab = ttk.Frame(nb, padding=4)
+        nb.add(tab, text="まとめ")
+        txt = scrolledtext.ScrolledText(tab, height=26, width=118, font=self.f_mono_s, wrap="none")
         txt.insert("end", open(os.path.join(dest, "summary.txt")).read())
         txt.config(state="disabled")
-        txt.pack(fill="x", padx=8, pady=(8, 4))
-        png = os.path.join(dest, "analysis.png")
-        try:
-            img = tk.PhotoImage(file=png)
-            k = max(1, -(-img.width() // 1000))
-            img = img.subsample(k, k) if k > 1 else img
-            lab = ttk.Label(w, image=img)
-            lab.image = img
-            lab.pack(padx=8)
-        except tk.TclError as e:
-            ttk.Label(w, text=f"図を表示できません：{e}").pack()
+        txt.pack(fill="both", expand=True)
+        pngs = [None]
+        for title, png in figs:
+            tab = ttk.Frame(nb, padding=4)
+            nb.add(tab, text=title)
+            path = os.path.join(dest, png)
+            pngs.append(path)
+            try:
+                img = tk.PhotoImage(file=path)
+                k = max(1, -(-img.width() // 1100), -(-img.height() // 700))
+                img = img.subsample(k, k) if k > 1 else img
+                lab = ttk.Label(tab, image=img)
+                lab.image = img
+                lab.pack()
+            except tk.TclError as e:
+                ttk.Label(tab, text=f"図を表示できません：{e}").pack()
+
+        def current():
+            return pngs[nb.index(nb.select())] or os.path.join(dest, "summary.txt")
         bar = ttk.Frame(w)
         bar.pack(fill="x", padx=8, pady=8)
-        ttk.Button(bar, text="図を開く", style="Ghost.TButton", command=lambda: open_folder(png)).pack(side="left")
+        ttk.Button(bar, text="この図を開く", style="Ghost.TButton", command=lambda: open_folder(current())).pack(side="left")
         ttk.Button(bar, text="解析フォルダを開く（CSV）", style="Ghost.TButton", command=lambda: open_folder(dest)).pack(side="left", padx=6)
+        ttk.Button(bar, text="もう一度解析…", style="Ghost.TButton", command=lambda: (w.destroy(), self.analyze_now())).pack(side="left")
         ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="right")
 
     def open_ovito(self):
@@ -1877,6 +2233,7 @@ class App:
                     self.build_form()
                     self.log_add("入力は最小化までです。＋ fix、＋ compute、＋ その他（run など）から MD を追加してください。\n", None)
                     self.remember("入力作成")
+                    self.warn_assignment(msg[3])
                 elif kind == "make_failed":
                     self.set_state("力場を作れませんでした", ERR, 0)
                     messagebox.showerror("soapff-GUI", msg[1])
@@ -1947,6 +2304,25 @@ class App:
         self.root.destroy()
 
 
+def activate_macos(root):
+    """bring the window to the front on macOS.  Started from soapff-GUI.app (the applet starts this Python in the
+    background), the window would open behind the active application and look as if the app did not open:
+    [NSApp activateIgnoringOtherApps:YES] through the Objective-C runtime (ctypes; no extra package)."""
+    root.lift()
+    try:
+        import ctypes
+        import ctypes.util
+        objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("objc"))
+        objc.objc_getClass.restype = objc.sel_registerName.restype = ctypes.c_void_p
+        addr = ctypes.cast(objc.objc_msgSend, ctypes.c_void_p).value
+        send0 = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(addr)
+        send1 = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_bool)(addr)
+        app = send0(objc.objc_getClass(b"NSApplication"), objc.sel_registerName(b"sharedApplication"))
+        send1(app, objc.sel_registerName(b"activateIgnoringOtherApps:"), True)
+    except Exception:
+        pass
+
+
 def main():
     if "--install-app" in sys.argv:                     # macOS: ~/Applications/soapff-GUI.app
         from .macapp import install
@@ -1955,7 +2331,13 @@ def main():
         return
     root = tk.Tk()
     root.tk.call("tk", "appname", "soapff-GUI")
+    try:                                                 # window and (macOS) Dock icon
+        root.iconphoto(True, tk.PhotoImage(file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "icon.png")))
+    except tk.TclError:
+        pass
     App(root)
+    if sys.platform == "darwin":
+        root.after(300, lambda: activate_macos(root))
     root.mainloop()
 
 

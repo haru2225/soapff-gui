@@ -1,0 +1,59 @@
+{
+ "per_origin": {
+  "albite_bulk.data": {
+   "entries": 208,
+   "wrong": 0
+  },
+  "brucite_bulk.data": {
+   "entries": 240,
+   "wrong": 0
+  },
+  "kaolinite_bulk.data": {
+   "entries": 408,
+   "wrong": 0
+  },
+  "lizerdite_bulk.data": {
+   "entries": 324,
+   "wrong": 0
+  },
+  "montmorillonite_2W.data": {
+   "entries": 2502,
+   "wrong": 0
+  },
+  "muscovite_1M_bulk.data": {
+   "entries": 168,
+   "wrong": 0
+  },
+  "muscovite_2M1_bulk.data": {
+   "entries": 336,
+   "wrong": 0
+  },
+  "nanpingite_bulk.data": {
+   "entries": 336,
+   "wrong": 0
+  },
+  "phlogopite_1M_bulk.data": {
+   "entries": 176,
+   "wrong": 0
+  },
+  "pyrophyllite_2_bulk.data": {
+   "entries": 320,
+   "wrong": 0
+  },
+  "pyrophyllite_bulk.data": {
+   "entries": 320,
+   "wrong": 0
+  },
+  "quartz_bulk.data": {
+   "entries": 162,
+   "wrong": 0
+  },
+  "talc_bulk.data": {
+   "entries": 378,
+   "wrong": 0
+  }
+ },
+ "confusions": {},
+ "total": 5878,
+ "wrong": 0
+}

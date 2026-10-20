@@ -1,0 +1,18 @@
+include system.settings
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo_style custom step temp press pe ke etotal vol density lx ly lz
+thermo 2000
+reset_timestep 0
+timestep 0.5
+fix md all npt temp 366.0 366.0 100.0 z 0.0 0.0 1000.0
+dump d all custom 20000 traj.lammpstrj id type element x y z ix iy iz q
+dump_modify d sort id element ao ho hw mgo Na ob obos oh ohs ow st
+group a_Ow type 10
+compute msd_Ow a_Ow msd
+fix msd_Ow all ave/time 1 1 200 c_msd_Ow[*] file msd_Ow.dat
+group a_Na type 5
+compute msd_Na a_Na msd
+fix msd_Na all ave/time 1 1 200 c_msd_Na[*] file msd_Na.dat
+run 400000
+write_data final.data

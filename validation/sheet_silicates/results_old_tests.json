@@ -1,0 +1,91 @@
+{
+ "jaea": {
+  "n": 2502,
+  "wrong": 0,
+  "fallback": 0,
+  "minsim": 1.0,
+  "net": 0.005999999999971806
+ },
+ "bulk": {
+  "albite": {
+   "structures": 1,
+   "atoms": [
+    312,
+    312
+   ],
+   "wrong": 0,
+   "structs_wrong": 0,
+   "stopped": 0,
+   "fallback": 0,
+   "minsim": 1.0,
+   "kinds": {}
+  },
+  "brucite": {
+   "structures": 1,
+   "atoms": [
+    500,
+    500
+   ],
+   "wrong": 0,
+   "structs_wrong": 0,
+   "stopped": 0,
+   "fallback": 0,
+   "minsim": 1.0,
+   "kinds": {}
+  },
+  "pyrophyllite": {
+   "structures": 1,
+   "atoms": [
+    720,
+    720
+   ],
+   "wrong": 0,
+   "structs_wrong": 0,
+   "stopped": 0,
+   "fallback": 0,
+   "minsim": 1.0,
+   "kinds": {}
+  },
+  "quartz": {
+   "structures": 1,
+   "atoms": [
+    216,
+    216
+   ],
+   "wrong": 0,
+   "structs_wrong": 0,
+   "stopped": 0,
+   "fallback": 0,
+   "minsim": 1.0,
+   "kinds": {}
+  }
+ },
+ "iface": {
+  "brucite_001": {
+   "structures": 20,
+   "atoms": [
+    594,
+    615
+   ],
+   "wrong": 0,
+   "structs_wrong": 0,
+   "stopped": 0,
+   "fallback": 851,
+   "minsim": 0.88542,
+   "kinds": {}
+  },
+  "pyrophyllite_001": {
+   "structures": 20,
+   "atoms": [
+    803,
+    827
+   ],
+   "wrong": 0,
+   "structs_wrong": 0,
+   "stopped": 0,
+   "fallback": 62,
+   "minsim": 0.915,
+   "kinds": {}
+  }
+ }
+}

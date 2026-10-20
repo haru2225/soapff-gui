@@ -1,0 +1,117 @@
+{
+ "structure": "/Users/harutokono/clay/soapff-cui/examples/minerals/muscovite_mech/muscovite_2M1_221.extxyz",
+ "atoms": 672,
+ "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
+ "soap": {
+  "r_cut": 5.0,
+  "n_max": 4,
+  "l_max": 3,
+  "sigma": 0.4
+ },
+ "threshold": 0.95,
+ "boundary": "p p p",
+ "kspace": [
+  "kspace_style pppm 1.0e-5"
+ ],
+ "vacuum_gap": {},
+ "charge_sum_before": -0.006400000000041928,
+ "charge_sum": 1.1368683772161603e-13,
+ "from_soap": 672,
+ "fallback": 0,
+ "type_check": {
+  "compared": 608,
+  "differ": 0,
+  "kinds": {}
+ },
+ "warnings": [],
+ "roles": {
+  "mineral": 640,
+  "water": 0,
+  "ion": 32
+ },
+ "per_type": {
+  "K": {
+   "atoms": 32,
+   "charges": [
+    1.0
+   ],
+   "from_soap": 32,
+   "fallback": 0,
+   "min_similarity": 0.9999995827674866
+  },
+  "ao": {
+   "atoms": 64,
+   "charges": [
+    1.575
+   ],
+   "from_soap": 64,
+   "fallback": 0,
+   "min_similarity": 0.9999997019767761
+  },
+  "at": {
+   "atoms": 32,
+   "charges": [
+    1.575
+   ],
+   "from_soap": 32,
+   "fallback": 0,
+   "min_similarity": 0.9999995827674866
+  },
+  "ho": {
+   "atoms": 64,
+   "charges": [
+    0.425
+   ],
+   "from_soap": 64,
+   "fallback": 0,
+   "min_similarity": 0.9999990463256836
+  },
+  "ob": {
+   "atoms": 192,
+   "charges": [
+    -1.05
+   ],
+   "from_soap": 192,
+   "fallback": 0,
+   "min_similarity": 0.9999992847442627
+  },
+  "obts": {
+   "atoms": 128,
+   "charges": [
+    -1.1688
+   ],
+   "from_soap": 128,
+   "fallback": 0,
+   "min_similarity": 0.9999994039535522
+  },
+  "oh": {
+   "atoms": 64,
+   "charges": [
+    -0.95
+   ],
+   "from_soap": 64,
+   "fallback": 0,
+   "min_similarity": 0.999999463558197
+  },
+  "st": {
+   "atoms": 96,
+   "charges": [
+    2.1
+   ],
+   "from_soap": 96,
+   "fallback": 0,
+   "min_similarity": 0.9999992847442627
+  }
+ },
+ "consistency": [],
+ "md": {
+  "temp": 300.0,
+  "relax_ps": 10.0,
+  "nvt_ps": 10.0,
+  "npt_ps": 0.0,
+  "press": 1.0,
+  "baro": "tri",
+  "dump_ps": 1.0,
+  "timestep_fs": 0.5
+ }
+}

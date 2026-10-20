@@ -1,0 +1,2 @@
+# soapff-property: viscosity file=gk_viscosity.dat sample=10 corr=200
+# soapff-property: thermal file=gk_heatflux.dat sample=10 corr=200

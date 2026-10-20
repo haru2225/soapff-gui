@@ -9,6 +9,9 @@ the LAMMPS cell, periodic) is built and, per frame,
     sovapy.computation.structure_factor.pair_dist_func   -> partial pair distribution functions (PDF) g(r)
 are evaluated and averaged over the frames; the radial distribution functions (RDF) are
     sovapy.computation.structure_factor.radial_dist_fun  -> N(r) = 4 pi r^2 rho_B g(r)   (rho_B = N_B / V)
+    coordination number: N(r) integrated up to the first minimum after the first peak
+for the whole system also the X-ray structure factor (from g(r) up to half the box width)
+    sovapy.computation.structure_factor.partial_structure_factor, xcoeff, structure_factor_xray -> S(Q)
 SOVA pairs atoms by element, so water O and mineral O are separated by taking subsets:
     water O                 -> water O - water O
     each ion + water O      -> ion - water O
@@ -16,7 +19,7 @@ SOVA pairs atoms by element, so water O and mineral O are separated by taking su
     all atoms               -> every element pair (all:<A>-<B>)
 
     python sova_structure.py --traj traj.lammpstrj --charges charges.csv --out DIR [--skip-ps 10] [--dt-fs 1]
-        -> DIR/sova_pdf.csv, DIR/sova_rdf.csv, DIR/sova_summary.json
+        -> DIR/sova_pdf.csv, DIR/sova_rdf.csv, DIR/sova_sq.csv, DIR/sova_summary.json
 """
 import argparse
 import csv
@@ -81,7 +84,26 @@ def first_peak(r, g):
     if hi <= lo or gs[lo:hi].max() <= 0:
         return None
     i = lo + int(np.argmax(gs[lo:hi]))
+    if i >= hi - 1 and hi < len(gs):          # still rising at 4 A: no first peak in the range (not the range's edge)
+        return None
     return dict(r_peak=float(r[i]), g_peak=float(g[i]))
+
+
+def coordination(r, n_r, g):
+    """N(r) integrated from 0 to the first minimum of g(r) after its first peak (None when there is no peak)."""
+    fp = first_peak(r, g)
+    if not fp:
+        return None
+    dr = r[1] - r[0]
+    i0 = int(round(fp["r_peak"] / dr))
+    w = max(1, int(round(0.1 / dr)))
+    gs = np.convolve(g, np.ones(2 * w + 1) / (2 * w + 1), mode="same")
+    hi = min(len(gs), i0 + int(2.0 / dr))
+    if hi <= i0 + 1:
+        return None
+    im = i0 + int(np.argmin(gs[i0:hi]))
+    y = n_r[:im + 1]
+    return dict(r_min=float(r[im]), cn=float(np.sum((y[1:] + y[:-1]) * 0.5 * dr)))
 
 
 def main():
@@ -90,9 +112,11 @@ def main():
     ap.add_argument("--skip-ps", type=float, default=0.0); ap.add_argument("--dt-fs", type=float, default=1.0)
     ap.add_argument("--max-frames", type=int, default=40); ap.add_argument("--dr", type=float, default=0.02)
     ap.add_argument("--rmax", type=float, default=8.0)
+    ap.add_argument("--qmax", type=float, default=12.0); ap.add_argument("--dq", type=float, default=0.05)
     a = ap.parse_args()
     import sovapy
-    from sovapy.computation.structure_factor import atom_pair_hist, pair_dist_func, radial_dist_fun
+    from sovapy.computation.structure_factor import (atom_pair_hist, pair_dist_func, partial_structure_factor,
+                                                     radial_dist_fun, structure_factor_xray, xcoeff)
 
     rows = list(csv.DictReader(open(a.charges)))
     el = np.array([r["element"] for r in rows]); role = np.array([r["role"] for r in rows])
@@ -120,18 +144,21 @@ def main():
         widths.append(min(V / np.linalg.norm(np.cross(c[(k + 1) % 3], c[(k + 2) % 3])) for k in range(3)))
     rmax = min(a.rmax, 0.5 * min(widths))
     nr = int(rmax / a.dr) + 1
+    nr_sq = int(0.5 * min(widths) / a.dr) + 1          # S(Q) from g(r) up to half the box (less truncation ripple)
     vol = float(np.mean([abs(np.linalg.det(c)) for _, c, _ in sel]))
 
-    pdf, rdf, peaks = {}, {}, {}
+    pdf, rdf, peaks, coord = {}, {}, {}, {}
     r = None
+    sq = None
     for label, idx, want in subsets:
         g_sum, atoms = None, None
         for _, cell, pos in sel:
             atoms = sova_atoms(pos[idx], [el[i] for i in idx], cell)
             rr, hist = atom_pair_hist(atoms, a.dr)
-            g = pair_dist_func(atoms, rr, hist)[:nr]
+            g = pair_dist_func(atoms, rr, hist)[:nr_sq if label == "all" else nr]
             g_sum = g if g_sum is None else g_sum + g
-        r, g = rr[:nr], g_sum / len(sel)
+        g_long = g_sum / len(sel)
+        r, g = rr[:nr], g_long[:nr]
         pairs = [tuple(p) for p in atoms.pairs]
         for pa in (want or pairs):
             k = pairs.index(pa) if pa in pairs else pairs.index(pa[::-1])
@@ -143,6 +170,12 @@ def main():
                 fp = first_peak(r, g[:, k])
                 if fp:
                     peaks[name] = fp
+                cn = coordination(r, rdf[name], g[:, k])
+                if cn:
+                    coord[name] = cn
+        if label == "all":                   # X-ray structure factor of the whole system from the partial g(r)
+            q, psq = partial_structure_factor(atoms, rr[:len(g_long)], g_long, a.dq, a.qmax, a.dq)
+            sq = (q, structure_factor_xray(psq, xcoeff(atoms, q)))
     names = list(pdf)
     os.makedirs(a.out, exist_ok=True)
     for fname, table in (("sova_pdf.csv", pdf), ("sova_rdf.csv", rdf)):
@@ -150,8 +183,14 @@ def main():
             w = csv.writer(f); w.writerow(["r_A"] + names)
             for i in range(len(r)):
                 w.writerow([f"{r[i]:.3f}"] + [f"{table[n][i]:.6g}" for n in names])
+    if sq is not None:
+        with open(os.path.join(a.out, "sova_sq.csv"), "w", newline="") as f:
+            w = csv.writer(f); w.writerow(["Q_1/A", "S_xray"])
+            for qq, v in zip(*sq):
+                w.writerow([f"{qq:.4f}", f"{v:.6g}"])
     result = dict(sovapy_version=getattr(sovapy, "__version__", ""), frames=len(sel), rmax=float(rmax), dr=a.dr,
-                  pairs=names, first_peaks=peaks,
+                  pairs=names, first_peaks=peaks, coordination=coord, sq_xray=sq is not None,
+                  sq_rmax=float((nr_sq - 1) * a.dr), sq_qmax=a.qmax,
                   note="PDF g(r) by SOVA pair_dist_func (normalised by the density over the whole box: in a slab or "
                        "interlayer it does not tend to 1); RDF N(r) = 4 pi r^2 rho_B g(r) by SOVA radial_dist_fun")
     json.dump(result, open(os.path.join(a.out, "sova_summary.json"), "w"), indent=1)

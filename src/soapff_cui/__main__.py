@@ -52,17 +52,32 @@ def main():
                    help="LAMMPS boundary, e.g. 'p p p' (default) or 'p p f' (slab with vacuum along z; NVT only)")
     o = sub.add_parser("open", help="open an output directory or file (traj.lammpstrj, data file) in OVITO")
     o.add_argument("path")
-    an = sub.add_parser("analyze", help="standard analyses of an MD run with LAMMPS (thermo, compute msd, fix ave/chunk) "
-                                        "and SOVA (g(r), coordination, S(q))")
+    an = sub.add_parser("analyze", help="analyses of an MD run: LAMMPS compute msd, fix ave/* files, "
+                                        "SOVA (g(r), N(r), coordination, S(Q)) and Debyer (XRD)")
     an.add_argument("outdir")
     an.add_argument("--skip-ps", type=float, default=None, help="equilibration to skip (ps); default 20%% of the MD")
     an.add_argument("--sova-python", default=None, help="Python of a SOVA installation (default $SOVA_PYTHON, or this "
                                                         "Python when sovapy is importable)")
     an.add_argument("--sova-home", default=None, help="SOVA source checkout put on PYTHONPATH (default $SOVA_HOME)")
+    an.add_argument("--what", default="msd,sova,compute,xrd,props",
+                    help="analyses, comma separated: msd (diffusion, ionic conductivity), sova (PDF, RDF, S(Q)), compute "
+                         "(fix ave/* files), xrd (Debyer), props (the soapff properties of in.lammps)")
+    an.add_argument("--traj", default=None, help="dump for SOVA and XRD (default traj.lammpstrj, else the first *.lammpstrj)")
+    an.add_argument("--debyer", default=None, help="debyer executable (default $DEBYER, PATH, ~/*/debyer/debyer/debyer)")
+    an.add_argument("--wavelength", type=float, default=1.5406, help="X-ray wavelength in A (default Cu K-alpha 1.5406)")
+    an.add_argument("--two-theta", default="3,80,0.02", help="2 theta from,to,step in degrees (default 3,80,0.02)")
+    an.add_argument("--xrd-frames", type=int, default=3, help="number of last frames averaged for XRD (default 3)")
+    an.add_argument("--xrd-mode", default="cluster", choices=["cluster", "periodic"],
+                    help="cluster: the cell repeated to a crystallite of --xrd-size A (crystals, minerals; default); "
+                         "periodic: periodic box with cut-off half the box (liquids, glasses; orthorhombic box only)")
+    an.add_argument("--xrd-size", type=float, default=50.0, help="minimum crystallite edge in A for the cluster mode (default 50)")
     a = ap.parse_args()
     if a.cmd == "analyze":
         from .analysis import analyze
-        analyze(a.outdir, skip_ps=a.skip_ps, sova_python=a.sova_python, sova_home=a.sova_home)
+        analyze(a.outdir, skip_ps=a.skip_ps, sova_python=a.sova_python, sova_home=a.sova_home,
+                what=tuple(w.strip() for w in a.what.split(",") if w.strip()), debyer=a.debyer, traj=a.traj,
+                xrd_opts=dict(wavelength=a.wavelength, two_theta=tuple(float(v) for v in a.two_theta.split(",")),
+                              frames=a.xrd_frames, mode=a.xrd_mode, size_A=a.xrd_size))
     elif a.cmd == "open":
         print("opening", open_in_ovito(a.path))
     elif a.cmd == "check-library":

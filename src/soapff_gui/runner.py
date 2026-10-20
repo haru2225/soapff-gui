@@ -73,10 +73,34 @@ def prepare(structure, workdir, library=None, log=print, **md):
     return core.make(structure, workdir, library or LIBRARY, log=log, **md)
 
 
-def analyze(out_dir, log=print, skip_ps=None, sova_python=None, sova_home=None):
-    """diffusion from LAMMPS compute msd and SOVA PDF / RDF -> out_dir/analysis/."""
+def find_debyer(path=None):
+    """the debyer executable (given path, $DEBYER, PATH, ~/*/debyer/debyer/debyer) or None."""
     from soapff_cui import analysis
-    return analysis.analyze(out_dir, skip_ps=skip_ps, sova_python=sova_python or None, sova_home=sova_home or None, log=log)
+    return analysis.find_debyer(path or None)
+
+
+def analyze(out_dir, log=print, skip_ps=None, sova_python=None, sova_home=None, what=None, debyer=None, xrd_opts=None,
+            traj=None):
+    """diffusion from LAMMPS compute msd, SOVA PDF / RDF / S(Q), the fix ave/* files of the computes, XRD by Debyer
+    -> out_dir/analysis/."""
+    from soapff_cui import analysis
+    return analysis.analyze(out_dir, skip_ps=skip_ps, sova_python=sova_python or None, sova_home=sova_home or None, log=log,
+                            what=tuple(what) if what else analysis.WHAT, debyer=debyer or None, xrd_opts=xrd_opts,
+                            traj=traj or None)
+
+
+def analyzable(out_dir):
+    """the outputs that 解析 can use in out_dir: dumps (*.lammpstrj), MSD files, soapff properties of in.lammps, the
+    files of fix ave/* -> list of short descriptions (empty: nothing to analyse yet)."""
+    from soapff_cui import analysis, properties
+    if not out_dir or not os.path.isdir(out_dir):
+        return []
+    found = [f for f in analysis.trajectories(out_dir)]
+    found += [os.path.basename(f) for f in glob.glob(os.path.join(out_dir, "msd_*.dat"))]
+    found += [m.get("file", n) for n, m in properties.markers(out_dir)
+              if os.path.isfile(os.path.join(out_dir, m.get("file", m.get("born", "-"))))]
+    found += [f for _, _, f in analysis.ave_files(out_dir)]
+    return found
 
 
 def open_in_ovito(path):

@@ -1,0 +1,37 @@
+# soapff-cui: ClayFF + SOAP charges.  lmp -in in.lammps
+include system.settings
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo_style custom step temp press pe ke etotal vol density lx ly lz
+thermo 1000
+# minimisation with a small step limit first (built structures may contain overlapping water)
+change_box all triclinic
+kspace_style pppm 1.0e-5
+# muscovite 2M1 (2x2x1): tension z to strain 0.16 at 300 K from the equilibrated state of ../run (system.data,
+# written from ../run/soapff_eq.dump with velocities); same commands as ../run/in.lammps
+timestep 0.5
+reset_timestep 0
+write_dump all custom soapff_eq.dump id x y z vx vy vz ix iy iz modify sort id
+
+# soapff-property: tensile dir=z sign=1 rate_s=1e+09 max_strain=0.16 file=mech_tensile_z.dat
+# uniaxial tension along z: fix deform erate, x and y at 1 atm (fix npt); stress = -pzz
+read_dump soapff_eq.dump 0 x y z vx vy vz ix iy iz box yes replace yes
+reset_timestep 0
+variable soapff_lx equal lx
+variable soapff_ly equal ly
+variable soapff_lz equal lz
+variable soapff_xy equal xy
+variable soapff_xz equal xz
+variable soapff_yz equal yz
+variable soapff_L0 equal $(lz)
+variable soapff_strain equal (lz-v_soapff_L0)/v_soapff_L0
+fix soapff_t all npt temp 300 300 100 x 1 1 1000 y 1 1 1000 couple none
+fix soapff_def all deform 1 z erate 1e-06 units box remap x
+fix soapff_mech all ave/time 10 10 100 v_soapff_strain c_thermo_press[1] c_thermo_press[2] c_thermo_press[3] c_thermo_press[6] c_thermo_press[5] c_thermo_press[4] v_soapff_lx v_soapff_ly v_soapff_lz v_soapff_xy v_soapff_xz v_soapff_yz c_thermo_temp file mech_tensile_z.dat
+dump soapff_dm all custom 4000 traj_tensile_z.lammpstrj id type element x y z ix iy iz q
+dump_modify soapff_dm sort id element ao at ho K ob obts oh st
+run 320000
+unfix soapff_mech
+unfix soapff_def
+unfix soapff_t
+undump soapff_dm
