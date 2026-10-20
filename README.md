@@ -6,7 +6,9 @@ SOAP のライブラリ（Na モンモリロナイトと 12 のバルクの結�
 
 ## 例
 
-`examples/montmorillonite_2W/`：Na モンモリロナイト 2 水和層（2,502 原子）の初期構造と、GUI での手順、期待される結果（力場の作成と MD）。
+`examples/montmorillonite_2W/`：Na モンモリロナイト 2 水和層（2,502 原子）の初期構造と、GUI での手順、期待される結果（力場の作成と MD）、`diffusion/` に論文の拡散係数の計算（300、330、366 K、Greathouse ら 2016 との比較）。
+
+`examples/muscovite_2M1/`：白雲母 2M1（672 原子）の構造ファイルと、「＋ 物性」で生成した入力による 0 K の弾性定数と 300 K の引張・せん断の計算（論文の計算）、Teich-McGoldrick ら（2012）・DelRio ら（2026）・実験との比較とずれの理由。
 
 ## 計算できる鉱物と構造
 
@@ -132,10 +134,6 @@ LAMMPS（`lmp`、`lmp_mpi`、`lmp_serial`）と `mpirun` は、Python と同じ�
 
 soapff-cui の出力（`system.data`、`system.settings`、`in.lammps`、`charges.csv`、`report.json`）に加えて、LAMMPS の `log.lammps`、`traj.lammpstrj`（出力間隔ごと、既定 1 ps）、`final.data`（最後の構造）。MSD の `msd_<group>.dat`（LAMMPS）。解析を行うと `analysis/` に結果ができます（下の「解析」）。
 
-## 論文と検証
-
-`paper/`：論文の原稿（`main.tex`、`main.pdf`、図とそれを作るスクリプト）。`validation/`：論文の結果のスクリプトとデータ（軌道などの大きいファイルは除く。`validation/README.md`）。
-
 ## 構成
 
 ```
@@ -148,7 +146,7 @@ src/soapff_gui/   app.py           ウィンドウ（tkinter）。計算は別�
 src/soapff_cui/   同梱の soapff-cui（構造ファイル → ClayFF の LAMMPS 入力、解析）。_clayff は型付けの部品、
                   analysis.py は解析（MSD、fix ave/* のファイル、debyer）、sova_structure.py は SOVA の部分、
                   properties.py は物性の計算（LAMMPS のコマンドと解析）
-examples/         例：Na モンモリロナイト 2 水和層
+examples/         例：Na モンモリロナイト 2 水和層（力場、MD、拡散係数）、白雲母 2M1（弾性定数、引張、せん断）
 ```
 
 ## 限界
