@@ -1948,7 +1948,13 @@ class App:
 
 
 def main():
+    if "--install-app" in sys.argv:                     # macOS: ~/Applications/soapff-GUI.app
+        from .macapp import install
+        k = sys.argv.index("--install-app")
+        print("installed:", install(sys.argv[k + 1] if len(sys.argv) > k + 1 else None))
+        return
     root = tk.Tk()
+    root.tk.call("tk", "appname", "soapff-GUI")
     App(root)
     root.mainloop()
 

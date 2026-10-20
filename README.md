@@ -17,24 +17,28 @@ soapff-cui の README の「計算できる鉱物と構造」と同じです。�
 
 ## インストール（GitHub から）
 
-soapff-gui だけを入れれば使えます（力場を作る soapff-cui は `soapff_cui` として同梱しています）。
-
 ```
-git clone git@github.com:haru2225/soapff-gui.git && pip install -e soapff-gui
-soapff-gui              # = python -m soapff_gui
+git clone git@github.com:haru2225/soapff-gui.git
+sh soapff-gui/install.sh
 ```
 
-- numpy、scipy、ASE、dscribe、matplotlib は pip が自動で入れます。SOAP のライブラリも入っています。
-- Python には tkinter が必要です（多くの配布に含まれます）。
-- LAMMPS（`lmp`）と、並列にするなら `mpirun` は別に必要です（SSH で別のコンピュータを使うときは、そのコンピュータの LAMMPS を使います）。
-- 解析の PDF・RDF には SOVA（sovapy）が要ります。`pip install -e "soapff-gui[sova]"` で一緒に入れるか、計算設定で SOVA の入った Python を指定します。
+これで、専用の Python の環境（`~/.soapff-gui/venv`）に soapff-gui と必要なライブラリ（numpy、scipy、ASE、dscribe、matplotlib）が入り、macOS では `~/Applications/soapff-GUI.app` ができます。Finder や Launchpad から「soapff-GUI」で起動できます（Dock にドラッグしておくと便利です）。
+
+- Python 3.9 以上で tkinter のあるものが要ります。使う Python は `PYTHON=/path/to/python sh soapff-gui/install.sh` で選べます。
+- LAMMPS がもう入っている Python の環境（conda や pixi など）にそのまま入れるときは、`PYTHON=その環境の python sh soapff-gui/install.sh --here` とします。その環境の `lmp` と `mpirun` を自動で使います。
+- LAMMPS（`lmp`）と、並列にするなら `mpirun` は別に必要です（SSH で別のコンピュータを使うときは、そのコンピュータの LAMMPS を使います）。見つからないときは「計算設定」の「実行先」で場所を指定します。
+- 解析の PDF・RDF には SOVA（sovapy）が要ります（計算設定で SOVA の入った Python を指定できます）。
 - コマンドで使う `soapff-cui`（`soapff-cui make 構造ファイル -o 出力 --library …`）も一緒に入ります。力場の作成と解析の本体は `src/soapff_cui/` です。
+- 更新は `cd soapff-gui && git pull` だけです（`-e` で入れているので、入れ直しは要りません）。
 
 ## 起動
 
 ```
 soapff-gui              # = python -m soapff_gui
+soapff-gui --install-app   # macOS：~/Applications/soapff-GUI.app を作る（Finder・Launchpad・Dock から起動できる）
 ```
+
+`soapff-GUI.app` は、入れた Python で soapff-gui を起動するだけの小さなアプリです（AppleScript のアプレット）。Python の環境を入れ替えたら、もう一度 `--install-app` を実行してください。
 
 LAMMPS（`lmp`、`lmp_mpi`、`lmp_serial`）と `mpirun` は、Python と同じ環境の `bin` を先に、次に PATH を探します（`lmp` と同じフォルダの `mpirun` を優先）。見つからないときは「計算設定」の「実行先」で場所を指定してください。
 
