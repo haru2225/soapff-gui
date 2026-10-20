@@ -77,7 +77,10 @@ class Remote:
         self.password = password or None
         self.ssh_cmd, self.scp_cmd = ssh, scp
         d = os.path.join(os.path.expanduser("~"), ".ssh")
-        self.control = os.path.join(d if os.path.isdir(d) else tempfile.gettempdir(), "soapff-%C")
+        # one shared connection per Remote (per job): with one per host, closing it (end of a job, a connection test)
+        # cut the connections of the other windows or jobs to the same computer
+        Remote._count = getattr(Remote, "_count", 0) + 1
+        self.control = os.path.join(d if os.path.isdir(d) else tempfile.gettempdir(), f"sf{os.getpid()}-{Remote._count}-%C")
 
     @property
     def target(self):

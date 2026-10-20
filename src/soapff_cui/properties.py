@@ -52,7 +52,7 @@ MECHANICAL = ("tensile", "shear")
 DEFAULTS = dict(temp=300.0, press=1.0, timestep=0.5, relax_ps=10.0, npt_ps=20.0, baro="aniso", prod_ps=100.0, dump_ps=1.0,
                 msd_ps=0.1, gk_sample=4, gk_corr_ps=5.0, e0_strain=5.0e-3, eT_stress_every=10, eT_born_every=100,
                 eT_delta=1.0e-4, tensile_dirs="x", tensile_mode="tension", tensile_rate=1.0e9, tensile_max=0.1,
-                shear_planes="xy", shear_mode="solid", shear_rate=1.0e9, shear_max=0.2, mech_dump_ps=1.0, seed=4928459)
+                shear_planes="xy", shear_mode="solid", shear_dir="+", shear_rate=1.0e9, shear_max=0.2, mech_dump_ps=1.0, seed=4928459)
 
 # constants (SI) and LAMMPS real units
 KB, E, ATM2PA, A2M, FS2S = 1.380649e-23, 1.602176634e-19, 101325.0, 1.0e-10, 1.0e-15
@@ -254,9 +254,10 @@ def lines(props, p, type_ids, msd_lines=None, existing=()):
         rate = float(p["shear_rate"]) * FS2S
         n = steps(float(p["shear_max"]) / (rate * 1.0e3))
         perp = {"xy": "ly", "xz": "lz", "yz": "lz"}
-        for a in planes:
-            name = f"shear_{a}"
-            out += ["", f"# soapff-property: shear plane={a} mode={'flow' if flow else 'solid'} rate_s={float(p['shear_rate']):g} "
+        signs = [1, -1] if p.get("shear_dir") == "both" else [1]
+        for a, sg in [(a, sg) for a in planes for sg in signs]:
+            name = f"shear_{a}" + ("_neg" if sg < 0 else "")
+            out += ["", f"# soapff-property: shear plane={a} sign={sg} mode={'flow' if flow else 'solid'} rate_s={float(p['shear_rate']):g} "
                     f"max_strain={float(p['shear_max']):g} file=mech_{name}.dat",
                     f"# shear {a}: fix deform of the tilt factor {a} (engineering strain rate, flip no); "
                     + ("flow: fix nvt/sllod (temp/deform), remap v" if flow else "solid: fix nvt, remap x")
@@ -265,10 +266,10 @@ def lines(props, p, type_ids, msd_lines=None, existing=()):
                     f"variable soapff_strain equal ({a}-v_soapff_T0)/{perp[a]}"]
             if flow:                                                 # nvt/sllod makes its own compute temp/deform
                 out += [f"fix soapff_t all nvt/sllod temp {T:g} {T:g} {tdamp:g}",
-                        f"fix soapff_def all deform 1 {a} erate {rate:.6g} remap v flip no"]
+                        f"fix soapff_def all deform 1 {a} erate {sg * rate:.6g} remap v flip no"]
             else:
                 out += [f"fix soapff_t all nvt temp {T:g} {T:g} {tdamp:g}",
-                        f"fix soapff_def all deform 1 {a} erate {rate:.6g} remap x flip no"]
+                        f"fix soapff_def all deform 1 {a} erate {sg * rate:.6g} remap x flip no"]
             out += [f"fix soapff_mech all ave/time 10 10 100 v_soapff_strain {rec} file mech_{name}.dat",
                     f"dump soapff_dm all custom {steps(p['mech_dump_ps'])} traj_{name}.lammpstrj id type element x y z ix iy iz q",
                     f"dump_modify soapff_dm sort id element {names}",
@@ -412,7 +413,7 @@ def mechanical(out_dir, m, dt_fs, fit_max=None):
     else:
         comp = {"yz": 5, "xz": 6, "xy": 7}[m["plane"]]
         stress = -a[:, comp] * ATM2GPA
-        sgn, lat_strain = 1, {}
+        sgn, lat_strain = int(m.get("sign", 1)), {}
     x, y = sgn * strain, sgn * stress                                         # compression: positive numbers
     fit_max = fit_max or min(0.02, 0.25 * float(m.get("max_strain", 0.1)))
     sel = (x >= 0) & (x <= fit_max)
@@ -427,6 +428,35 @@ def mechanical(out_dir, m, dt_fs, fit_max=None):
         half = x >= 0.5 * x.max()
         res["viscosity_Pa_s"] = float(np.mean(y[half]) * 1e9 / float(m["rate_s"]))
     return res
+
+
+PM_FIT = {"x": 0.02, "y": 0.02, "z": 0.01, "xy": 0.1, "xz": 0.1, "yz": 0.1}
+
+
+def modulus_both_ways(out_dir, dt_fs):
+    """Young's and shear moduli from the tension and compression (or + and - shear) curves together, a straight line
+    through the signed stress-strain points with |strain| <= PM_FIT (the elastic range of Teich-McGoldrick et al. 2012:
+    0.02 in the layers, 0.01 normal to them, 0.1 for shear) -> {"tensile x": GPa, "shear xz": GPa, ...}."""
+    curves = {}
+    for name, m in markers(out_dir):
+        if name not in ("tensile", "shear") or m.get("mode") == "flow":
+            continue
+        try:
+            a = _rows(os.path.join(out_dir, m["file"]))
+        except (OSError, ValueError, IndexError):
+            continue
+        key = (name, m.get("dir", m.get("plane")))
+        col = 2 + "xyz".index(key[1]) if name == "tensile" else {"yz": 5, "xz": 6, "xy": 7}[key[1]]
+        curves.setdefault(key, []).append((a[:, 1], -a[:, col] * ATM2GPA))
+    out = {}
+    for (name, d), cs in curves.items():
+        if len(cs) < 2:
+            continue
+        x = np.concatenate([c[0] for c in cs]); y = np.concatenate([c[1] for c in cs])
+        sel = np.abs(x) <= PM_FIT[d]
+        if sel.sum() >= 5 and x[sel].min() < 0 < x[sel].max():
+            out[f"{name} {d}"] = dict(modulus=float(np.polyfit(x[sel], y[sel], 1)[0]), fit_range=PM_FIT[d])
+    return out
 
 
 def ionic_conductivity(out_dir, D, temp=None):
@@ -528,9 +558,9 @@ def analyze(out_dir, dest, dt_fs, log=print):
             elif name in ("tensile", "shear"):
                 r = mechanical(out_dir, m, dt_fs)
                 label = (f"{'tension' if int(m.get('sign', 1)) > 0 else 'compression'} {m['dir']}" if name == "tensile"
-                         else f"shear {m['plane']} ({m.get('mode', 'solid')})")
+                         else f"shear {m['plane']}{' (-)' if int(m.get('sign', 1)) < 0 else ''} ({m.get('mode', 'solid')})")
                 item.update(label=label, **{k: v for k, v in r.items() if k not in ("strain", "stress")})
-                sg = int(m.get("sign", 1)) if name == "tensile" else 1
+                sg = int(m.get("sign", 1))
                 x, y = sg * r["strain"], sg * r["stress"]
                 fig, ax = plt.subplots(figsize=(7.5, 4.8))
                 ax.plot(x, y, lw=1.2)
@@ -552,6 +582,9 @@ def analyze(out_dir, dest, dt_fs, log=print):
             item["error"] = f"{type(e).__name__}: {e}"
             log(f"WARNING {name}: {item['error']}")
         res.append(item)
+    pm = modulus_both_ways(out_dir, dt_fs)
+    if pm:
+        res.append(dict(property="both_ways", moduli=pm))
     return res
 
 
@@ -566,6 +599,10 @@ def summary_lines(items, ionic=None):
         n = it["property"]
         if it.get("error"):
             L.append(f"{dict(ALL_PROPS).get(n, n).split('（')[0]}：解析できませんでした（{it['error']}）")
+            continue
+        if n == "both_ways":
+            L.append("両方向（引張と圧縮、＋と－のせん断）をまとめた直線近似の弾性率（|ひずみ| が x・y 0.02、z 0.01、せん断 0.1 以下。"
+                     "Teich-McGoldrick ら 2012 と同じ出し方）：" + "、".join(f"{k} {v['modulus']:.1f} GPa" for k, v in it["moduli"].items()))
             continue
         if n in ("viscosity", "thermal"):
             what = "粘度" if n == "viscosity" else "熱伝導率"

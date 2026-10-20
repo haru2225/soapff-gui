@@ -927,6 +927,14 @@ class App:
                 for val, lab in modes:
                     ttk.Radiobutton(f, text=lab, value=val, variable=v[mkey]).pack(side="left")
                 row += 1
+                if sec == "せん断":
+                    f2 = ttk.Frame(tab)
+                    f2.grid(row=row, column=0, columnspan=3, sticky="w", padx=(8, 0), pady=2)
+                    ttk.Label(f2, text="向き").pack(side="left", padx=(0, 8))
+                    v["shear_dir"] = tk.StringVar(value=p.get("shear_dir", "+"))
+                    for val, lab in (("+", "＋のみ"), ("both", "＋と－（弾性率を 0 をはさんで求める）")):
+                        ttk.Radiobutton(f2, text=lab, value=val, variable=v["shear_dir"]).pack(side="left")
+                    row += 1
         est = tk.StringVar()
         ttk.Label(w, textvariable=est, foreground=MUTED, padding=(14, 0)).pack(anchor="w")
 
@@ -944,6 +952,7 @@ class App:
             q["tensile_dirs"] = " ".join(a for a in "xyz" if v[f"tensile_dirs:{a}"].get()) or "x"
             q["shear_planes"] = " ".join(a for a in ("xy", "xz", "yz") if v[f"shear_planes:{a}"].get()) or "xy"
             q["tensile_mode"], q["shear_mode"] = v["tensile_mode"].get(), v["shear_mode"].get()
+            q["shear_dir"] = v["shear_dir"].get()
             props = [k for k, _ in PR.PROPS if sel[k].get()]
             return props, q
 
