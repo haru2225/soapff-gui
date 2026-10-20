@@ -866,6 +866,8 @@ class App:
         p = dict(PR.DEFAULTS, temp=self.s["temp"], press=self.s["press"], relax_ps=self.s["relax_ps"],
                  baro=self.s.get("baro", "aniso"), dump_ps=self.s["dump_ps"], timestep=dt)
         p.update(self.s.get("props_params") or {})
+        if float(p.get("e0_strain", PR.DEFAULTS["e0_strain"])) < PR.DEFAULTS["e0_strain"]:
+            p["e0_strain"] = PR.DEFAULTS["e0_strain"]        # 0.001 of an earlier version: too small with PPPM (noise)
         p["timestep"] = dt
         w = tk.Toplevel(self.root)
         w.title("物性の計算を追加")
