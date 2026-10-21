@@ -197,6 +197,9 @@ class App:
         st.configure("Ghost.TButton", background=PANEL, foreground=TEXT, bordercolor="#c9d1d7", lightcolor=PANEL,
                      darkcolor=PANEL, borderwidth=1, padding=(16, 7))
         st.map("Ghost.TButton", background=[("active", "#f1f4f6")])
+        st.configure("Tiny.TButton", background=PANEL, foreground=TEXT, bordercolor="#c9d1d7", lightcolor=PANEL,
+                     darkcolor=PANEL, borderwidth=1, padding=(6, 3))
+        st.map("Tiny.TButton", background=[("active", "#f1f4f6")])
         st.configure("Link.TButton", background=PANEL, foreground=ACCENT, borderwidth=1, bordercolor="#c9d1d7",
                      lightcolor=PANEL, darkcolor=PANEL, padding=(12, 5), font=self.f_small)
         st.map("Link.TButton", background=[("active", "#f1f4f6")])
@@ -444,13 +447,16 @@ class App:
         tk.Label(head, text="実行", bg=PANEL, fg="#23313b", font=self.f_bold).pack(side="left", pady=4)
         self.b_start = ttk.Button(head, text="計算を開始", style="Small.Accent.TButton", command=self.start_or_stop)
         self.b_start.pack(side="right")
+        wrow = tk.Frame(rc, bg=PANEL)                  # 実行先: chosen computer, ＋ to register one, － to remove it
+        wrow.pack(fill="x", padx=16, pady=(6, 0))
+        tk.Label(wrow, text="実行先", bg=PANEL, fg=MUTED, font=self.f_small).pack(side="left")
         self.v_where = tk.StringVar()
-        self.cb_where = ttk.Combobox(head, textvariable=self.v_where, state="readonly", width=18, font=self.f_small)
-        self.cb_where.pack(side="right", padx=(0, 10))
+        self.cb_where = ttk.Combobox(wrow, textvariable=self.v_where, state="readonly", width=13, font=self.f_small)
+        self.cb_where.pack(side="left", padx=(6, 4))
         self.cb_where.bind("<<ComboboxSelected>>", lambda e: self.choose_where())
-        ttk.Button(head, text="－", width=2, style="Ghost.TButton", command=self.remove_computer).pack(side="right")
-        ttk.Button(head, text="＋", width=2, style="Ghost.TButton", command=lambda: self.quick_add_computer(self.root)).pack(
-            side="right", padx=(0, 2))
+        ttk.Button(wrow, text="＋登録", width=6, style="Tiny.TButton", command=lambda: self.quick_add_computer(self.root)).pack(
+            side="left", padx=(0, 4))
+        ttk.Button(wrow, text="－削除", width=6, style="Tiny.TButton", command=self.remove_computer).pack(side="left")
         tk.Frame(rc, bg=LINE, height=1).pack(fill="x", pady=(8, 0))
         row = tk.Frame(rc, bg=PANEL)
         row.pack(fill="x", padx=16, pady=(12, 0))
