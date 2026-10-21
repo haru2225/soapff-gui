@@ -49,25 +49,6 @@ def find_executables():
     return lmp, mpirun
 
 
-def find_sova():
-    """(python, home) of SOVA for the PDF / RDF: ("", "") when sovapy is importable here; else $SOVA_PYTHON / $SOVA_HOME;
-    else a checkout named sova-cui in the home folder or one level below."""
-    try:
-        import sovapy  # noqa: F401
-        return "", ""
-    except ImportError:
-        pass
-    if os.environ.get("SOVA_PYTHON"):
-        return os.environ["SOVA_PYTHON"], os.environ.get("SOVA_HOME", "")
-    home = os.path.expanduser("~")
-    for d in [os.path.join(home, "sova-cui")] + sorted(glob.glob(os.path.join(home, "*", "sova-cui"))):
-        for venv in ("sovapy", ".venv", "venv"):
-            py = os.path.join(d, venv, "bin", "python")
-            if os.path.isfile(py) and os.path.isdir(os.path.join(d, "sovapy", "computation")):
-                return py, d
-    return "", ""
-
-
 def prepare(structure, workdir, library=None, log=print, **md):
     """soapff-cui make: structure -> workdir/{system.data, system.settings, in.lammps, charges.csv, report.json}."""
     md.setdefault("stop_on_fallback", True)        # the GUI does not write a force field with fallback atoms
@@ -80,12 +61,12 @@ def find_debyer(path=None):
     return analysis.find_debyer(path or None)
 
 
-def analyze(out_dir, log=print, skip_ps=None, sova_python=None, sova_home=None, what=None, debyer=None, xrd_opts=None,
+def analyze(out_dir, log=print, skip_ps=None, sova_opts=None, what=None, debyer=None, xrd_opts=None,
             traj=None):
     """diffusion from LAMMPS compute msd, SOVA PDF / RDF / S(Q), the fix ave/* files of the computes, XRD by Debyer
     -> out_dir/analysis/."""
     from soapff_cui import analysis
-    return analysis.analyze(out_dir, skip_ps=skip_ps, sova_python=sova_python or None, sova_home=sova_home or None, log=log,
+    return analysis.analyze(out_dir, skip_ps=skip_ps, sova_opts=sova_opts, log=log,
                             what=tuple(what) if what else analysis.WHAT, debyer=debyer or None, xrd_opts=xrd_opts,
                             traj=traj or None)
 

@@ -29,10 +29,12 @@ BARO = {"z": "z：面に垂直な方向だけ（層間・界面）", "aniso": "a
         "tri": "tri：箱の傾きも含めて全部（バルク結晶）", "iso": "iso：等方"}
 DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p",
                 nproc=max(1, min(3, (os.cpu_count() or 2) // 2)), threshold=0.95, cutoff=10.0, library="", lmp="", mpirun="",
-                last_dir=os.path.expanduser("~"), dump_ps=1.0, auto_analyze=True, skip_ps="", sova_python="", sova_home="",
+                last_dir=os.path.expanduser("~"), dump_ps=1.0, auto_analyze=True, skip_ps="",
                 analyses=["msd", "sova", "xrd"], debyer="", xrd_wavelength=1.5406, xrd_from=3.0, xrd_to=80.0,
                 xrd_step=0.02, xrd_frames=3, xrd_mode="cluster", xrd_size=50.0,
                 where="local", computers=[], history=[],
+                sova=dict(dr=0.02, rmax=8.0, qmin=0.05, qmax=12.0, dq=0.05, radiation="xray", max_frames=40, pairs="water_ion",
+                          all_elements=True),
                 swelling=dict(one_to=23, two_to=99, down=True, eq_ps=30.0, avg_ps=20.0))
 # the analyses (soapff_cui.analysis): key, label
 ANALYSES = (("msd", "拡散係数（LAMMPS の compute msd があるとき）"), ("sova", "SOVA：PDF g(r)・RDF N(r)・配位数・X 線 S(Q)"),
@@ -65,8 +67,9 @@ def load_settings():
         # the bundled one is used; a library with another name stays as the user chose it
         s["library"] = runner.default_library()
     lmp, mpirun = runner.find_executables()
-    if not s.get("sova_python"):
-        s["sova_python"], s["sova_home"] = runner.find_sova()
+    s["sova"] = dict(DEFAULTS["sova"], **(s.get("sova") or {}))
+    for k in ("sova_python", "sova_home"):          # the separate SOVA Python of earlier versions: sovapy is installed here now
+        s.pop(k, None)
     if not s.get("debyer"):
         s["debyer"] = runner.find_debyer() or ""
     # analyses added in a later version are on: those not known when the settings were saved
@@ -2183,6 +2186,49 @@ class App:
                 ttk.Label(rf, text=note, foreground=MUTED).pack(side="left", padx=6)
             row += 1
         ent("skip_ps", "平衡化として除く時間 (ps)", 8, note="空欄で最初の 20 %")
+        ttk.Label(f, text="SOVA（PDF・RDF・S(Q)）", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w",
+                                                                              pady=(10, 0))
+        row += 1
+        sv = s.get("sova") or DEFAULTS["sova"]
+
+        def sent(key, label, width=8, note=None):
+            nonlocal row
+            ttk.Label(f, text=label).grid(row=row, column=0, sticky="w", pady=3, padx=(0, 10))
+            v["sova_" + key] = tk.StringVar(value=str(sv.get(key, "")))
+            rf = ttk.Frame(f)
+            rf.grid(row=row, column=1, columnspan=3, sticky="ew", pady=3)
+            ttk.Entry(rf, textvariable=v["sova_" + key], width=width, style="Field.TEntry").pack(side="left")
+            if note:
+                ttk.Label(rf, text=note, foreground=MUTED).pack(side="left", padx=6)
+            row += 1
+        sent("dr", "g(r) の刻み dr (Å)", note="小さいほど細かいが，ばらつく")
+        sent("rmax", "r の最大 (Å)", note="箱の幅の半分までに制限される")
+        ttk.Label(f, text="Q の範囲 (Å⁻¹)").grid(row=row, column=0, sticky="w", pady=3)
+        rq = ttk.Frame(f)
+        rq.grid(row=row, column=1, columnspan=3, sticky="w")
+        for k, lab in (("qmin", "から"), ("qmax", "まで"), ("dq", "刻み")):
+            v["sova_" + k] = tk.StringVar(value=str(sv.get(k, "")))
+            ttk.Entry(rq, textvariable=v["sova_" + k], width=6, style="Field.TEntry").pack(side="left")
+            ttk.Label(rq, text=lab, foreground=MUTED).pack(side="left", padx=(3, 10))
+        row += 1
+        ttk.Label(f, text="S(Q) の放射線").grid(row=row, column=0, sticky="w", pady=3)
+        v["sova_radiation"] = tk.StringVar(value=sv.get("radiation", "xray"))
+        rr = ttk.Frame(f)
+        rr.grid(row=row, column=1, columnspan=3, sticky="w")
+        for k, lab in (("xray", "X 線"), ("neutron", "中性子")):
+            ttk.Radiobutton(rr, text=lab, value=k, variable=v["sova_radiation"]).pack(side="left", padx=(0, 12))
+        row += 1
+        sent("max_frames", "平均するフレーム数", 6, note="平衡化のあとから等間隔に選ぶ")
+        ttk.Label(f, text="求める組").grid(row=row, column=0, sticky="w", pady=3)
+        v["sova_pairs"] = tk.StringVar(value=sv.get("pairs", "water_ion"))
+        v["sova_all"] = tk.BooleanVar(value=bool(sv.get("all_elements", True)))
+        rp = ttk.Frame(f)
+        rp.grid(row=row, column=1, columnspan=3, sticky="w")
+        ttk.Radiobutton(rp, text="水の O・イオンの組（Ow–Ow，イオン–Ow，イオン–鉱物 O）", value="water_ion",
+                        variable=v["sova_pairs"]).pack(anchor="w")
+        ttk.Radiobutton(rp, text="しない", value="none", variable=v["sova_pairs"]).pack(anchor="w")
+        ttk.Checkbutton(rp, text="全原子の元素の組（S(Q) もここから）", variable=v["sova_all"]).pack(anchor="w")
+        row += 1
         ttk.Label(f, text="XRD（debyer）", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w", pady=(10, 0))
         row += 1
         ent("xrd_wavelength", "波長 λ (Å)", 8, note="Cu Kα 1.5406、Mo Kα 0.7107")
@@ -2203,11 +2249,9 @@ class App:
             ttk.Radiobutton(mf, text=lab, value=k, variable=v["xrd_mode"]).pack(anchor="w")
         row += 1
         ent("xrd_size", "結晶子の大きさ (Å)", 8, note="各辺がこれ以上になるようセルを並べる（時間は原子数の 2 乗）")
-        ttk.Label(f, text="プログラム", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w", pady=(10, 0))
+        ttk.Label(f, text="debyer の場所", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w", pady=(10, 0))
         row += 1
-        ent("sova_python", "SOVA の Python", 40, browse="file")
-        ent("sova_home", "SOVA のフォルダ", 40, browse="dir")
-        ent("debyer", "debyer", 40, browse="file", note="" if runner.find_debyer(s.get("debyer")) else "見つかりません")
+        ent("debyer", "debyer", 40, browse="file", note="" if runner.find_debyer(s.get("debyer")) else "見つかりません（install.sh で入ります）")
 
     @staticmethod
     def collect_analysis(v, s2):
@@ -2215,7 +2259,7 @@ class App:
         if "auto_analyze" in v:
             s2["auto_analyze"] = bool(v["auto_analyze"].get())
         s2["analyses"] = [k for k, _ in ANALYSES if v["an_" + k].get()]
-        for k in ("skip_ps", "sova_python", "sova_home", "debyer", "xrd_mode"):
+        for k in ("skip_ps", "debyer", "xrd_mode"):
             s2[k] = v[k].get().strip()
         try:
             if s2["skip_ps"]:
@@ -2223,6 +2267,15 @@ class App:
             for k in ("xrd_wavelength", "xrd_from", "xrd_to", "xrd_step", "xrd_size"):
                 s2[k] = float(v[k].get())
             s2["xrd_frames"] = max(1, int(float(v["xrd_frames"].get())))
+            s2["sova"] = dict(dr=float(v["sova_dr"].get()), rmax=float(v["sova_rmax"].get()), qmin=float(v["sova_qmin"].get()),
+                              qmax=float(v["sova_qmax"].get()), dq=float(v["sova_dq"].get()),
+                              radiation=v["sova_radiation"].get(), max_frames=max(1, int(float(v["sova_max_frames"].get()))),
+                              pairs=v["sova_pairs"].get(), all_elements=bool(v["sova_all"].get()))
+            sv_ = s2["sova"]
+            if not (sv_["dr"] > 0 and sv_["rmax"] > 0 and 0 < sv_["qmin"] < sv_["qmax"] and sv_["dq"] > 0):
+                raise ValueError("SOVA の dr，r の最大，Q の範囲が正しくありません")
+            if sv_["pairs"] == "none" and not sv_["all_elements"]:
+                raise ValueError("SOVA で求める組を 1 つ以上選んでください")
         except ValueError as e:
             raise ValueError(f"数値ではありません：{e}")
         if not (0 < s2["xrd_from"] < s2["xrd_to"] < 180 and s2["xrd_step"] > 0 and s2["xrd_wavelength"] > 0):
@@ -2238,7 +2291,7 @@ class App:
         try:
             skip = s.get("skip_ps")
             runner.analyze(self.out, log=lambda m: put(("log", m + "\n", None)), skip_ps=float(skip) if skip else None,
-                           sova_python=s.get("sova_python"), sova_home=s.get("sova_home"), what=what,
+                           sova_opts=dict(s.get("sova") or {}), what=what,
                            debyer=s.get("debyer"), traj=s.get("_traj"),
                            xrd_opts=dict(wavelength=float(s.get("xrd_wavelength", 1.5406)),
                                          two_theta=(float(s.get("xrd_from", 3)), float(s.get("xrd_to", 80)),

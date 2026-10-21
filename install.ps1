@@ -15,6 +15,10 @@ $VPy = Join-Path $Venv "Scripts\python.exe"
 & $VPy -m pip install -q --upgrade pip
 & $VPy -m pip install -q -e $Here
 $Exe = Join-Path $Venv "Scripts\soapff-gui.exe"
+& $VPy -c "import sys; assert sys.version_info >= (3, 11)" 2>$null
+if ($LASTEXITCODE -eq 0) { & $VPy -m pip install -q sovapy; if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: pip install sovapy failed (PDF / RDF / S(Q) are not available)" } }
+else { Write-Host "WARNING: SOVA (sovapy) needs Python 3.11 or newer (PDF / RDF / S(Q) are not available)" }
+Write-Host "NOTE: Debyer (XRD) is not built on Windows; use WSL2 (Ubuntu) and install.sh there, or build https://github.com/wojdyr/debyer and give its path in the settings."
 Write-Host "installed: $Exe"
 $Lnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "soapff-GUI.lnk"
 $Sh = (New-Object -ComObject WScript.Shell).CreateShortcut($Lnk)

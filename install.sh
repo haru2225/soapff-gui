@@ -42,6 +42,43 @@ else
   "$VENV/bin/python" -m pip install -q -e "$HERE"
   BIN=$VENV/bin
 fi
+# --- SOVA (PDF, RDF, S(Q)) into the same environment ---
+if "$BIN/python" -c "import sys; assert sys.version_info >= (3, 11)" 2>/dev/null; then
+  "$BIN/python" -m pip install -q sovapy && echo "SOVA (sovapy) installed" \
+    || echo "WARNING: pip install sovapy failed: PDF / RDF / S(Q) are not available (try 'pip install sovapy' by hand)"
+else
+  echo "WARNING: SOVA (sovapy) needs Python 3.11 or newer: PDF / RDF / S(Q) are not available (re-run with PYTHON=python3.12 sh install.sh)"
+fi
+
+# --- Debyer (XRD) built into ~/.soapff-gui/bin/debyer (SOAPFF_HOME to change) ---
+SH=${SOAPFF_HOME:-$HOME/.soapff-gui}
+if command -v debyer >/dev/null 2>&1 || [ -x "$SH/bin/debyer" ]; then
+  echo "Debyer found: $(command -v debyer || echo "$SH/bin/debyer")"
+else
+  need=""
+  for t in autoreconf automake gengetopt make cc git; do command -v $t >/dev/null 2>&1 || need="$need $t"; done
+  if [ -n "$need" ] && [ "$(uname)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
+    echo "Debyer: installing the build tools with Homebrew (autoconf automake gengetopt libtool)"
+    brew install autoconf automake gengetopt libtool >/dev/null 2>&1 || true
+    need=""
+    for t in autoreconf automake gengetopt make cc git; do command -v $t >/dev/null 2>&1 || need="$need $t"; done
+  fi
+  if [ -n "$need" ]; then
+    echo "WARNING: Debyer (XRD) was not built; missing:$need"
+    echo "         Ubuntu/Debian: sudo apt install git build-essential autoconf automake libtool gengetopt   (then run this again)"
+    echo "         macOS: brew install autoconf automake gengetopt libtool   (then run this again)"
+  else
+    echo "Debyer: building (git clone, autoreconf, configure, make)"
+    mkdir -p "$SH/bin" && rm -rf "$SH/debyer-src" \
+      && git clone -q --depth 1 https://github.com/wojdyr/debyer "$SH/debyer-src" \
+      && (cd "$SH/debyer-src" && autoreconf -i >/dev/null 2>&1 && ./configure -q --without-zlib --without-bzlib CFLAGS="-O3 -ffast-math" >/dev/null \
+          && make -j2 >/dev/null 2>&1) \
+      && cp "$SH/debyer-src/debyer/debyer" "$SH/bin/debyer" \
+      && echo "Debyer installed: $SH/bin/debyer" \
+      || echo "WARNING: building Debyer failed (XRD is not available); see https://github.com/wojdyr/debyer"
+  fi
+fi
+
 echo "installed: $BIN/soapff-gui"
 if [ "$(uname)" = "Darwin" ]; then
   "$BIN/soapff-gui" --install-app ${SOAPFF_APP_DIR:+"$SOAPFF_APP_DIR"}

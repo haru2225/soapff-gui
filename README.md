@@ -9,7 +9,7 @@
 - **スーパーセル**：OVITO の Replicate で a・b・c 方向に並べてから力場を作る。
 - **膨潤曲線の計算**：層間に水分子を加えながら NPT を回し、各状態の箱を `swelling.dat` に記録する（Cygan et al. 2004 と同じ手順。図にするのは `examples/montmorillonite_swelling/analyze_swelling.py`）。
 - **実行**：このコンピュータか、SSH で登録した別のコンピュータ（`ユーザー@ホスト` を入れるだけで登録）で LAMMPS を回す。
-- **解析**：拡散係数（`compute msd` があるとき）、SOVA の PDF・RDF・配位数・S(Q)、Debyer の XRD。OVITO で表示。
+- **解析**：拡散係数（`compute msd` があるとき）、SOVA の PDF・RDF・配位数・S(Q)、Debyer の XRD。SOVA の dr、r の最大、Q の範囲と刻み、X 線／中性子、フレーム数、求める組と、XRD の波長・2θ・結晶子の大きさは「解析」の画面（計算設定 › 解析）で選べます。OVITO で表示。
 
 ## インストール
 
@@ -20,7 +20,7 @@
 | Windows | python.org の Python 3.10–3.12 を入れ、`git clone …` のあと `powershell -ExecutionPolicy Bypass -File soapff-gui\install.ps1` → デスクトップのショートカットから起動（動作は未確認。SSH の実行は使えないので、SSH を使うときは WSL2 に Linux の手順で入れる） |
 
 - LAMMPS（KSPACE と MOLECULE パッケージ入り）と `mpirun` は別に入れます（例：`conda install -c conda-forge lammps openmpi`、`brew install lammps`）。見つからないときは「計算設定 › 実行先」で場所を指定します。
-- 解析には SOVA（sovapy）と Debyer（https://github.com/wojdyr/debyer）、表示には OVITO（https://www.ovito.org）を使います。
+- **SOVA（sovapy、PDF・RDF・S(Q)）と Debyer（XRD）は `install.sh` が入れます**（SOVA は `pip install sovapy`（Python 3.11 以上）、Debyer は git から `~/.soapff-gui/bin/debyer` にビルド。macOS は Homebrew で `autoconf automake gengetopt libtool` を入れ、Linux はビルドツールが足りなければ入れ方を表示するので、それを実行してもう一度 `install.sh`）。Windows は SOVA だけ入り、Debyer は WSL2 で入れます。表示（OVITO、https://www.ovito.org）は別に入れます。
 - Tk のある Python が見つからないときは `brew install python-tk@3.12` か `brew install uv` のあと、もう一度 `install.sh` を実行します。更新は `git pull` です（依存が増えたら `~/.soapff-gui/venv/bin/python -m pip install -e soapff-gui`）。
 
 ## 使い方
@@ -59,6 +59,6 @@
 
 ```
 src/soapff_gui/  GUI（app.py）、コマンドの一覧（catalog.py）、SSH（remote.py）、実行（runner.py）、ライブラリ（data/）
-src/soapff_cui/  力場の作成（core.py）、解析（analysis.py、sova_structure.py）。コマンドの soapff-cui
+src/soapff_cui/  力場の作成（core.py）、解析（analysis.py）。コマンドの soapff-cui
 examples/        上の例
 ```

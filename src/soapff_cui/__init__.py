@@ -12,7 +12,7 @@
       the trajectory (ClayFF type names and charges) in OVITO
   python -m soapff_cui analyze OUTDIR
       -> OUTDIR/analysis/: self-diffusion coefficients from LAMMPS compute msd (water, ions; total, in plane, normal)
-      and PDF g(r) / RDF from SOVA (sovapy) (soapff_cui/analysis.py, soapff_cui/sova_structure.py)
+      and PDF g(r) / RDF from SOVA (sovapy) (soapff_cui/analysis.py)
 
 Charges: for every atom the SOAP vector (same element) most similar to it in the library gives the charge, unchanged.
 Atoms whose best similarity is below the threshold, or whose element is not in the library, get the ClayFF type

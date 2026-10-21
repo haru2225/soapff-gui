@@ -4,7 +4,7 @@
             self-diffusion coefficient from the Einstein relation, D = slope / (2 d), slope of a least-squares line
             over the production part: total (d = 3), in plane (xy, d = 2), normal (z, d = 1).  No finite-size correction.
             Ionic conductivity (Nernst-Einstein, sigma = e^2 / (V kB T) sum_i N_i z_i^2 D_i, ion-ion correlations neglected).
-  PDF, RDF  SOVA (sovapy, soapff_cui/sova_structure.py): pair distribution functions g(r) (atom_pair_hist,
+  PDF, RDF  SOVA (sovapy, called in this Python): pair distribution functions g(r) (atom_pair_hist,
             pair_dist_func) and radial distribution functions N(r) = 4 pi r^2 rho g(r) (radial_dist_fun) of water O -
             water O, ion - water O, ion - mineral O and every element pair of the whole system; coordination numbers
             (N(r) integrated to the first minimum); X-ray structure factor S(Q) of the whole system
@@ -22,14 +22,14 @@
             as Debyer's periodic boundaries are orthorhombic): cut-off half the shortest box length with sinc damping and
             the number density of the box
 
-  python -m soapff_cui analyze OUTDIR [--skip-ps X] [--sova-python PY] [--sova-home DIR] [--what msd,sova,compute,xrd]
+  python -m soapff_cui analyze OUTDIR [--skip-ps X] [--what msd,sova,compute,xrd]
                                       [--debyer PATH] [--wavelength 1.5406] [--two-theta 3,80,0.02] [--xrd-frames 3]
                                       [--xrd-mode cluster|periodic] [--xrd-size 50]
       -> OUTDIR/analysis/{summary.txt, summary.json, analysis.png, msd_fit.csv, sova_pdf.csv, sova_rdf.csv, sova_sq.csv,
                           sova_summary.json, sova_sq.png, compute_<file>.png, compute_<file>_average.csv, xrd.png, xrd.csv}
 
-SOVA: used directly when sovapy is importable; otherwise sova_structure.py is run with the Python of a SOVA installation
-(--sova-python or $SOVA_PYTHON; --sova-home or $SOVA_HOME is put on its PYTHONPATH for a source checkout).
+SOVA: pip install sovapy (soapff-gui's install.sh installs it).  SOVA parameters (SOVA_DEFAULTS): dr, r_max, Q range, X-ray or neutron,
+frames, pairs.
 Debyer: --debyer, $DEBYER, debyer on PATH, or a source build ~/debyer/debyer/debyer or ~/*/debyer/debyer/debyer.
 """
 import csv
@@ -70,31 +70,189 @@ def msd(out_dir, skip_ps, dt_fs):
     return res, curves
 
 
-def sova(out_dir, dest, skip_ps, dt_fs, sova_python=None, sova_home=None, log=print, traj="traj.lammpstrj"):
-    """run sova_structure.py (SOVA PDF, RDF, S(Q)) in this Python if sovapy is importable, else with the given SOVA Python."""
-    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sova_structure.py")
-    args = ["--traj", os.path.join(out_dir, traj), "--charges", os.path.join(out_dir, "charges.csv"),
-            "--out", dest, "--skip-ps", str(skip_ps), "--dt-fs", str(dt_fs)]
-    sova_python = sova_python or os.environ.get("SOVA_PYTHON")
-    sova_home = sova_home or os.environ.get("SOVA_HOME")
-    if sova_python:
-        py = sova_python
-    else:
-        try:
-            import sovapy  # noqa: F401
-            py = sys.executable
-        except ImportError:
-            raise RuntimeError("SOVA (sovapy) not found: pip install sovapy, or give the Python of a SOVA installation "
-                               "(--sova-python / $SOVA_PYTHON, and --sova-home / $SOVA_HOME for a source checkout)")
-    env = dict(os.environ)
-    if sova_home:
-        env["PYTHONPATH"] = sova_home + os.pathsep + env.get("PYTHONPATH", "")
-    env.setdefault("MPLCONFIGDIR", os.path.join(dest, ".mplconfig"))
-    log(f"SOVA: {py} {os.path.basename(script)}")
-    p = subprocess.run([py, script] + args, env=env, capture_output=True, text=True, cwd=dest)
-    if p.returncode != 0:
-        raise RuntimeError("SOVA failed: " + (p.stderr or p.stdout)[-1500:])
-    return json.load(open(os.path.join(dest, "sova_summary.json")))
+# SOVA parameters (the Structure-factor settings of SOVA): bin width of g(r), largest r, Q range of S(Q), radiation,
+# number of frames, which pairs
+SOVA_DEFAULTS = dict(dr=0.02, rmax=8.0, qmin=0.05, qmax=12.0, dq=0.05, radiation="xray", max_frames=40,
+                     pairs="water_ion", all_elements=True)
+
+
+def sova(out_dir, dest, skip_ps, dt_fs, opts=None, log=print, traj="traj.lammpstrj"):
+    """PDF g(r), RDF N(r), coordination numbers and S(Q) by SOVA (sovapy, https://github.com/MotokiShiga/sova-cui), called in
+    this Python (pip install sovapy; soapff-gui's install.sh installs it).  opts: SOVA_DEFAULTS keys.
+    -> dest/sova_pdf.csv, sova_rdf.csv, sova_sq.csv, sova_summary.json (returned)."""
+    try:
+        import sovapy
+        from sovapy.computation.structure_factor import (atom_pair_hist, pair_dist_func, partial_structure_factor,
+                                                         radial_dist_fun, structure_factor_neutron, structure_factor_xray,
+                                                         xcoeff, ncoeff)
+    except ImportError:
+        raise RuntimeError("SOVA (sovapy) is not installed in this Python: pip install sovapy (soapff-gui's install.sh does it)")
+    o = dict(SOVA_DEFAULTS, **(opts or {}))
+    rows = list(csv.DictReader(open(os.path.join(out_dir, "charges.csv"))))
+    el = np.array([r["element"] for r in rows]); role = np.array([r["role"] for r in rows])
+    typ = np.array([r["clayff_type"] for r in rows])
+    Ow = np.nonzero(typ == "ow")[0]
+    ions = {e: np.nonzero((role == "ion") & (el == e))[0] for e in sorted(set(el[role == "ion"]))}
+    Omin = np.nonzero((role == "mineral") & (el == "O"))[0]
+    subsets = []                       # (label, atom indices, pairs to report or None = every element pair)
+    if o["pairs"] in ("water_ion", "both"):
+        if len(Ow) > 1:
+            subsets.append(("Ow-Ow", Ow, [("O", "O")]))
+        for e, idx in ions.items():
+            if len(Ow):
+                subsets.append((f"{e}-Ow", np.r_[idx, Ow], [(e, "O")]))
+            if len(Omin):
+                subsets.append((f"{e}-O_min", np.r_[idx, Omin], [(e, "O")]))
+    if o["pairs"] in ("all", "both") or o["all_elements"] or not subsets:
+        subsets.append(("all", np.arange(len(el)), None))
+    log(f"SOVA {getattr(sovapy, '__version__', '')}: dr {o['dr']} A, r_max {o['rmax']} A, Q {o['qmin']}-{o['qmax']} (dQ {o['dq']}) 1/A, "
+        f"{'neutron' if o['radiation'] == 'neutron' else 'X-ray'}, up to {o['max_frames']} frames")
+    allf = [(s_, c, p) for s_, c, p in frames(os.path.join(out_dir, traj)) if s_ * dt_fs / 1000.0 >= skip_ps - 1e-9]
+    if not allf:
+        raise RuntimeError("no frames after the equilibration")
+    sel = [allf[i] for i in np.unique(np.linspace(0, len(allf) - 1, min(int(o["max_frames"]), len(allf))).astype(int))]
+    widths = []
+    for _, c, _ in sel:
+        V = abs(np.linalg.det(c))
+        widths.append(min(V / np.linalg.norm(np.cross(c[(k + 1) % 3], c[(k + 2) % 3])) for k in range(3)))
+    dr = float(o["dr"])
+    rmax = min(float(o["rmax"]), 0.5 * min(widths))
+    nr = int(rmax / dr) + 1
+    nr_sq = int(0.5 * min(widths) / dr) + 1          # S(Q) from g(r) up to half the box (less truncation ripple)
+    vol = float(np.mean([abs(np.linalg.det(c)) for _, c, _ in sel]))
+    pdf, rdf, peaks, coord = {}, {}, {}, {}
+    r = None
+    sq = None
+    for label, idx, want in subsets:
+        g_sum, atoms = None, None
+        for _, cell, pos in sel:
+            atoms = sova_atoms(pos[idx], [el[i] for i in idx], cell)
+            rr, hist = atom_pair_hist(atoms, dr)
+            g = pair_dist_func(atoms, rr, hist)[:nr_sq if label == "all" else nr]
+            g_sum = g if g_sum is None else g_sum + g
+        g_long = g_sum / len(sel)
+        r, g = rr[:nr], g_long[:nr]
+        pairs = [tuple(p) for p in atoms.pairs]
+        for pa in (want or pairs):
+            k = pairs.index(pa) if pa in pairs else pairs.index(pa[::-1])
+            name = label if want else f"all:{pa[0]}-{pa[1]}"
+            nb = int(np.sum(el[idx] == pa[1]))
+            pdf[name] = g[:, k]
+            rdf[name] = radial_dist_fun(r, g[:, k], nb / vol)            # N(r) = 4 pi r^2 rho_B g(r)
+            if want:
+                fp = first_peak(r, g[:, k])
+                if fp:
+                    peaks[name] = fp
+                cn = coordination(r, rdf[name], g[:, k])
+                if cn:
+                    coord[name] = cn
+        if label == "all":                   # structure factor of the whole system from the partial g(r)
+            q, psq = partial_structure_factor(atoms, rr[:len(g_long)], g_long, float(o["qmin"]), float(o["qmax"]), float(o["dq"]))
+            if o["radiation"] == "neutron":
+                sq = (q, structure_factor_neutron(psq, ncoeff(atoms)))
+            else:
+                sq = (q, structure_factor_xray(psq, xcoeff(atoms, q)))
+    names = list(pdf)
+    os.makedirs(dest, exist_ok=True)
+    for fname, table in (("sova_pdf.csv", pdf), ("sova_rdf.csv", rdf)):
+        with open(os.path.join(dest, fname), "w", newline="") as f:
+            w = csv.writer(f); w.writerow(["r_A"] + names)
+            for i in range(len(r)):
+                w.writerow([f"{r[i]:.3f}"] + [f"{table[n][i]:.6g}" for n in names])
+    if sq is not None:
+        with open(os.path.join(dest, "sova_sq.csv"), "w", newline="") as f:
+            w = csv.writer(f); w.writerow(["Q_1/A", "S_neutron" if o["radiation"] == "neutron" else "S_xray"])
+            for qq, v_ in zip(*sq):
+                w.writerow([f"{qq:.4f}", f"{v_:.6g}"])
+    result = dict(sovapy_version=getattr(sovapy, "__version__", ""), frames=len(sel), rmax=float(rmax), dr=dr,
+                  pairs=names, first_peaks=peaks, coordination=coord, sq_xray=sq is not None, radiation=o["radiation"],
+                  sq_rmax=float((nr_sq - 1) * dr), sq_qmax=float(o["qmax"]),
+                  note="PDF g(r) by SOVA pair_dist_func (normalised by the density over the whole box: in a slab or "
+                       "interlayer it does not tend to 1); RDF N(r) = 4 pi r^2 rho_B g(r) by SOVA radial_dist_fun")
+    json.dump(result, open(os.path.join(dest, "sova_summary.json"), "w"), indent=1)
+    return result
+
+
+ATOMIC_NUMBER = {"H": 1, "O": 8, "Na": 11, "Mg": 12, "Al": 13, "Si": 14, "Cl": 17, "K": 19, "Ca": 20, "Ti": 22, "Fe": 26, "Cs": 55}
+
+
+def frames(path):
+    """(step, cell rows, positions wrapped into the cell) per frame of a LAMMPS custom dump, sorted by id."""
+    with open(path) as f:
+        while True:
+            l = f.readline()
+            if not l:
+                return
+            if not l.startswith("ITEM: TIMESTEP"):
+                continue
+            try:
+                step = int(f.readline()); f.readline(); n = int(f.readline())
+                box = [f.readline() for _ in range(4)]
+                cols = f.readline().split()[2:]
+                lines = [f.readline() for _ in range(n)]
+                if not lines or not lines[-1].endswith("\n"):
+                    return
+            except ValueError:
+                return
+            b = [list(map(float, x.split())) for x in box[1:4]]
+            if "xy" in box[0]:
+                xy, xz, yz = b[0][2], b[1][2], b[2][2]
+                xlo = b[0][0] - min(0.0, xy, xz, xy + xz); xhi = b[0][1] - max(0.0, xy, xz, xy + xz)
+                ylo = b[1][0] - min(0.0, yz); yhi = b[1][1] - max(0.0, yz)
+            else:
+                xy = xz = yz = 0.0
+                xlo, xhi, ylo, yhi = b[0][0], b[0][1], b[1][0], b[1][1]
+            cell = np.array([[xhi - xlo, 0, 0], [xy, yhi - ylo, 0], [xz, yz, b[2][1] - b[2][0]]])
+            keys = ("x", "y", "z") if "x" in cols else ("xu", "yu", "zu")
+            a = np.loadtxt(lines, usecols=[cols.index("id")] + [cols.index(c) for c in keys], ndmin=2)
+            a = a[np.argsort(a[:, 0])]
+            r = a[:, 1:4] - np.array([xlo, ylo, b[2][0]])
+            yield step, cell, np.mod(r @ np.linalg.inv(cell), 1.0) @ cell
+
+
+_read_frames = frames          # the xrd() parameter 'frames' hides the function there
+
+
+def sova_atoms(pos, symbols, cell):
+    from sovapy.core import data
+    from sovapy.core.volumes import TriclinicVolume
+    order = np.argsort([ATOMIC_NUMBER.get(s, 99) for s in symbols], kind="stable")
+    vol = TriclinicVolume(*cell[0], *cell[1], *cell[2])
+    vol.origin = np.zeros(3)
+    vol.periodic_boundary = [0.0, 1.0]
+    return data.Atoms(pos[order], None, [symbols[i] for i in order], vol)
+
+
+def first_peak(r, g):
+    """position and height of the first peak of g(r) between 1.5 and 4 A (curve smoothed over 0.1 A for the search)."""
+    dr = r[1] - r[0]
+    w = max(1, int(round(0.1 / dr)))
+    gs = np.convolve(g, np.ones(2 * w + 1) / (2 * w + 1), mode="same")
+    lo, hi = int(1.5 / dr), min(len(gs), int(4.0 / dr))
+    if hi <= lo or gs[lo:hi].max() <= 0:
+        return None
+    i = lo + int(np.argmax(gs[lo:hi]))
+    if i >= hi - 1 and hi < len(gs):          # still rising at 4 A: no first peak in the range (not the range's edge)
+        return None
+    return dict(r_peak=float(r[i]), g_peak=float(g[i]))
+
+
+def coordination(r, n_r, g):
+    """N(r) integrated from 0 to the first minimum of g(r) after its first peak (None when there is no peak)."""
+    fp = first_peak(r, g)
+    if not fp:
+        return None
+    dr = r[1] - r[0]
+    i0 = int(round(fp["r_peak"] / dr))
+    w = max(1, int(round(0.1 / dr)))
+    gs = np.convolve(g, np.ones(2 * w + 1) / (2 * w + 1), mode="same")
+    hi = min(len(gs), i0 + int(2.0 / dr))
+    if hi <= i0 + 1:
+        return None
+    im = i0 + int(np.argmin(gs[i0:hi]))
+    y = n_r[:im + 1]
+    return dict(r_min=float(r[im]), cn=float(np.sum((y[1:] + y[:-1]) * 0.5 * dr)))
+
 
 
 
@@ -260,12 +418,15 @@ def computes(out_dir, dest, skip_ps, dt_fs):
 
 # ------------------------------------------------------------------------------------------------------ XRD (Debyer)
 def find_debyer(path=None):
-    """the debyer executable: the given path, $DEBYER, debyer on PATH, or a source build ~/debyer/debyer/debyer or
+    """the debyer executable: the given path, $DEBYER, debyer on PATH, ~/.soapff-gui/bin/debyer (install.sh), or a source build ~/debyer/debyer/debyer or
     ~/*/debyer/debyer/debyer; None when not found."""
     for c in (path, os.environ.get("DEBYER"), shutil.which("debyer")):
         if c and os.path.isfile(c) and os.access(c, os.X_OK):
             return os.path.abspath(c)
     home = os.path.expanduser("~")
+    c = os.path.join(os.environ.get("SOAPFF_HOME") or os.path.join(home, ".soapff-gui"), "bin", "debyer")       # built by install.sh
+    if os.path.isfile(c) and os.access(c, os.X_OK):
+        return c
     for c in [os.path.join(home, "debyer", "debyer", "debyer")] + sorted(glob.glob(os.path.join(home, "*", "debyer", "debyer", "debyer"))):
         if os.path.isfile(c) and os.access(c, os.X_OK):
             return c
@@ -280,13 +441,12 @@ def xrd(out_dir, dest, skip_ps, dt_fs, debyer=None, wavelength=1.5406, two_theta
         of the particle below a few degrees);
     mode "periodic" (liquids, glasses; orthorhombic box only): the box with periodic boundaries, cut-off half the
         shortest box length, sinc damping and the number density of the box (no reflection with d > half the box)."""
-    from .sova_structure import frames as read_frames
     exe = find_debyer(debyer)
     if not exe:
         raise RuntimeError("debyer not found: build https://github.com/wojdyr/debyer and give its path "
                            "(--debyer / $DEBYER, or the GUI settings)")
     el = [r["element"] for r in csv.DictReader(open(os.path.join(out_dir, "charges.csv")))]
-    fr = [f for f in read_frames(os.path.join(out_dir, traj)) if f[0] * dt_fs / 1000.0 >= skip_ps - 1e-9]
+    fr = [f for f in _read_frames(os.path.join(out_dir, traj)) if f[0] * dt_fs / 1000.0 >= skip_ps - 1e-9]
     if not fr:
         raise RuntimeError(f"no frames after the equilibration in {traj}")
     fr = fr[-max(1, int(frames)):]
@@ -369,7 +529,7 @@ def trajectories(out_dir):
     return sorted(fs, key=lambda f: f != "traj.lammpstrj")
 
 
-def analyze(out_dir, skip_ps=None, sova_python=None, sova_home=None, log=print, what=WHAT, debyer=None, xrd_opts=None,
+def analyze(out_dir, skip_ps=None, sova_opts=None, log=print, what=WHAT, debyer=None, xrd_opts=None,
             traj=None):
     """traj: the dump used by SOVA and XRD (default traj.lammpstrj, else the first *.lammpstrj of the folder)."""
     out_dir = os.path.abspath(out_dir)
@@ -419,7 +579,7 @@ def analyze(out_dir, skip_ps=None, sova_python=None, sova_home=None, log=print, 
         try:
             if not has_traj:
                 raise RuntimeError(f"no {traj} in this folder")
-            summary["sova"] = sova(out_dir, dest, skip_ps, dt_fs, sova_python, sova_home, log, traj=traj)
+            summary["sova"] = sova(out_dir, dest, skip_ps, dt_fs, sova_opts, log, traj=traj)
         except Exception as e:
             summary["sova"] = dict(error=str(e))
             log(f"WARNING {e}")
@@ -427,7 +587,7 @@ def analyze(out_dir, skip_ps=None, sova_python=None, sova_home=None, log=print, 
         plot(dest, dcurves, dres, sova="sova" in what and "error" not in summary["sova"])
         summary["figures"].append(["MSD・PDF・RDF", "analysis.png"])
         if "sova" in what and summary["sova"].get("sq_xray"):
-            plot_sq(dest, summary["sova"].get("sq_rmax"))
+            plot_sq(dest, summary["sova"].get("sq_rmax"), summary["sova"].get("radiation") == "neutron")
             summary["figures"].append(["S(Q)", "sova_sq.png"])
     if "compute" in what:
         summary["computes"] = computes(out_dir, dest, skip_ps, dt_fs)
@@ -490,7 +650,7 @@ def summary_text(s):
             if n_all:
                 L.append(f"  ほかに全原子の元素の組 {n_all} 通り（all:）")
             if st.get("sq_xray"):
-                L.append(f"X 線の構造因子 S(Q)（SOVA、全原子、g(r) を {st.get('sq_rmax', 0):.1f} Å まで使用、"
+                L.append(f"{'中性子' if st.get('radiation') == 'neutron' else 'X 線'}の構造因子 S(Q)（SOVA、全原子、g(r) を {st.get('sq_rmax', 0):.1f} Å まで使用、"
                          f"Q ≤ {st.get('sq_qmax', 0):.0f} Å⁻¹）：sova_sq.csv")
                 if st.get("sq_rmax"):
                     L.append(f"  Q < 2π/{st['sq_rmax']:.1f} Å = {2 * np.pi / st['sq_rmax']:.2f} Å⁻¹ は g(r) の打ち切りで決まらない"
@@ -576,7 +736,7 @@ def plot(dest, dcurves, dres, sova=True):
     fig.tight_layout(); fig.savefig(os.path.join(dest, "analysis.png"), dpi=100); plt.close(fig)
 
 
-def plot_sq(dest, rmax=None):
+def plot_sq(dest, rmax=None, neutron=False):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -594,7 +754,7 @@ def plot_sq(dest, rmax=None):
         ax.text(q0, 0.97, f" Q < 2π/{rmax:.1f} Å: not resolved", transform=ax.get_xaxis_transform(), fontsize=8,
                 va="top", color="#666")
     ax.set_xlabel("Q (A$^{-1}$)"); ax.set_ylabel("S(Q)")
-    ax.set_title("SOVA X-ray structure factor S(Q) of the whole system", loc="left", fontsize=10)
+    ax.set_title(f"SOVA {'neutron' if neutron else 'X-ray'} structure factor S(Q) of the whole system", loc="left", fontsize=10)
     fig.tight_layout(); fig.savefig(os.path.join(dest, "sova_sq.png"), dpi=100); plt.close(fig)
 
 

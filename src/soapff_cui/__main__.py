@@ -56,11 +56,14 @@ def main():
                                         "SOVA (g(r), N(r), coordination, S(Q)) and Debyer (XRD)")
     an.add_argument("outdir")
     an.add_argument("--skip-ps", type=float, default=None, help="equilibration to skip (ps); default 20%% of the MD")
-    an.add_argument("--sova-python", default=None, help="Python of a SOVA installation (default $SOVA_PYTHON, or this "
-                                                        "Python when sovapy is importable)")
-    an.add_argument("--sova-home", default=None, help="SOVA source checkout put on PYTHONPATH (default $SOVA_HOME)")
     an.add_argument("--what", default="msd,sova,xrd",
                     help="analyses, comma separated: msd (diffusion), sova (PDF, RDF, S(Q)), xrd (Debyer)")
+    an.add_argument("--sova-dr", type=float, default=0.02, help="SOVA: bin width of g(r) (A)")
+    an.add_argument("--sova-rmax", type=float, default=8.0, help="SOVA: largest r (A)")
+    an.add_argument("--sova-qmin", type=float, default=0.05); an.add_argument("--sova-qmax", type=float, default=12.0)
+    an.add_argument("--sova-dq", type=float, default=0.05, help="SOVA: Q range and step of S(Q) (1/A)")
+    an.add_argument("--sova-radiation", default="xray", choices=["xray", "neutron"])
+    an.add_argument("--sova-frames", type=int, default=40, help="SOVA: number of frames averaged")
     an.add_argument("--traj", default=None, help="dump for SOVA and XRD (default traj.lammpstrj, else the first *.lammpstrj)")
     an.add_argument("--debyer", default=None, help="debyer executable (default $DEBYER, PATH, ~/*/debyer/debyer/debyer)")
     an.add_argument("--wavelength", type=float, default=1.5406, help="X-ray wavelength in A (default Cu K-alpha 1.5406)")
@@ -73,7 +76,7 @@ def main():
     a = ap.parse_args()
     if a.cmd == "analyze":
         from .analysis import analyze
-        analyze(a.outdir, skip_ps=a.skip_ps, sova_python=a.sova_python, sova_home=a.sova_home,
+        analyze(a.outdir, skip_ps=a.skip_ps, sova_opts=dict(dr=a.sova_dr, rmax=a.sova_rmax, qmin=a.sova_qmin, qmax=a.sova_qmax, dq=a.sova_dq, radiation=a.sova_radiation, max_frames=a.sova_frames),
                 what=tuple(w.strip() for w in a.what.split(",") if w.strip()), debyer=a.debyer, traj=a.traj,
                 xrd_opts=dict(wavelength=a.wavelength, two_theta=tuple(float(v) for v in a.two_theta.split(",")),
                               frames=a.xrd_frames, mode=a.xrd_mode, size_A=a.xrd_size))
