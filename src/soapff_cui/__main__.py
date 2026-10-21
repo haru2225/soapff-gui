@@ -59,9 +59,9 @@ def main():
     an.add_argument("--sova-python", default=None, help="Python of a SOVA installation (default $SOVA_PYTHON, or this "
                                                         "Python when sovapy is importable)")
     an.add_argument("--sova-home", default=None, help="SOVA source checkout put on PYTHONPATH (default $SOVA_HOME)")
-    an.add_argument("--what", default="msd,sova,compute,xrd,props",
+    an.add_argument("--what", default="msd,sova,compute,xrd",
                     help="analyses, comma separated: msd (diffusion, ionic conductivity), sova (PDF, RDF, S(Q)), compute "
-                         "(fix ave/* files), xrd (Debyer), props (the soapff properties of in.lammps)")
+                         "(fix ave/* files), xrd (Debyer)")
     an.add_argument("--traj", default=None, help="dump for SOVA and XRD (default traj.lammpstrj, else the first *.lammpstrj)")
     an.add_argument("--debyer", default=None, help="debyer executable (default $DEBYER, PATH, ~/*/debyer/debyer/debyer)")
     an.add_argument("--wavelength", type=float, default=1.5406, help="X-ray wavelength in A (default Cu K-alpha 1.5406)")

@@ -90,15 +90,13 @@ def analyze(out_dir, log=print, skip_ps=None, sova_python=None, sova_home=None, 
 
 
 def analyzable(out_dir):
-    """the outputs that 解析 can use in out_dir: dumps (*.lammpstrj), MSD files, soapff properties of in.lammps, the
-    files of fix ave/* -> list of short descriptions (empty: nothing to analyse yet)."""
-    from soapff_cui import analysis, properties
+    """the outputs that 解析 can use in out_dir: dumps (*.lammpstrj), MSD files, the files of fix ave/* -> list of short
+    descriptions (empty: nothing to analyse yet)."""
+    from soapff_cui import analysis
     if not out_dir or not os.path.isdir(out_dir):
         return []
     found = [f for f in analysis.trajectories(out_dir)]
     found += [os.path.basename(f) for f in glob.glob(os.path.join(out_dir, "msd_*.dat"))]
-    found += [m.get("file", n) for n, m in properties.markers(out_dir)
-              if os.path.isfile(os.path.join(out_dir, m.get("file", m.get("born", "-"))))]
     found += [f for _, _, f in analysis.ave_files(out_dir)]
     return found
 
