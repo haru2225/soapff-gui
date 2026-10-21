@@ -30,15 +30,14 @@ BARO = {"z": "z：面に垂直な方向だけ（層間・界面）", "aniso": "a
 DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p",
                 nproc=max(1, min(3, (os.cpu_count() or 2) // 2)), threshold=0.95, cutoff=10.0, library="", lmp="", mpirun="",
                 last_dir=os.path.expanduser("~"), dump_ps=1.0, auto_analyze=True, skip_ps="",
-                analyses=["msd", "sova", "xrd"], debyer="", xrd_wavelength=1.5406, xrd_from=3.0, xrd_to=80.0,
+                analyses=["msd", "sova"], debyer="", xrd_wavelength=1.5406, xrd_from=3.0, xrd_to=80.0,
                 xrd_step=0.02, xrd_frames=3, xrd_mode="cluster", xrd_size=50.0,
                 where="local", computers=[], history=[],
                 sova=dict(dr=0.02, rmax=8.0, qmin=0.05, qmax=12.0, dq=0.05, radiation="xray", max_frames=40, pairs="water_ion",
                           all_elements=True),
                 swelling=dict(one_to=23, two_to=99, down=True, eq_ps=30.0, avg_ps=20.0))
 # the analyses (soapff_cui.analysis): key, label
-ANALYSES = (("msd", "拡散係数（LAMMPS の compute msd があるとき）"), ("sova", "SOVA：PDF g(r)・RDF N(r)・配位数・X 線 S(Q)"),
-            ("xrd", "XRD（Debyer、粉末 X 線回折パターン）"))
+ANALYSES = (("msd", "拡散係数（LAMMPS の compute msd があるとき）"), ("sova", "SOVA：PDF g(r)・RDF N(r)・配位数・S(Q)"))
 XRD_MODES = {"cluster": "結晶子：セルを並べた有限の結晶（結晶・粘土鉱物）",
              "periodic": "周期境界：カットオフ = 箱の半分（液体・ガラス、直方体の箱のみ）"}
 # a registered computer (SSH): name, host, user, port, root (folder for the runs there), lmp, mpirun, setup (shell commands
@@ -291,7 +290,7 @@ class App:
             ("表示", [("in.lammps", lambda: self.show_tab("in.lammps")), ("system.settings（力場の設定）",
                                                                          lambda: self.show_tab("system.settings")),
                       ("system.data（原子・結合・角度）", lambda: self.show_tab("system.data")), None,
-                      ("解析結果", self.show_results), ("OVITO で開く", self.open_ovito), None,
+                      ("解析結果", self.show_results), ("グラフ（列を選んで描く）…", self.open_plotter), ("OVITO で開く", self.open_ovito), None,
                       ("計算履歴", self.show_history), ("構造ライブラリ", self.show_library)]),
             ("計算", [("計算を開始", self.start, "⌘R"), ("停止", self.stop), None,
                       ("入力を作り直す（MD の条件から）", self.regenerate), ("解析", self.analyze_now), None,
@@ -505,9 +504,10 @@ class App:
         self.l_thermo.pack(fill="x", padx=16, pady=(6, 0))
         acts = tk.Frame(rc, bg=PANEL)                  # packed first (at the bottom) so that 解析 is always visible
         acts.pack(side="bottom", fill="x", padx=16, pady=(0, 10))
-        for text, cmd in (("解析", self.analyze_now), ("OVITO で開く", self.open_ovito), ("フォルダ", self.open_out)):
+        for text, cmd in (("解析", self.analyze_now), ("グラフ", self.open_plotter), ("OVITO で開く", self.open_ovito),
+                          ("フォルダ", self.open_out)):
             ttk.Button(acts, text=text, style="Link.TButton", command=cmd).pack(side="left", padx=(0, 6))
-        tk.Label(acts, text="↑ 実行先で計算し，終わると自動で解析します", bg=PANEL, fg=FAINT, font=self.f_small).pack(side="right")
+        tk.Label(acts, text="↑ 計算が終わると自動で解析します", bg=PANEL, fg=FAINT, font=self.f_small).pack(side="right")
         lf = tk.Frame(rc, bg=CODE_BG, highlightthickness=1, highlightbackground="#e1e6ea")
         lf.pack(fill="both", expand=True, padx=16, pady=(8, 8))
         self.log = tk.Text(lf, bg=CODE_BG, fg=TEXT, font=pick_font(["Menlo"], 10), relief="flat", height=4, wrap="none",
@@ -2317,6 +2317,7 @@ class App:
             ttk.Radiobutton(rr, text=lab, value=k, variable=v["sova_radiation"]).pack(side="left", padx=(0, 12))
         row += 1
         sent("max_frames", "平均するフレーム数", 6, note="平衡化のあとから等間隔に選ぶ")
+        sent("type_pairs", "型の組（任意）", 30, note="例：K-ob K-obts（ClayFF の型で分けた g(r)。空欄でなし）")
         ttk.Label(f, text="求める組").grid(row=row, column=0, sticky="w", pady=3)
         v["sova_pairs"] = tk.StringVar(value=sv.get("pairs", "water_ion"))
         v["sova_all"] = tk.BooleanVar(value=bool(sv.get("all_elements", True)))
@@ -2327,29 +2328,6 @@ class App:
         ttk.Radiobutton(rp, text="しない", value="none", variable=v["sova_pairs"]).pack(anchor="w")
         ttk.Checkbutton(rp, text="全原子の元素の組（S(Q) もここから）", variable=v["sova_all"]).pack(anchor="w")
         row += 1
-        ttk.Label(f, text="XRD（debyer）", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w", pady=(10, 0))
-        row += 1
-        ent("xrd_wavelength", "波長 λ (Å)", 8, note="Cu Kα 1.5406、Mo Kα 0.7107")
-        ttk.Label(f, text="2θ の範囲 (°)").grid(row=row, column=0, sticky="w", pady=3)
-        rg = ttk.Frame(f)
-        rg.grid(row=row, column=1, columnspan=3, sticky="w")
-        for i, (k, lab) in enumerate((("xrd_from", "から"), ("xrd_to", "まで"), ("xrd_step", "刻み"))):
-            v[k] = tk.StringVar(value=str(s.get(k, "")))
-            ttk.Entry(rg, textvariable=v[k], width=6, style="Field.TEntry").pack(side="left")
-            ttk.Label(rg, text=lab, foreground=MUTED).pack(side="left", padx=(3, 10))
-        row += 1
-        ent("xrd_frames", "平均するフレーム数", 6, note="最後のフレームから")
-        ttk.Label(f, text="方式").grid(row=row, column=0, sticky="nw", pady=3)
-        v["xrd_mode"] = tk.StringVar(value=s.get("xrd_mode", "cluster"))
-        mf = ttk.Frame(f)
-        mf.grid(row=row, column=1, columnspan=3, sticky="w")
-        for k, lab in XRD_MODES.items():
-            ttk.Radiobutton(mf, text=lab, value=k, variable=v["xrd_mode"]).pack(anchor="w")
-        row += 1
-        ent("xrd_size", "結晶子の大きさ (Å)", 8, note="各辺がこれ以上になるようセルを並べる（時間は原子数の 2 乗）")
-        ttk.Label(f, text="debyer の場所", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w", pady=(10, 0))
-        row += 1
-        ent("debyer", "debyer", 40, browse="file", note="" if runner.find_debyer(s.get("debyer")) else "見つかりません（install.sh で入ります）")
 
     @staticmethod
     def collect_analysis(v, s2):
@@ -2357,27 +2335,22 @@ class App:
         if "auto_analyze" in v:
             s2["auto_analyze"] = bool(v["auto_analyze"].get())
         s2["analyses"] = [k for k, _ in ANALYSES if v["an_" + k].get()]
-        for k in ("skip_ps", "debyer", "xrd_mode"):
-            s2[k] = v[k].get().strip()
+        s2["skip_ps"] = v["skip_ps"].get().strip()
         try:
             if s2["skip_ps"]:
                 float(s2["skip_ps"])
-            for k in ("xrd_wavelength", "xrd_from", "xrd_to", "xrd_step", "xrd_size"):
-                s2[k] = float(v[k].get())
-            s2["xrd_frames"] = max(1, int(float(v["xrd_frames"].get())))
             s2["sova"] = dict(dr=float(v["sova_dr"].get()), rmax=float(v["sova_rmax"].get()), qmin=float(v["sova_qmin"].get()),
                               qmax=float(v["sova_qmax"].get()), dq=float(v["sova_dq"].get()),
                               radiation=v["sova_radiation"].get(), max_frames=max(1, int(float(v["sova_max_frames"].get()))),
-                              pairs=v["sova_pairs"].get(), all_elements=bool(v["sova_all"].get()))
+                              pairs=v["sova_pairs"].get(), all_elements=bool(v["sova_all"].get()),
+                              type_pairs=v["sova_type_pairs"].get().strip())
             sv_ = s2["sova"]
             if not (sv_["dr"] > 0 and sv_["rmax"] > 0 and 0 < sv_["qmin"] < sv_["qmax"] and sv_["dq"] > 0):
                 raise ValueError("SOVA の dr，r の最大，Q の範囲が正しくありません")
-            if sv_["pairs"] == "none" and not sv_["all_elements"]:
+            if sv_["pairs"] == "none" and not sv_["all_elements"] and not sv_["type_pairs"]:
                 raise ValueError("SOVA で求める組を 1 つ以上選んでください")
         except ValueError as e:
             raise ValueError(f"数値ではありません：{e}")
-        if not (0 < s2["xrd_from"] < s2["xrd_to"] < 180 and s2["xrd_step"] > 0 and s2["xrd_wavelength"] > 0):
-            raise ValueError("XRD の 2θ の範囲か波長が正しくありません")
 
     def _analyze(self, put, s):
         what = [k for k, _ in ANALYSES if k in s.get("analyses", [])]
@@ -2500,6 +2473,14 @@ class App:
         ttk.Button(bar, text="解析フォルダを開く（CSV）", style="Ghost.TButton", command=lambda: open_folder(dest)).pack(side="left", padx=6)
         ttk.Button(bar, text="もう一度解析…", style="Ghost.TButton", command=lambda: (w.destroy(), self.analyze_now())).pack(side="left")
         ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="right")
+
+    def open_plotter(self):
+        """グラフ: columns of the output files (thermo of log.lammps, fix ave/time files, csv) as curves of one figure."""
+        if not self.out or not os.path.isdir(self.out):
+            messagebox.showinfo("soapff-GUI", "先に構造ファイルを選んで，計算してください（または「既存の出力フォルダを開く」）")
+            return
+        from . import plotter
+        plotter.PlotDialog(self, self.out)
 
     def open_ovito(self):
         if not self.out or not os.path.isdir(self.out):

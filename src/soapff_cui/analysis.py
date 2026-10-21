@@ -73,7 +73,7 @@ def msd(out_dir, skip_ps, dt_fs):
 # SOVA parameters (the Structure-factor settings of SOVA): bin width of g(r), largest r, Q range of S(Q), radiation,
 # number of frames, which pairs
 SOVA_DEFAULTS = dict(dr=0.02, rmax=8.0, qmin=0.05, qmax=12.0, dq=0.05, radiation="xray", max_frames=40,
-                     pairs="water_ion", all_elements=True)
+                     pairs="water_ion", all_elements=True, type_pairs="")
 
 
 def sova(out_dir, dest, skip_ps, dt_fs, opts=None, log=print, traj="traj.lammpstrj"):
@@ -103,6 +103,15 @@ def sova(out_dir, dest, skip_ps, dt_fs, opts=None, log=print, traj="traj.lammpst
                 subsets.append((f"{e}-Ow", np.r_[idx, Ow], [(e, "O")]))
             if len(Omin):
                 subsets.append((f"{e}-O_min", np.r_[idx, Omin], [(e, "O")]))
+    # pairs of ClayFF types, e.g. "K-ob K-obts": the g(r) of the K ions around the bridging O ob and around obts separately
+    for tp in str(o.get("type_pairs") or "").replace(",", " ").split():
+        ta, _, tb = tp.partition("-")
+        ia, ib = np.nonzero(typ == ta)[0], np.nonzero(typ == (tb or ta))[0]
+        if not len(ia) or not len(ib):
+            log(f"WARNING type pair {tp}: no atoms of type {ta if not len(ia) else tb}")
+            continue
+        idx = np.unique(np.r_[ia, ib])
+        subsets.append((tp, idx, [(el[ia[0]], el[ib[0]])]))
     if o["pairs"] in ("all", "both") or o["all_elements"] or not subsets:
         subsets.append(("all", np.arange(len(el)), None))
     log(f"SOVA {getattr(sovapy, '__version__', '')}: dr {o['dr']} A, r_max {o['rmax']} A, Q {o['qmin']}-{o['qmax']} (dQ {o['dq']}) 1/A, "

@@ -9,7 +9,7 @@
 - **スーパーセル**：OVITO の Replicate で a・b・c 方向に並べてから力場を作る。
 - **膨潤曲線の計算**：層間に水分子を加えながら NPT を回し、各状態の箱を `swelling.dat` に記録する（Cygan et al. 2004 と同じ手順。図にするのは `examples/montmorillonite_swelling/analyze_swelling.py`）。
 - **実行**：このコンピュータか、SSH で登録した別のコンピュータ（`ユーザー@ホスト` を入れるだけで登録）で LAMMPS を回す。
-- **解析**：拡散係数（`compute msd` があるとき）、SOVA の PDF・RDF・配位数・S(Q)、Debyer の XRD。SOVA の dr、r の最大、Q の範囲と刻み、X 線／中性子、フレーム数、求める組と、XRD の波長・2θ・結晶子の大きさは「解析」の画面（計算設定 › 解析）で選べます。OVITO で表示。
+- **解析**：拡散係数（`compute msd` があるとき）、SOVA の PDF・RDF・配位数・S(Q)。SOVA の dr、r の最大、Q の範囲と刻み、X 線／中性子、フレーム数、求める組と型で分けた組（例：K-ob K-obts）は「解析」の画面（計算設定 › 解析）で選べます。OVITO で表示。
 
 ## インストール
 
@@ -19,8 +19,8 @@
 | Linux | `sudo apt install python3-venv python3-tk`（Ubuntu の例）のあと、macOS と同じ。起動は `~/.soapff-gui/venv/bin/soapff-gui` |
 | Windows | python.org の Python 3.10–3.12 を入れ、`git clone …` のあと `powershell -ExecutionPolicy Bypass -File soapff-gui\install.ps1` → デスクトップのショートカットから起動（動作は未確認。SSH の実行は使えないので、SSH を使うときは WSL2 に Linux の手順で入れる） |
 
-- **`install.sh` は必要なものを自動で入れます**（`sudo` は使いません）：Python のライブラリ（numpy、scipy、ASE、dscribe、matplotlib、ovito）、**LAMMPS と Open MPI**（conda-forge の MPI 版、`~/.soapff-gui/lammps`、約 1 GB。すでに `lmp` があれば入れない）、**SOVA**（`pip install sovapy`、Python 3.11 以上）、**Debyer**（`~/.soapff-gui/bin/debyer` にビルド。macOS は Homebrew で `autoconf automake gengetopt libtool` を入れ、Linux はビルドツールが足りなければ入れ方を表示するので、それを実行してもう一度 `install.sh`）、**OVITO のアプリ**（macOS は `brew install --cask ovito`、Linux は conda.ovito.org から `~/.soapff-gui/ovito`、約 1.5 GB）。`SOAPFF_NO_LAMMPS=1` と `SOAPFF_NO_OVITO=1` でそれぞれ飛ばせます。
-- Windows の `install.ps1` は Python のライブラリと SOVA だけ入れます（LAMMPS は https://packages.lammps.org/windows.html 、OVITO は https://www.ovito.org から、Debyer は WSL2 で）。見つからないときは「計算設定 › 実行先」で場所を指定します。
+- **`install.sh` は必要なものを自動で入れます**（`sudo` は使いません）：Python のライブラリ（numpy、scipy、ASE、dscribe、matplotlib、ovito）、**LAMMPS と Open MPI**（conda-forge の MPI 版、`~/.soapff-gui/lammps`、約 1 GB。すでに `lmp` があれば入れない）、**SOVA**（`pip install sovapy`、Python 3.11 以上）、**OVITO のアプリ**（macOS は `brew install --cask ovito`、Linux は conda.ovito.org から `~/.soapff-gui/ovito`、約 1.5 GB）。`SOAPFF_NO_LAMMPS=1` と `SOAPFF_NO_OVITO=1` でそれぞれ飛ばせます。
+- Windows の `install.ps1` は Python のライブラリと SOVA だけ入れます（LAMMPS は https://packages.lammps.org/windows.html 、OVITO は https://www.ovito.org から）。見つからないときは「計算設定 › 実行先」で場所を指定します。
 - Tk のある Python が見つからないときは `brew install python-tk@3.12` か `brew install uv` のあと、もう一度 `install.sh` を実行します。更新は `git pull` です（依存が増えたら `~/.soapff-gui/venv/bin/python -m pip install -e soapff-gui`）。
 
 ## 使い方

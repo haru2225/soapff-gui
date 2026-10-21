@@ -5,7 +5,7 @@
 #   PYTHON=/path/to/python sh install.sh --here   into that Python's own environment (e.g. one that already has LAMMPS)
 # Python: $PYTHON, else the first of python3, python3.13 ... python3.9 (PATH, Homebrew, python.org) that has tkinter with
 # Tk 8.6 or newer; when there is none, uv (if installed) makes the environment with a Python of its own (with tkinter).
-# LAMMPS + Open MPI and OVITO (conda-forge / conda.ovito.org, no sudo), SOVA (pip) and Debyer (built) are installed too: see the steps below; SOAPFF_NO_LAMMPS=1 / SOAPFF_NO_OVITO=1 skip LAMMPS / OVITO.
+# LAMMPS + Open MPI and OVITO (conda-forge / conda.ovito.org, no sudo) and SOVA (pip) are installed too: see the steps below; SOAPFF_NO_LAMMPS=1 / SOAPFF_NO_OVITO=1 skip LAMMPS / OVITO.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ok() { "$1" -c "import sys, tkinter; assert sys.version_info >= (3, 9) and tkinter.TkVersion >= 8.6" 2>/dev/null; }
@@ -94,34 +94,6 @@ elif get_mm; then
     && echo "OVITO installed: $SH/ovito/bin/ovito" || echo "WARNING: the OVITO install failed; get OVITO from https://www.ovito.org"
 else
   echo "WARNING: OVITO was not installed; get it from https://www.ovito.org (the Python module for the supercell is installed already)"
-fi
-
-# --- Debyer (XRD) built into ~/.soapff-gui/bin/debyer (SOAPFF_HOME to change) ---
-if command -v debyer >/dev/null 2>&1 || [ -x "$SH/bin/debyer" ]; then
-  echo "Debyer found: $(command -v debyer || echo "$SH/bin/debyer")"
-else
-  need=""
-  for t in autoreconf automake gengetopt make cc git; do command -v $t >/dev/null 2>&1 || need="$need $t"; done
-  if [ -n "$need" ] && [ "$(uname)" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
-    echo "Debyer: installing the build tools with Homebrew (autoconf automake gengetopt libtool)"
-    brew install autoconf automake gengetopt libtool >/dev/null 2>&1 || true
-    need=""
-    for t in autoreconf automake gengetopt make cc git; do command -v $t >/dev/null 2>&1 || need="$need $t"; done
-  fi
-  if [ -n "$need" ]; then
-    echo "WARNING: Debyer (XRD) was not built; missing:$need"
-    echo "         Ubuntu/Debian: sudo apt install git build-essential autoconf automake libtool gengetopt   (then run this again)"
-    echo "         macOS: brew install autoconf automake gengetopt libtool   (then run this again)"
-  else
-    echo "Debyer: building (git clone, autoreconf, configure, make)"
-    mkdir -p "$SH/bin" && rm -rf "$SH/debyer-src" \
-      && git clone -q --depth 1 https://github.com/wojdyr/debyer "$SH/debyer-src" \
-      && (cd "$SH/debyer-src" && autoreconf -i >/dev/null 2>&1 && ./configure -q --without-zlib --without-bzlib CFLAGS="-O3 -ffast-math" >/dev/null \
-          && make -j2 >/dev/null 2>&1) \
-      && cp "$SH/debyer-src/debyer/debyer" "$SH/bin/debyer" \
-      && echo "Debyer installed: $SH/bin/debyer" \
-      || echo "WARNING: building Debyer failed (XRD is not available); see https://github.com/wojdyr/debyer"
-  fi
 fi
 
 echo "installed: $BIN/soapff-gui"

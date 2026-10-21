@@ -19,7 +19,6 @@ $Exe = Join-Path $Venv "Scripts\soapff-gui.exe"
 if ($LASTEXITCODE -eq 0) { & $VPy -m pip install -q sovapy; if ($LASTEXITCODE -ne 0) { Write-Host "WARNING: pip install sovapy failed (PDF / RDF / S(Q) are not available)" } }
 else { Write-Host "WARNING: SOVA (sovapy) needs Python 3.11 or newer (PDF / RDF / S(Q) are not available)" }
 Write-Host "NOTE: LAMMPS is not installed here: get the Windows installer from https://packages.lammps.org/windows.html (or use WSL2 and install.sh); OVITO from https://www.ovito.org."
-Write-Host "NOTE: Debyer (XRD) is not built on Windows; use WSL2 (Ubuntu) and install.sh there, or build https://github.com/wojdyr/debyer and give its path in the settings."
 Write-Host "installed: $Exe"
 $Lnk = Join-Path ([Environment]::GetFolderPath("Desktop")) "soapff-GUI.lnk"
 $Sh = (New-Object -ComObject WScript.Shell).CreateShortcut($Lnk)
