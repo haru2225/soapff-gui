@@ -4,6 +4,7 @@
 
 1. `python make_structure.py` → `initial.xyz`（2,319 原子）：八面体の Mg 3 個（ほかの Mg にいちばん近いもの）を Al に戻し（層ごとに Mg 14 個と 13 個）、層間の Na⁺ を 3 個（層ごとに 14 個と 13 個残る）、水を各層間から 30 分子（乱数、種 1）除く。置換は八面体のまま（Greathouse らの置換の位置は確かめていない）。
 2. soapff-gui で `initial.xyz` から力場を作る（全原子 SOAP、fallback 0、型の照合の食い違い 0）。
+   `python check_types.py`：正解（JAEA の構造の ClayFF の型と標準の電荷。Al にした Mg は ao、その Mg だけに結合していた O は obos → ob、ohs → oh）と比べて、2,319 原子すべてで型と電荷が一致（誤り 0、類似度の最小 0.952、fallback 0）。`kept_atoms.txt` と `mg_to_al.txt` は、`make_structure.py` が残した原子の番号（JAEA の構造での番号）と、Al にした Mg の番号。
 3. 入力を一覧から組み立てる（温度 T、圧力 0）：＋ その他 → soapff の手順「soapff の緩和」（初速度、10 ps の NVT）、＋ fix「NVT」＋ run 40000（20 ps）＋ unfix、＋ fix「NPT（面に垂直な方向だけ）」＋ run 200000（100 ps）、＋ その他「トラジェクトリ」（10 ps ごと）、続けて 4 回「拡散係数の MSD」（ID とファイル名を `msd_s1_…`〜`msd_s4_…` に変える）＋ run 400000（200 ps）＋ unfix / uncompute、最後に write_data。
 4. 実行先を SSH の計算機（物理 8 コア、16 スレッド）にして、300、330、366 K を同時に 5、5、6 並列で回す（各 3 時間）。
 5. `python analyze_diffusion.py` → `diffusion_summary.json`：区間ごとに面内の MSD を 50–200 ps で直線近似して D_xy、4 区間の平均と標準誤差、活性化エネルギー。

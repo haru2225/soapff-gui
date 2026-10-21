@@ -52,3 +52,8 @@ write(os.path.join(HERE, "initial.xyz"), new, format="extxyz")
 e = np.array(new.get_chemical_symbols())
 print("atoms", len(new), {x: int((e == x).sum()) for x in ("Si", "Al", "Mg", "Na", "O", "H")},
       "water", len(water) - 60, "of", len(water), "changed Mg", change)
+
+# which atoms of ../initial.xyz were kept and which Mg became Al, for check_types.py
+np.savetxt(os.path.join(HERE, "kept_atoms.txt"), keep + 1, fmt="%d")
+with open(os.path.join(HERE, "mg_to_al.txt"), "w") as f:
+    f.write(" ".join(str(i + 1) for i in change) + "\n")
