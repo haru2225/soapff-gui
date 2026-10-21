@@ -1,0 +1,4 @@
+解析：MD 0–200.0 ps、最初の 0.0 ps を平衡化として除外（時間刻み 0.5 fs）。SOVA と XRD の軌道：traj.lammpstrj
+PDF g(r) と RDF N(r) = 4πr²ρg(r)（SOVA 0.8.3、r ≤ 8.0 Å、100 フレーム）：sova_pdf.csv、sova_rdf.csv
+  K-ob         第 1 ピーク 3.10 Å（g = 3.14）、配位数 6.00（4.04 Å の極小まで）
+  K-obts       第 1 ピーク 2.98 Å（g = 4.48）、配位数 6.00（4.08 Å の極小まで）

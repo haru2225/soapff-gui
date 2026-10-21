@@ -1,0 +1,60 @@
+{
+ "out_dir": "/Users/harutokono/clay/soapff-gui/examples/muscovite_KO_rdf/T298",
+ "t_end_ps": 200.0,
+ "skip_ps": 0.0,
+ "timestep_fs": 0.5,
+ "what": [
+  "sova"
+ ],
+ "traj": "traj.lammpstrj",
+ "has_mineral": true,
+ "tools": {
+  "msd": "LAMMPS compute msd (Einstein relation)",
+  "pdf_rdf": "SOVA (sovapy) pair_dist_func, radial_dist_fun",
+  "sq": "SOVA (sovapy) partial_structure_factor, structure_factor_xray",
+  "compute": "LAMMPS fix ave/time, ave/chunk, ave/correlate, ave/histo output files",
+  "xrd": "Debyer (Debye scattering equation)",
+  "swelling": "LAMMPS fix npt; d001 = lz of the cell (swelling.dat of the soapff swelling block)"
+ },
+ "figures": [
+  [
+   "MSD・PDF・RDF",
+   "analysis.png"
+  ]
+ ],
+ "sova": {
+  "sovapy_version": "0.8.3",
+  "frames": 100,
+  "rmax": 8.0,
+  "dr": 0.02,
+  "pairs": [
+   "K-ob",
+   "K-obts"
+  ],
+  "first_peaks": {
+   "K-ob": {
+    "r_peak": 3.12,
+    "g_peak": 3.858543105479934
+   },
+   "K-obts": {
+    "r_peak": 2.96,
+    "g_peak": 7.084539553788386
+   }
+  },
+  "coordination": {
+   "K-ob": {
+    "r_min": 3.92,
+    "cn": 6.0
+   },
+   "K-obts": {
+    "r_min": 4.1,
+    "cn": 5.999999999999998
+   }
+  },
+  "sq_xray": false,
+  "radiation": "xray",
+  "sq_rmax": 8.92,
+  "sq_qmax": 12.0,
+  "note": "PDF g(r) by SOVA pair_dist_func (normalised by the density over the whole box: in a slab or interlayer it does not tend to 1); RDF N(r) = 4 pi r^2 rho_B g(r) by SOVA radial_dist_fun"
+ }
+}

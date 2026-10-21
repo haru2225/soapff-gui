@@ -1,0 +1,35 @@
+{
+ "sovapy_version": "0.8.3",
+ "frames": 100,
+ "rmax": 8.0,
+ "dr": 0.02,
+ "pairs": [
+  "K-ob",
+  "K-obts"
+ ],
+ "first_peaks": {
+  "K-ob": {
+   "r_peak": 3.1,
+   "g_peak": 3.6544915846288446
+  },
+  "K-obts": {
+   "r_peak": 2.96,
+   "g_peak": 5.897663233984134
+  }
+ },
+ "coordination": {
+  "K-ob": {
+   "r_min": 4.04,
+   "cn": 6.000000000000001
+  },
+  "K-obts": {
+   "r_min": 4.0600000000000005,
+   "cn": 6.0
+  }
+ },
+ "sq_xray": false,
+ "radiation": "xray",
+ "sq_rmax": 8.92,
+ "sq_qmax": 12.0,
+ "note": "PDF g(r) by SOVA pair_dist_func (normalised by the density over the whole box: in a slab or interlayer it does not tend to 1); RDF N(r) = 4 pi r^2 rho_B g(r) by SOVA radial_dist_fun"
+}
