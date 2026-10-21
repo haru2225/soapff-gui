@@ -57,7 +57,13 @@ def load_settings():
         s.update(json.load(open(SETTINGS)))
     except (OSError, ValueError):
         pass
-    if not os.path.isfile(s.get("library") or ""):
+    lib = s.get("library") or ""
+    if not os.path.isfile(lib):
+        s["library"] = runner.default_library()
+    elif (os.path.basename(lib) == os.path.basename(runner.default_library())
+          and os.path.abspath(lib) != os.path.abspath(runner.default_library())):
+        # an older copy of the bundled library (it has fewer structures: e.g. no micas, so a mica gets fallback atoms):
+        # the bundled one is used; a library with another name stays as the user chose it
         s["library"] = runner.default_library()
     lmp, mpirun = runner.find_executables()
     if not s.get("sova_python"):
