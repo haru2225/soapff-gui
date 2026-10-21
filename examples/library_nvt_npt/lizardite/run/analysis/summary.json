@@ -1,0 +1,114 @@
+{
+ "out_dir": "/Users/harutokono/clay/soapff-gui/examples/library_nvt_npt/lizardite/run",
+ "t_end_ps": 100.0,
+ "skip_ps": 20.0,
+ "timestep_fs": 0.5,
+ "what": [
+  "msd",
+  "compute",
+  "xrd",
+  "props"
+ ],
+ "traj": "traj.lammpstrj",
+ "has_mineral": true,
+ "tools": {
+  "msd": "LAMMPS compute msd (Einstein relation)",
+  "pdf_rdf": "SOVA (sovapy) pair_dist_func, radial_dist_fun",
+  "sq": "SOVA (sovapy) partial_structure_factor, structure_factor_xray",
+  "compute": "LAMMPS fix ave/time, ave/chunk, ave/correlate, ave/histo output files",
+  "xrd": "Debyer (Debye scattering equation)"
+ },
+ "figures": [
+  [
+   "MSD・PDF・RDF",
+   "analysis.png"
+  ],
+  [
+   "XRD",
+   "xrd.png"
+  ]
+ ],
+ "diffusion_1e-9_m2_s": {},
+ "diffusion_note": "no LAMMPS msd_*.dat in this folder: add the MSD of soapff (catalog) before run",
+ "ionic_conductivity": null,
+ "computes": [],
+ "xrd": {
+  "debyer": "/Users/harutokono/NEMD/debyer/debyer/debyer",
+  "wavelength_A": 1.5406,
+  "two_theta": [
+   3.0,
+   80.0,
+   0.02
+  ],
+  "frames": 3,
+  "steps": [
+   196000,
+   198000,
+   200000
+  ],
+  "mode": "cluster",
+  "periodic": false,
+  "repeat": [
+   4,
+   4,
+   4
+  ],
+  "size_A": [
+   64.98378438636718,
+   64.42145922862149,
+   58.67225915984732
+  ],
+  "atoms": 20736,
+  "d_limit_A": 21.661261462122393,
+  "peaks": [
+   {
+    "two_theta": 5.33,
+    "d_A": 16.566925709748237,
+    "relative": 100.0
+   },
+   {
+    "two_theta": 6.89,
+    "d_A": 12.819025545392707,
+    "relative": 36.718535852656956
+   },
+   {
+    "two_theta": 11.97,
+    "d_A": 7.387686558879073,
+    "relative": 34.219622101456274
+   },
+   {
+    "two_theta": 22.55,
+    "d_A": 3.9397856370938658,
+    "relative": 27.48248141773196
+   },
+   {
+    "two_theta": 24.27,
+    "d_A": 3.6643293972419606,
+    "relative": 31.02133173458139
+   },
+   {
+    "two_theta": 35.39,
+    "d_A": 2.534299034933453,
+    "relative": 73.20362813545553
+   },
+   {
+    "two_theta": 41.49,
+    "d_A": 2.174702120331846,
+    "relative": 35.14496425371161
+   },
+   {
+    "two_theta": 60.81,
+    "d_A": 1.5220040608991263,
+    "relative": 27.99191598816408
+   }
+  ],
+  "size_oscillations": [
+   {
+    "two_theta": 3.75,
+    "d_A": 23.542835971163836,
+    "relative": 397.2408635839119
+   }
+  ]
+ },
+ "properties": []
+}
