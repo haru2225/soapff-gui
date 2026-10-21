@@ -31,8 +31,9 @@ def which(path_or_name):
 
 
 def find_executables():
-    """(lmp, mpirun): first next to this Python, then on PATH; the mpirun next to lmp (same MPI) is preferred."""
-    dirs = [os.path.dirname(sys.executable)] + os.environ.get("PATH", "").split(os.pathsep)
+    """(lmp, mpirun): first next to this Python, then ~/.soapff-gui/lammps/bin (install.sh), then on PATH; the mpirun next to lmp (same MPI) is preferred."""
+    home = os.environ.get("SOAPFF_HOME") or os.path.join(os.path.expanduser("~"), ".soapff-gui")
+    dirs = [os.path.dirname(sys.executable), os.path.join(home, "lammps", "bin")] + os.environ.get("PATH", "").split(os.pathsep)
 
     def first(names):
         for d in dirs:

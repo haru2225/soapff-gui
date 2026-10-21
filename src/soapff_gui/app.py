@@ -361,8 +361,11 @@ class App:
         ttk.Button(c, text="構造を変更", style="Link.TButton", command=self.new_calc).pack(side="right", padx=16)
 
         # bottom row: selected command | run
-        bottom = tk.Frame(main, bg=BG)
-        bottom.pack(side="bottom", fill="x", pady=(10, 0))
+        # editor above, command form and run below, with a draggable divider (drag it to make the editor bigger)
+        self.pw = tk.PanedWindow(main, orient="vertical", bg=BG, sashwidth=10, sashrelief="flat", bd=0, opaqueresize=True)
+        self.pw.pack(fill="both", expand=True, pady=(10, 0))
+        bottom = tk.Frame(self.pw, bg=BG, height=232)
+        self._bottom = bottom
         rc = tk.Frame(bottom, bg=PANEL, highlightthickness=1, highlightbackground=LINE, width=440, height=232)
         rc.pack(side="right", fill="y", padx=(14, 0))
         rc.pack_propagate(False)
@@ -375,7 +378,9 @@ class App:
         self._run_area(rc)
 
         # editor card
-        ec = self._card(main, fill="both", expand=True, pady=(10, 0))
+        ec = tk.Frame(self.pw, bg=PANEL, highlightthickness=1, highlightbackground=LINE)
+        self.pw.add(ec, stretch="always", minsize=150)
+        self.pw.add(bottom, stretch="never", minsize=130, height=240)
         head = tk.Frame(ec, bg=PANEL)
         head.pack(fill="x", padx=14, pady=(10, 0))
         self.tabs = {}
@@ -387,6 +392,10 @@ class App:
             self.tabs[f] = t
         self.l_save = tk.Label(head, text="LAMMPS input · 自動保存", bg=PANEL, fg=MUTED, font=self.f_small)
         self.l_save.pack(side="right")
+        ttk.Button(head, text="テキストで開く（大きく・貼り付け）", style="Tiny.TButton", command=self.open_text_editor).pack(
+            side="right", padx=(0, 12))
+        self.b_expand = ttk.Button(head, text="⤢ 拡大", style="Tiny.TButton", command=self.toggle_expand)
+        self.b_expand.pack(side="right", padx=(0, 6))
         # boundary of the box (system.settings); changing it rebuilds the force field (k-space solver, walls, centring)
         bf = tk.Frame(head, bg=PANEL)
         bf.pack(side="right", padx=(0, 18))
@@ -423,6 +432,10 @@ class App:
         for key in ("<Up>", "<Down>"):
             self.ed.bind(key, lambda e, d=(-1 if key == "<Up>" else 1): self.move_sel(d))
         self.ed.bind("<Key>", self.on_key)
+        for ev in ("<<Paste>>", "<Command-v>", "<Control-v>"):
+            self.ed.bind(ev, self.paste_lines)
+        for ev in ("<<Copy>>", "<Command-c>", "<Control-c>"):
+            self.ed.bind(ev, self.copy_line)
         foot = tk.Frame(ec, bg=PANEL)
         foot.pack(fill="x", padx=14, pady=6)
         for text, kind in (("＋ fix", "fix"), ("＋ compute", "compute"), ("＋ その他（run・timestep など）", "other")):
@@ -591,6 +604,90 @@ class App:
         if e.keysym in ("Up", "Down"):
             return None
         return "break"
+
+    def toggle_expand(self):
+        """hide / show the command form and run area under the editor (the editor takes the whole height)."""
+        if not getattr(self, "_expanded", False):
+            self.pw.forget(self._bottom)
+            self._expanded = True
+            self.b_expand.config(text="⤡ 戻す")
+        else:
+            self.pw.add(self._bottom, stretch="never", minsize=130, height=240)
+            self._expanded = False
+            self.b_expand.config(text="⤢ 拡大")
+
+    def copy_line(self, e=None):
+        """Copy: the selected line to the clipboard."""
+        if self.sel is not None and self.lines:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(self.lines[self.sel])
+        return "break"
+
+    def paste_lines(self, e=None):
+        """Paste: the clipboard text (one or many lines) is inserted below the selected line."""
+        if self.tab in READONLY:
+            return "break"
+        try:
+            text = self.root.clipboard_get()
+        except tk.TclError:
+            return "break"
+        new = [l.rstrip("\r") for l in text.replace("\r\n", "\n").split("\n")]
+        while new and not new[-1].strip():
+            new.pop()
+        if new:
+            self.insert_lines(new)
+            self.log_add(f"{len(new)} 行を貼り付けました\n", None)
+        return "break"
+
+    def open_text_editor(self):
+        """the whole file of the editor tab as plain text in a large window: edit, copy and paste freely, then 適用."""
+        name = self.tab
+        if not self.docs.get(name):
+            messagebox.showinfo("soapff-GUI", "先に構造ファイルを選んで、入力を作ってください")
+            return
+        ro = name in READONLY
+        w = tk.Toplevel(self.root)
+        w.title(f"{name}" + ("（読み取り専用）" if ro else "（テキストで編集）"))
+        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        w.geometry(f"{min(1100, sw - 100)}x{min(780, sh - 120)}")
+        f = ttk.Frame(w, padding=8)
+        f.pack(fill="both", expand=True)
+        bar = ttk.Frame(f)
+        bar.pack(side="bottom", fill="x", pady=(8, 0))
+        tf = ttk.Frame(f)
+        tf.pack(fill="both", expand=True)
+        t = tk.Text(tf, font=self.f_mono, wrap="none", undo=True, bg=CODE_BG, fg=TEXT, relief="flat", padx=8, pady=6)
+        ys = ttk.Scrollbar(tf, orient="vertical", command=t.yview)
+        xs = ttk.Scrollbar(tf, orient="horizontal", command=t.xview)
+        t.configure(yscrollcommand=ys.set, xscrollcommand=xs.set)
+        ys.pack(side="right", fill="y")
+        xs.pack(side="bottom", fill="x")
+        t.pack(side="left", fill="both", expand=True)
+        t.insert("1.0", "\n".join(self.docs[name]) + "\n")
+        if ro:
+            t.config(state="disabled")
+        msg = tk.StringVar(value="" if ro else "ここで編集・コピー・貼り付けして「適用」を押すと、入力の各行がこの内容になります（元に戻すは ⌘Z）")
+        ttk.Label(bar, textvariable=msg, foreground=MUTED).pack(side="left")
+
+        def apply():
+            lines = t.get("1.0", "end-1c").replace("\r\n", "\n").split("\n")
+            while lines and not lines[-1].strip():
+                lines.pop()
+            self.push_undo()
+            self.docs[name] = lines
+            self.sels[name] = min(self.sel or 0, max(len(lines) - 1, 0)) if lines else None
+            self.sel = self.sels[name]
+            self.dirty.add(name)
+            self.render()
+            self.build_form()
+            self.schedule_save()
+            msg.set(f"適用しました（{len(lines)} 行）")
+        if not ro:
+            ttk.Button(bar, text="適用", style="Accent.TButton", command=apply).pack(side="right")
+            w.bind("<Command-s>", lambda ev: apply())
+            w.bind("<Control-s>", lambda ev: apply())
+        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="right", padx=8)
+        t.focus_set()
 
     def move_sel(self, d):
         if not self.lines:

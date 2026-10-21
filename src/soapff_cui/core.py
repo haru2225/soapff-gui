@@ -877,7 +877,7 @@ write_data final.data
 def open_in_ovito(path):
     """open a soapff-cui output (a directory: traj.lammpstrj, else final.data / system.data; or a file) in OVITO.
     The trajectory carries the ClayFF type names and the SOAP charges, so OVITO colours atoms by type
-    (add 'Create bonds' for the bonds).  macOS: the Ovito application; elsewhere: the `ovito` command."""
+    (add 'Create bonds' for the bonds).  macOS: the Ovito application; elsewhere: the `ovito` command (PATH, or ~/.soapff-gui/ovito/bin/ovito of install.sh)."""
     import shutil
     import subprocess
     import sys
@@ -892,8 +892,10 @@ def open_in_ovito(path):
         raise FileNotFoundError(path)
     if sys.platform == "darwin":
         cmd = ["open", "-a", "Ovito", path]
-    elif shutil.which("ovito"):
-        cmd = ["ovito", path]
+    elif shutil.which("ovito") or os.path.isfile(os.path.join(os.environ.get("SOAPFF_HOME") or os.path.expanduser("~/.soapff-gui"),
+                                                              "ovito", "bin", "ovito")):
+        cmd = [shutil.which("ovito") or os.path.join(os.environ.get("SOAPFF_HOME") or os.path.expanduser("~/.soapff-gui"),
+                                                      "ovito", "bin", "ovito"), path]
     else:
         raise RuntimeError("OVITO not found (install it from https://www.ovito.org; on Linux the command `ovito` must be on the PATH)")
     subprocess.run(cmd, check=True)
