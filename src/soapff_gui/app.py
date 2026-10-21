@@ -363,8 +363,11 @@ class App:
         rc = tk.Frame(bottom, bg=PANEL, highlightthickness=1, highlightbackground=LINE, width=440, height=232)
         rc.pack(side="right", fill="y", padx=(14, 0))
         rc.pack_propagate(False)
-        self.fc = tk.Frame(bottom, bg=PANEL, highlightthickness=1, highlightbackground=LINE)
+        # the command form has a fixed height (its fields scroll): a form with many fields used to grow and squeeze the editor
+        # (the in.lammps tabs and the lines) down to nothing
+        self.fc = tk.Frame(bottom, bg=PANEL, highlightthickness=1, highlightbackground=LINE, height=232)
         self.fc.pack(side="left", fill="both", expand=True)
+        self.fc.pack_propagate(False)
         self._form_area()
         self._run_area(rc)
 
@@ -435,11 +438,23 @@ class App:
         self.l_formline = tk.Label(head, text="", bg=PANEL, fg=MUTED, font=self.f_small)
         self.l_formline.pack(side="right")
         tk.Frame(self.fc, bg=LINE, height=1).pack(fill="x", pady=(8, 0))
-        self.fields = tk.Frame(self.fc, bg=PANEL)
-        self.fields.pack(fill="x", padx=16, pady=(10, 0))
-        tk.Label(self.fc, text="生成される行", bg=PANEL, fg=MUTED, font=self.f_small).pack(anchor="w", padx=16, pady=(10, 2))
         self.l_preview = tk.Label(self.fc, text="", bg=CODE_BG, fg=TEXT, font=self.f_mono_s, anchor="w", padx=12, pady=8)
-        self.l_preview.pack(fill="x", padx=16, pady=(0, 14))
+        self.l_preview.pack(side="bottom", fill="x", padx=16, pady=(0, 12))
+        tk.Label(self.fc, text="生成される行", bg=PANEL, fg=MUTED, font=self.f_small).pack(side="bottom", anchor="w", padx=16,
+                                                                                         pady=(6, 2))
+        area = tk.Frame(self.fc, bg=PANEL)
+        area.pack(fill="both", expand=True, padx=(16, 4), pady=(8, 0))
+        cv = tk.Canvas(area, bg=PANEL, highlightthickness=0, height=40)
+        sb = ttk.Scrollbar(area, orient="vertical", command=cv.yview)
+        cv.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        cv.pack(side="left", fill="both", expand=True)
+        self.fields = tk.Frame(cv, bg=PANEL)
+        win = cv.create_window(0, 0, window=self.fields, anchor="nw")
+        self.fields.bind("<Configure>", lambda e: cv.configure(scrollregion=cv.bbox("all")))
+        cv.bind("<Configure>", lambda e: cv.itemconfigure(win, width=e.width))
+        cv.bind("<Enter>", lambda e: cv.bind_all("<MouseWheel>", lambda ev: cv.yview_scroll(-1 if ev.delta > 0 else 1, "units")))
+        cv.bind("<Leave>", lambda e: cv.unbind_all("<MouseWheel>"))
 
     def _run_area(self, rc):
         head = tk.Frame(rc, bg=PANEL)
@@ -630,7 +645,7 @@ class App:
         col = 0
         rowf = None
         self.fc.update_idletasks()
-        per_row = max(2, min(6, (self.fc.winfo_width() - 32) // 140)) if self.fc.winfo_width() > 50 else 6
+        per_row = max(2, min(6, (self.fc.winfo_width() - 48) // 140)) if self.fc.winfo_width() > 50 else 6
         for lab, val, k in specs:
             if lab is None:                       # fixed keyword (e.g. 'temp' of fix nvt)
                 self.form_vars.append((k, None, val))
