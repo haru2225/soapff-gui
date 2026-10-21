@@ -70,6 +70,7 @@ def find_sova():
 
 def prepare(structure, workdir, library=None, log=print, **md):
     """soapff-cui make: structure -> workdir/{system.data, system.settings, in.lammps, charges.csv, report.json}."""
+    md.setdefault("stop_on_fallback", True)        # the GUI does not write a force field with fallback atoms
     return core.make(structure, workdir, library or LIBRARY, log=log, **md)
 
 
@@ -90,15 +91,57 @@ def analyze(out_dir, log=print, skip_ps=None, sova_python=None, sova_home=None, 
 
 
 def analyzable(out_dir):
-    """the outputs that 解析 can use in out_dir: dumps (*.lammpstrj), MSD files, the files of fix ave/* -> list of short
-    descriptions (empty: nothing to analyse yet)."""
+    """the outputs that 解析 can use in out_dir: dumps (*.lammpstrj) and MSD files -> list of short descriptions (empty:
+    nothing to analyse yet)."""
     from soapff_cui import analysis
     if not out_dir or not os.path.isdir(out_dir):
         return []
     found = [f for f in analysis.trajectories(out_dir)]
     found += [os.path.basename(f) for f in glob.glob(os.path.join(out_dir, "msd_*.dat"))]
-    found += [f for _, _, f in analysis.ave_files(out_dir)]
     return found
+
+
+def has_ovito_module():
+    try:
+        import ovito  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def replicate(structure, n, out=None):
+    """supercell of a structure file: OVITO's Replicate modifier (ovito Python module; ReplicateModifier with
+    adjust_box, the same as Replicate in the OVITO application) -> extended XYZ (elements, positions, cell only);
+    without the ovito module, ASE Atoms.repeat (the same supercell).  n = (nx, ny, nz).
+    Returns (path written, number of atoms, cell lengths a b c, 'ovito' or 'ase')."""
+    nx, ny, nz = (int(v) for v in n)
+    if min(nx, ny, nz) < 1:
+        raise ValueError("the repetitions must be 1 or more")
+    stem, _ = os.path.splitext(os.path.basename(structure))
+    out = out or os.path.join(os.path.dirname(os.path.abspath(structure)), f"{stem}_{nx}x{ny}x{nz}.extxyz")
+    try:
+        from ovito.io import import_file, export_file
+        from ovito.modifiers import ReplicateModifier
+        tool = "ovito"
+    except ImportError:
+        tool = "ase"
+    at0 = core.read_structure(structure)                      # any format soapff reads (POSCAR, CIF, LAMMPS data ...)
+    if tool == "ovito":
+        import tempfile
+        from ase.io import write
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(d, "in.extxyz")
+            write(src, at0, format="extxyz")
+            pl = import_file(src)
+            pl.modifiers.append(ReplicateModifier(num_x=nx, num_y=ny, num_z=nz, adjust_box=True, unique_ids=True))
+            export_file(pl, out, "xyz", columns=["Particle Type", "Position.X", "Position.Y", "Position.Z"])
+        from ase.io import read
+        at = read(out)
+    else:
+        from ase.io import write
+        at = at0.repeat((nx, ny, nz))
+        write(out, at, format="extxyz")
+    return out, len(at), tuple(float(x) for x in at.cell.lengths()), tool
 
 
 def open_in_ovito(path):

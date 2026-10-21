@@ -7,6 +7,7 @@ Layout (design/soapff-gui-ui-concept.png): menu row, toolbar (新規計算 / 計
 (新しい計算, 計算履歴, 構造ライブラリ, 最近使った計算), the input file (in.lammps) as an editor, the form of the selected
 command, the run panel (status, progress, log) and a status bar."""
 import json
+import math
 import os
 import queue
 import subprocess
@@ -29,13 +30,13 @@ BARO = {"z": "z：面に垂直な方向だけ（層間・界面）", "aniso": "a
 DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p",
                 nproc=max(1, min(3, (os.cpu_count() or 2) // 2)), threshold=0.95, cutoff=10.0, library="", lmp="", mpirun="",
                 last_dir=os.path.expanduser("~"), dump_ps=1.0, auto_analyze=True, skip_ps="", sova_python="", sova_home="",
-                analyses=["msd", "sova", "compute", "xrd"], debyer="", xrd_wavelength=1.5406, xrd_from=3.0, xrd_to=80.0,
+                analyses=["msd", "sova", "xrd"], debyer="", xrd_wavelength=1.5406, xrd_from=3.0, xrd_to=80.0,
                 xrd_step=0.02, xrd_frames=3, xrd_mode="cluster", xrd_size=50.0,
-                where="local", computers=[], history=[])
+                where="local", computers=[], history=[],
+                swelling=dict(one_to=23, two_to=99, down=True, eq_ps=30.0, avg_ps=20.0))
 # the analyses (soapff_cui.analysis): key, label
-ANALYSES = (("msd", "拡散係数（LAMMPS compute msd）"), ("sova", "SOVA：PDF g(r)・RDF N(r)・配位数・X 線 S(Q)"),
-            ("compute", "compute の結果（fix ave/time・ave/chunk などのファイル）"),
-            ("xrd", "XRD（debyer、粉末 X 線回折パターン）"))
+ANALYSES = (("msd", "拡散係数（LAMMPS の compute msd があるとき）"), ("sova", "SOVA：PDF g(r)・RDF N(r)・配位数・X 線 S(Q)"),
+            ("xrd", "XRD（Debyer、粉末 X 線回折パターン）"))
 XRD_MODES = {"cluster": "結晶子：セルを並べた有限の結晶（結晶・粘土鉱物）",
              "periodic": "周期境界：カットオフ = 箱の半分（液体・ガラス、直方体の箱のみ）"}
 # a registered computer (SSH): name, host, user, port, root (folder for the runs there), lmp, mpirun, setup (shell commands
@@ -238,7 +239,8 @@ class App:
         # --- toolbar
         tb = tk.Frame(r, bg=BG, height=56)
         tb.pack(fill="x")
-        ttk.Button(tb, text="新規計算", style="Ghost.TButton", command=self.new_calc).pack(side="left", padx=(18, 14), pady=10)
+        ttk.Button(tb, text="新規計算", style="Ghost.TButton", command=self.new_calc).pack(side="left", padx=(18, 4), pady=10)
+        ttk.Button(tb, text="スーパーセル", style="Ghost.TButton", command=self.new_supercell).pack(side="left", padx=(0, 14), pady=10)
         tk.Frame(tb, bg=LINE, width=1).pack(side="left", fill="y", pady=12)
         self.crumb_settings = tk.Label(tb, text="計算設定", bg=BG, fg=MUTED, font=self.f_small, cursor="hand2")
         self.crumb_settings.pack(side="left", padx=(16, 8))
@@ -269,7 +271,8 @@ class App:
 
     def _menu_spec(self):
         return [
-            ("ファイル", [("新規計算…", self.new_calc, "⌘N"), ("構造を変更…", self.new_calc),
+            ("ファイル", [("新規計算…", self.new_calc, "⌘N"), ("スーパーセルを作って新規計算（OVITO Replicate）…", self.new_supercell),
+                          ("構造を変更…", self.new_calc),
                           ("既存の出力フォルダを開く…", self.open_project), None,
                           ("別のコンピュータからフォルダを受け取る…", self.fetch_dialog), None,
                           ("出力フォルダを開く", self.open_out), None, ("終了", self.on_close)]),
@@ -901,6 +904,8 @@ class App:
             msd = core.analysis_lines(tid, every)
             if e["style"] == "soapff:diffusion":
                 return msd or ["# 水もイオンもないので、拡散係数の MSD はありません"]
+            if e["style"] == "soapff:swelling":
+                return self.swelling_block(dt)
             names = [t for t, _ in sorted(tid.items(), key=lambda kv: kv[1])]
             md = core.md_protocol(s["temp"], s["nvt_ps"], s["npt_ps"], s["press"], s["baro"], names, s["dump_ps"], msd,
                                   s["relax_ps"], dt).splitlines()
@@ -921,6 +926,95 @@ class App:
         line = e["template"].format(ID=uid, T=f"{float(s['temp']):g}", P=f"{float(s['press']):g}", DT=f"{dt:g}", N=steps,
                                     LASTFIX=(fixes[-1] if fixes else "ID"), LASTCOMPUTE=(comps[-1] if comps else "ID"))
         return [line]
+
+    def ask_swelling(self):
+        """parameters of the swelling curve (dialog) -> dict, or None when cancelled."""
+        p = dict(DEFAULTS["swelling"], **(self.s.get("swelling") or {}))
+        w = tk.Toplevel(self.root)
+        w.title("膨潤曲線（Cygan ら 2004 の方法）")
+        w.transient(self.root)
+        f = ttk.Frame(w, padding=16)
+        f.pack(fill="both", expand=True)
+        ttk.Label(f, text="層間に水分子を加えながら NPT を回し、各状態の d001（= lz）を記録します。", wraplength=440).grid(
+            row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
+        v = {}
+        for r, (k, lab, note) in enumerate((("one_to", "1 個ずつ加える（個まで）", "Cygan ら：23"),
+                                             ("two_to", "その後 2 個ずつ加える（個まで）", "Cygan ら：99"),
+                                             ("eq_ps", "各状態の平衡化 NPT (ps)", "Cygan ら：30"),
+                                             ("avg_ps", "続けて平均する NPT (ps)", "Cygan ら：20")), start=1):
+            ttk.Label(f, text=lab).grid(row=r, column=0, sticky="w", pady=2)
+            v[k] = tk.StringVar(value=f"{p[k]:g}" if isinstance(p[k], float) else str(p[k]))
+            ttk.Entry(f, textvariable=v[k], width=8).grid(row=r, column=1, sticky="w", padx=6)
+            ttk.Label(f, text=note, foreground=MUTED).grid(row=r, column=2, sticky="w")
+        v["down"] = tk.BooleanVar(value=bool(p["down"]))
+        ttk.Checkbutton(f, text="最後に 2 個ずつ減らす（脱水）も行う", variable=v["down"]).grid(row=5, column=0, columnspan=3,
+                                                                                         sticky="w", pady=(6, 0))
+        ttk.Label(f, text="または水の個数を直接指定").grid(row=8, column=0, sticky="w", pady=(10, 0))
+        v["waters"] = tk.StringVar(value=" ".join(str(x) for x in p.get("waters", [])))
+        ttk.Entry(f, textvariable=v["waters"], width=34).grid(row=8, column=1, columnspan=2, sticky="w", padx=6, pady=(10, 0))
+        ttk.Label(f, text="例：4 8 12 16 20 25 32 40 48 59（空欄なら上の設定。脱水はなし）", foreground=MUTED).grid(
+            row=9, column=0, columnspan=3, sticky="w")
+        ttk.Label(f, text=f"温度 {self.s['temp']:g} K、圧力 {self.s['press']:g} atm（計算設定の MD の条件）。"
+                          "水の型が構造にないときは system.data と system.settings を書き直します（system.settings の手での変更は消えます）。",
+                  foreground=MUTED, wraplength=440).grid(row=6, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        out = {}
+
+        def ok():
+            try:
+                out.update(one_to=int(v["one_to"].get()), two_to=int(v["two_to"].get()), eq_ps=float(v["eq_ps"].get()),
+                           avg_ps=float(v["avg_ps"].get()), down=bool(v["down"].get()),
+                           waters=sorted({int(x) for x in v["waters"].get().replace(",", " ").split()}))
+                assert 1 <= out["one_to"] <= out["two_to"] and out["eq_ps"] > 0 and out["avg_ps"] > 0
+                assert all(x >= 1 for x in out["waters"])
+            except (ValueError, AssertionError):
+                out.clear()
+                messagebox.showerror("soapff-GUI", "数を確かめてください（1 ≤ 1 個ずつの上限 ≤ 2 個ずつの上限、時間 > 0）", parent=w)
+                return
+            w.destroy()
+        bar = ttk.Frame(f)
+        bar.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(12, 0))
+        ttk.Button(bar, text="in.lammps に追加", style="Accent.TButton", command=ok).pack(side="right")
+        ttk.Button(bar, text="やめる", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        w.grab_set()
+        self.root.wait_window(w)
+        if out:
+            self.s["swelling"] = dict(out)
+            save_settings(self.s)
+        return out or None
+
+    def swelling_block(self, dt):
+        """the LAMMPS block of the swelling curve (soapff_cui.core.swelling_lines) for this output folder; writes water.mol
+        and, when the structure has no water types, rewrites system.data / system.settings with them reserved."""
+        core = runner.import_soapff()
+        p = self.ask_swelling()
+        if not p:
+            return []
+        if "ow" not in self.type_ids():
+            core.reserve_water_types(self.out, log=lambda m: self.log_add(m + "\n", None))
+            for f in ("system.data", "system.settings"):
+                self.docs[f] = open(os.path.join(self.out, f)).read().splitlines()
+                self.undos[f] = []
+        tid = self.type_ids()
+        D = open(os.path.join(self.out, "system.data")).read().splitlines()
+        nat = int(D[2].split()[0])
+        k = D.index(next(l for l in D if l.startswith("Atoms")))
+        atoms = [l.split() for l in D[k + 2:k + 2 + nat]]
+        n_water0 = sum(1 for a in atoms if int(a[2]) == tid["ow"])
+        n_nonwater = nat - 3 * n_water0
+        mol_max = max(int(a[1]) for a in atoms)
+        tilted = any(l.strip().endswith("xy xz yz") and any(abs(float(x)) > 1e-8 for x in l.split()[:3]) for l in D[:20])
+        S = open(os.path.join(self.out, "system.settings")).read().splitlines()
+        bond = int(next(l for l in S if l.startswith("bond_coeff") and "water" in l).split()[1])
+        angle = int(next(l for l in S if l.startswith("angle_coeff") and "HOHw" in l).split()[1])
+        open(os.path.join(self.out, "water.mol"), "w").write(core.water_molecule(tid, bond, angle))
+        if p.get("waters"):
+            up, down = list(p["waters"]), []                    # the listed water counts, in increasing order; no deswelling
+        else:
+            up, down = core.swelling_schedule(p["one_to"], p["two_to"], p["down"])
+        self.log_add(f"膨潤曲線：水を {len(up)} 状態（{up[0]}〜{up[-1]} 個）で加え" + (f"、{len(down)} 状態で減らす" if down else "")
+                     + f"（各 NPT {p['eq_ps']:g} + {p['avg_ps']:g} ps）。water.mol を書きました\n", None)
+        return core.swelling_lines(tid, n_nonwater, n_water0, mol_max, self.s["temp"], self.s["press"], dt, tilted, up, down,
+                                   eq_ps=p["eq_ps"], avg_ps=p["avg_ps"])
 
     def insert_lines(self, new):
         if self.tab in READONLY:
@@ -1064,6 +1158,91 @@ class App:
                 self.load_project(p, out)
                 return
         self.make_input(p, out)
+
+    def new_supercell(self):
+        """a structure file -> supercell nx x ny x nz by OVITO's Replicate (ovito Python module; ASE without it), shown with
+        its size, optionally opened in OVITO, then the force field and input are made from it (as 新規計算)."""
+        if self.busy():
+            messagebox.showinfo("soapff-GUI", "計算中です。終わるか停止してから選んでください")
+            return
+        p = filedialog.askopenfilename(title="もとの構造ファイルを選ぶ", initialdir=self.s["last_dir"], filetypes=STRUCTURE_TYPES)
+        if not p:
+            return
+        self.s["last_dir"] = os.path.dirname(p)
+        try:
+            at = runner.import_soapff().read_structure(p)
+        except Exception as e:
+            messagebox.showerror("soapff-GUI", f"構造を読めません：{e}")
+            return
+        L0 = at.cell.lengths()
+        w = tk.Toplevel(self.root)
+        w.title("スーパーセル（OVITO Replicate）")
+        w.transient(self.root)
+        f = ttk.Frame(w, padding=16)
+        f.pack(fill="both", expand=True)
+        ttk.Label(f, text=f"{os.path.basename(p)}：{len(at)} 原子、a b c = {L0[0]:.2f} {L0[1]:.2f} {L0[2]:.2f} Å",
+                  font=self.f_bold).grid(row=0, column=0, columnspan=6, sticky="w")
+        ttk.Label(f, text="各方向に並べる数（OVITO の Replicate と同じ。箱も広げる）", foreground=MUTED).grid(
+            row=1, column=0, columnspan=6, sticky="w", pady=(4, 8))
+        v = []
+        for k, ax in enumerate("abc"):
+            ttk.Label(f, text=f"{ax}").grid(row=2, column=2 * k, sticky="e")
+            sv = tk.StringVar(value=str(max(1, math.ceil(20.0 / L0[k])) if L0[k] < 20.0 else 1))
+            ttk.Spinbox(f, from_=1, to=50, width=4, textvariable=sv).grid(row=2, column=2 * k + 1, sticky="w", padx=(4, 14))
+            v.append(sv)
+        info = tk.StringVar()
+        ttk.Label(f, textvariable=info).grid(row=3, column=0, columnspan=6, sticky="w", pady=(8, 0))
+        tool = "OVITO（ovito モジュール）" if runner.has_ovito_module() else "ASE（ovito モジュールがないので同じ並べ方を ASE で）"
+        ttk.Label(f, text=f"使うもの：{tool}", foreground=MUTED).grid(row=4, column=0, columnspan=6, sticky="w")
+
+        def nums():
+            try:
+                n = [int(x.get()) for x in v]
+                return n if min(n) >= 1 else None
+            except ValueError:
+                return None
+
+        def update(*_):
+            n = nums()
+            info.set(f"→ {len(at) * n[0] * n[1] * n[2]} 原子、a b c = {L0[0] * n[0]:.2f} {L0[1] * n[1]:.2f} {L0[2] * n[2]:.2f} Å"
+                     + ("（SOAP のカットオフの 2 倍 10 Å より短い辺があります）" if min(L0[k] * n[k] for k in range(3)) < 10.0 else "")
+                     if n else "1 以上の整数を入れてください")
+        for x in v:
+            x.trace_add("write", update)
+        update()
+
+        def make_file():
+            n = nums()
+            if not n:
+                return None
+            try:
+                out, nat, abc, used = runner.replicate(p, n)
+            except Exception as e:
+                messagebox.showerror("soapff-GUI", f"スーパーセルを作れませんでした：{e}", parent=w)
+                return None
+            self.log_add(f"スーパーセル {n[0]}×{n[1]}×{n[2]}（{used}）：{out}（{nat} 原子）\n", None)
+            return out
+
+        def preview():
+            out = make_file()
+            if out:
+                try:
+                    runner.open_in_ovito(out)
+                except Exception as e:
+                    messagebox.showerror("soapff-GUI", str(e), parent=w)
+
+        def go():
+            out = make_file()
+            if not out:
+                return
+            w.destroy()
+            stem = os.path.splitext(os.path.basename(out))[0]
+            self.make_input(out, os.path.join(os.path.dirname(out), f"{stem}_soapff"))
+        bar = ttk.Frame(f)
+        bar.grid(row=5, column=0, columnspan=6, sticky="ew", pady=(14, 0))
+        ttk.Button(bar, text="この構造で力場を作る", style="Accent.TButton", command=go).pack(side="right")
+        ttk.Button(bar, text="OVITO で確認", style="Ghost.TButton", command=preview).pack(side="right", padx=8)
+        ttk.Button(bar, text="やめる", style="Ghost.TButton", command=w.destroy).pack(side="left")
 
     def open_project(self):
         d = filedialog.askdirectory(title="出力フォルダ（in.lammps のあるフォルダ）を選ぶ", initialdir=self.s["last_dir"])
@@ -1922,7 +2101,7 @@ class App:
 
     def analyze_now(self):
         if not runner.analyzable(self.out):
-            messagebox.showinfo("soapff-GUI", "解析できる出力（軌道 *.lammpstrj、MSD、fix ave/* のファイル）が"
+            messagebox.showinfo("soapff-GUI", "解析できる出力（軌道 *.lammpstrj か MSD のファイル）が"
                                               "まだありません。先に計算してください")
             return
         if self.busy():
@@ -2079,7 +2258,11 @@ class App:
                     self.warn_assignment(msg[3])
                 elif kind == "make_failed":
                     self.set_state("力場を作れませんでした", ERR, 0)
-                    messagebox.showerror("soapff-GUI", msg[1])
+                    if "(fallback)" in msg[1]:
+                        messagebox.showerror("soapff-GUI", "ライブラリにない環境の原子があるので、力場を作らずに止めました。\n\n"
+                                                           "その鉱物・環境の参照構造をライブラリに加えてください。\n\n" + msg[1])
+                    else:
+                        messagebox.showerror("soapff-GUI", msg[1])
                 elif kind == "thermo":
                     phase, v, prog = msg[1:]
                     self.l_phase.config(text=phase)

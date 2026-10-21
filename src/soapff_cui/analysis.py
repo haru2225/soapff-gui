@@ -12,6 +12,10 @@
   compute   the output files of the averaging fixes in in.lammps (fix ave/time, ave/chunk, ave/correlate, ave/histo with
             `file`, i.e. the computes added from the catalog): scalar columns against time and their mean over the
             production part, vector / chunk / histogram blocks averaged over the production part
+  swelling  the swelling curve written by the soapff swelling block (swelling.dat; Cygan et al. 2004): for every water
+            content the mean and standard deviation of d001 = lz and of the cell over the averaging part of its NPT, against
+            the water content in g H2O / g clay (clay = every atom that is not water); swelling and deswelling separately;
+            an experimental curve can be drawn with it from swelling_exp.csv (water_g_per_g, d001_A[, label])
   XRD       Debyer (Debye scattering equation; https://github.com/wojdyr/debyer): X-ray powder pattern I(2 theta) averaged
             over the last frames of traj.lammpstrj.  cluster mode (default; crystals, minerals): the cell repeated to a
             crystallite with edges >= 50 A, without periodicity; periodic mode (liquids, glasses; orthorhombic box only,
@@ -41,7 +45,7 @@ import numpy as np
 
 
 A2PS_TO_1E9M2S = 10.0          # 1 A^2/ps = 1e-8 m^2/s = 10 x 1e-9 m^2/s
-WHAT = ("msd", "sova", "compute", "xrd")
+WHAT = ("msd", "sova", "xrd")      # offered analyses; "compute" (fix ave/*) and "swelling" are kept in the code, not offered
 AVE_FIXES = ("ave/time", "ave/chunk", "ave/correlate", "ave/histo")
 
 
@@ -360,7 +364,8 @@ def _time_step_fs(out_dir, default):
 
 def trajectories(out_dir):
     """the LAMMPS dumps of an output folder (traj.lammpstrj first, then the others)."""
-    fs = sorted(os.path.basename(f) for f in glob.glob(os.path.join(out_dir, "*.lammpstrj")))
+    fs = sorted(os.path.basename(f) for f in glob.glob(os.path.join(out_dir, "*.lammpstrj"))
+                if os.path.basename(f) != "swelling_states.lammpstrj")      # one frame per water content: not an MD
     return sorted(fs, key=lambda f: f != "traj.lammpstrj")
 
 
@@ -396,7 +401,8 @@ def analyze(out_dir, skip_ps=None, sova_python=None, sova_home=None, log=print, 
                    tools=dict(msd="LAMMPS compute msd (Einstein relation)", pdf_rdf="SOVA (sovapy) pair_dist_func, radial_dist_fun",
                               sq="SOVA (sovapy) partial_structure_factor, structure_factor_xray",
                               compute="LAMMPS fix ave/time, ave/chunk, ave/correlate, ave/histo output files",
-                              xrd="Debyer (Debye scattering equation)"),
+                              xrd="Debyer (Debye scattering equation)",
+                              swelling="LAMMPS fix npt; d001 = lz of the cell (swelling.dat of the soapff swelling block)"),
                    figures=[])
     dres, dcurves = {}, {}
     if "msd" in what:
@@ -408,10 +414,7 @@ def analyze(out_dir, skip_ps=None, sova_python=None, sova_home=None, log=print, 
             w = csv.writer(f); w.writerow(["group", "D_total_1e-9_m2_s", "D_xy", "D_z", "fit_from_ps", "fit_to_ps"])
             for g, d in dres.items():
                 w.writerow([g, d["D_total"], d["D_xy"], d["D_z"], d["fit_from_ps"], d["fit_to_ps"]])
-        try:
-            summary["ionic_conductivity"] = ionic_conductivity(out_dir, dres, rep.get("md", {}).get("temp"))
-        except Exception as e:
-            log(f"WARNING ionic conductivity: {e}")
+
     if "sova" in what:
         try:
             if not has_traj:
@@ -439,6 +442,15 @@ def analyze(out_dir, skip_ps=None, sova_python=None, sova_home=None, log=print, 
         except Exception as e:
             summary["xrd"] = dict(error=str(e))
             log(f"WARNING {e}")
+    if "swelling" in what:
+        try:
+            summary["swelling"] = swelling(out_dir, dest)
+            summary["figures"].append(["膨潤曲線", "swelling.png"])
+        except FileNotFoundError:
+            summary["swelling"] = dict(error="no swelling.dat in this folder")
+        except Exception as e:
+            summary["swelling"] = dict(error=str(e))
+            log(f"WARNING swelling: {e}")
     json.dump(summary, open(os.path.join(dest, "summary.json"), "w"), indent=1, ensure_ascii=False)
     txt = summary_text(summary)
     open(os.path.join(dest, "summary.txt"), "w").write(txt)
@@ -485,6 +497,20 @@ def summary_text(s):
                              + ("。層状・界面の系では g(r) が 1 に近づかないので、低 Q の値は使わない" if s.get("has_mineral") else ""))
         elif st.get("error"):
             L.append("PDF と RDF（SOVA）：実行できませんでした。" + st["error"].splitlines()[0])
+    if "swelling" in what and s.get("swelling", {}).get("states"):
+        sw = s["swelling"]
+        L.append(f"膨潤曲線（d001 = lz、各状態の NPT の後半 {sw['avg_ps']:.1f} ps の平均と標準偏差；粘土 {sw['clay_mass_amu']:.0f} g/mol）：swelling.csv")
+        for r in sw["states"]:
+            if r["direction"] == "up" and (r["waters"] <= 3 or r["waters"] % 10 == 0
+                                           or r["waters"] == max(u["waters"] for u in sw["states"])):
+                L.append(f"  水 {r['waters']:3d} 個（{r['water_g_per_g']:.3f} g/g）：d001 = {r['d001']:.2f} ± {r['d001_sd']:.2f} Å")
+        if any(r["direction"] == "down" for r in sw["states"]):
+            dd = [abs(r["d001"] - u["d001"]) for r in sw["states"] if r["direction"] == "down"
+                  for u in sw["states"] if u["direction"] == "up" and u["waters"] == r["waters"]]
+            if dd:
+                L.append(f"  脱水（水を減らす向き）と膨潤の差：平均 {np.mean(dd):.2f} Å、最大 {np.max(dd):.2f} Å（同じ水の量の {len(dd)} 状態）")
+    elif "swelling" in what and s.get("swelling", {}).get("error") and "no swelling.dat" not in s["swelling"]["error"]:
+        L.append("膨潤曲線：解析できませんでした。" + s["swelling"]["error"])
     if "compute" in what:
         cs = s.get("computes") or []
         if not cs:
@@ -570,6 +596,81 @@ def plot_sq(dest, rmax=None):
     ax.set_xlabel("Q (A$^{-1}$)"); ax.set_ylabel("S(Q)")
     ax.set_title("SOVA X-ray structure factor S(Q) of the whole system", loc="left", fontsize=10)
     fig.tight_layout(); fig.savefig(os.path.join(dest, "sova_sq.png"), dpi=100); plt.close(fig)
+
+
+def swelling(out_dir, dest):
+    """swelling.dat (step added_waters phase lx ly lz xy xz yz pe temp, every 100 fs) -> one row per state (the
+    consecutive lines with the same number of added waters; phase 1 = averaged): water molecules, g H2O / g clay, d001
+    (lz) mean and standard deviation, cell a b c alpha beta gamma, energy; 'up' until the largest water content, then
+    'down'.  Writes swelling.csv and swelling.png (with swelling_exp.csv if present)."""
+    a = np.loadtxt(os.path.join(out_dir, "swelling.dat"), comments="#", ndmin=2)
+    if not len(a):
+        raise ValueError("swelling.dat is empty")
+    rows = list(csv.DictReader(open(os.path.join(out_dir, "charges.csv"))))
+    from ._clayff.chem import MASS
+    clay_mass = sum(MASS[r["element"]] for r in rows if r["clayff_type"] not in ("ow", "hw"))
+    w0 = sum(1 for r in rows if r["clayff_type"] == "ow")
+    m_w = 2 * MASS["H"] + MASS["O"]
+    states, start = [], 0
+    nmax = a[:, 1].max()
+    reached = False
+    for k in range(1, len(a) + 1):
+        if k == len(a) or a[k, 1] != a[start, 1]:
+            blk = a[start:k]
+            prod = blk[blk[:, 2] == 1]
+            if len(prod):
+                lx, ly, lz, xy, xz, yz = (prod[:, j] for j in range(3, 9))
+                A = lx; B = np.sqrt(ly ** 2 + xy ** 2); C = np.sqrt(lz ** 2 + xz ** 2 + yz ** 2)
+                al = np.degrees(np.arccos((xy * xz + ly * yz) / (B * C)))
+                be = np.degrees(np.arccos(xz / C)); ga = np.degrees(np.arccos(xy / B))
+                n = int(round(blk[0, 1])) + w0
+                states.append(dict(waters=n, water_g_per_g=n * m_w / clay_mass, direction="down" if reached else "up",
+                                   d001=float(lz.mean()), d001_sd=float(lz.std()), a=float(A.mean()), b=float(B.mean()),
+                                   c=float(C.mean()), alpha=float(al.mean()), beta=float(be.mean()), gamma=float(ga.mean()),
+                                   pe=float(prod[:, 9].mean()), T=float(prod[:, 10].mean()), frames=int(len(prod))))
+            if a[start, 1] == nmax:
+                reached = True
+            start = k
+    dt = np.median(np.diff(a[:, 0])) if len(a) > 1 else 1
+    avg_steps = np.median([s_["frames"] for s_ in states]) * dt
+    with open(os.path.join(dest, "swelling.csv"), "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(states[0]))
+        w.writeheader(); w.writerows(states)
+    exp = []
+    ef = os.path.join(out_dir, "swelling_exp.csv")
+    if os.path.exists(ef):
+        exp = list(csv.DictReader(open(ef)))
+    plot_swelling(dest, states, exp, clay_mass)
+    dt_fs = _time_step_fs(out_dir, 0.5)
+    return dict(states=states, clay_mass_amu=clay_mass, water0=w0, avg_ps=float(avg_steps * dt_fs / 1000.0),
+                experiment=os.path.basename(ef) if exp else None)
+
+
+def plot_swelling(dest, states, exp, clay_mass):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig, ax = plt.subplots(figsize=(6.4, 4.6))
+    up = [r for r in states if r["direction"] == "up"]
+    dn = [r for r in states if r["direction"] == "down"]
+    ax.plot([r["water_g_per_g"] for r in up], [r["d001"] for r in up], "o-", color="#c0392b", ms=4, lw=1, label="MD (swelling)")
+    if dn:
+        ax.plot([r["water_g_per_g"] for r in dn], [r["d001"] for r in dn], "s--", color="#2c6fbb", mfc="none", ms=4, lw=1,
+                label="MD (deswelling)")
+    if exp:
+        labs = sorted({e.get("label") or "experiment" for e in exp})
+        for lab in labs:
+            pts = [e for e in exp if (e.get("label") or "experiment") == lab]
+            ax.plot([float(e["water_g_per_g"]) for e in pts], [float(e["d001_A"]) for e in pts], "^", color="#2a9d4b", ms=6,
+                    label=lab)
+    ax.set_xlabel("water content (g H$_2$O / g clay)")
+    ax.set_ylabel("d$_{001}$ (Å)")
+    sec = ax.secondary_xaxis("top", functions=(lambda x: x * clay_mass / 18.0153, lambda n: n * 18.0153 / clay_mass))
+    sec.set_xlabel("H$_2$O per cell")
+    ax.legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(os.path.join(dest, "swelling.png"), dpi=200)
+    plt.close(fig)
 
 
 def plot_xrd(dest, x):

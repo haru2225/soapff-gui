@@ -1,0 +1,32 @@
+# flexible SPC water (ClayFF), written by soapff-cui
+
+3 atoms
+2 bonds
+1 angles
+
+Coords
+
+1 0.000000 0.000000 0.000000
+2 0.816490 0.577359 0.000000
+3 -0.816490 0.577359 0.000000
+
+Types
+
+1 12
+2 4
+3 4
+
+Charges
+
+1 -0.8200
+2 0.4100
+3 0.4100
+
+Bonds
+
+1 2 1 2
+2 2 1 3
+
+Angles
+
+1 1 2 1 3

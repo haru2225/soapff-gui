@@ -464,13 +464,15 @@ def check_consistency(at, q, types):
     return out
 
 
-def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", boundary="p p p"):
+def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", boundary="p p p", reserve_water=False):
+    """reserve_water: the water types (ow, hw), the water O-H bond and H-O-H angle types and room for their bonds are
+    written even when the structure has no water, so that water can be added in LAMMPS (swelling curve)."""
     bnd, periodic = parse_boundary(boundary)
     bonds, angles, unbonded = topology_from_types(at, types)
-    tnames = sorted(set(types), key=lambda x: (ELEMENT[x], x))
+    tnames = sorted(set(types) | ({"ow", "hw"} if reserve_water else set()), key=lambda x: (ELEMENT[x], x))
     tid = {x: k + 1 for k, x in enumerate(tnames)}
-    bkeys = sorted(set(b[2] for b in bonds)); bid = {k: n + 1 for n, k in enumerate(bkeys)}
-    akeys = sorted(set(a[3] for a in angles)); aid = {k: n + 1 for n, k in enumerate(akeys)}
+    bkeys = sorted(set(b[2] for b in bonds) | ({"OHw"} if reserve_water else set())); bid = {k: n + 1 for n, k in enumerate(bkeys)}
+    akeys = sorted(set(a[3] for a in angles) | ({("HOHw",)} if reserve_water else set())); aid = {k: n + 1 for n, k in enumerate(akeys)}
     mol = np.ones(len(at), int); nxt = 2
     for o, h, k in bonds:
         if k == "OHw":
@@ -483,7 +485,10 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     p, xl = lammps_frame(at, wrap=True)
     lx, ly, lz, xy, xz, yz = p.get_lammps_prism()
     L = ["soapff-cui: ClayFF types/LJ/bonded terms, charges from SOAP", "", f"{len(at)} atoms", f"{len(tnames)} atom types",
-         f"{len(bonds)} bonds", f"{len(bkeys)} bond types", f"{len(angles)} angles", f"{len(akeys)} angle types", "",
+         f"{len(bonds)} bonds", f"{len(bkeys)} bond types", f"{len(angles)} angles", f"{len(akeys)} angle types"]
+    if reserve_water:
+        L += ["2 extra bond per atom", "1 extra angle per atom", "2 extra special per atom"]
+    L += ["",
          f"0.0 {lx:.8f} xlo xhi", f"0.0 {ly:.8f} ylo yhi", f"0.0 {lz:.8f} zlo zhi"]
     if any(abs(v) > 1e-8 for v in (xy, xz, yz)):
         L.append(f"{xy:.8f} {xz:.8f} {yz:.8f} xy xz yz")
@@ -521,7 +526,8 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     S += kspace_lines
     open(os.path.join(out_dir, "system.settings"), "w").write("\n".join(S) + "\n")
     return dict(type_ids=tid, water_bond=bid.get("OHw"), water_angle=aid.get(("HOHw",)), nbonds=len(bonds),
-                nangles=len(angles), unbonded=unbonded, nmol=int(nxt - 1), kspace=kspace_lines, kspace_note=kspace_note)
+                nangles=len(angles), unbonded=unbonded, nmol=int(nxt - 1), kspace=kspace_lines, kspace_note=kspace_note,
+                tilted=any(abs(v) > 1e-8 for v in (xy, xz, yz)))
 
 
 # ------------------------------------------------------------------------------------------------- the force field
@@ -574,14 +580,147 @@ def md_protocol(temp, nvt_ps, npt_ps=0.0, press=1.0, baro="aniso", type_names=()
     return "\n".join(L)
 
 
+class FallbackError(ValueError):
+    """atoms whose environment is not in the library (make with stop_on_fallback)."""
+
+
+# ------------------------------------------------------------------------------------------------- swelling curve
+SPC_OH, SPC_HOH = 1.0, 109.47                               # flexible SPC water of ClayFF: O-H (A), H-O-H (deg) at rest
+
+
+def reserve_water_types(out_dir, log=print):
+    """rewrite system.data / system.settings of an output folder with the water types reserved (write_system
+    reserve_water), from the structure of report.json and the charges and types of charges.csv (in.lammps is kept).
+    Returns the write_system info."""
+    rep = json.load(open(os.path.join(out_dir, "report.json")))
+    at = read_structure(rep["structure"])
+    rows = list(csv.DictReader(open(os.path.join(out_dir, "charges.csv"))))
+    if len(rows) != len(at):
+        raise ValueError(f"charges.csv has {len(rows)} atoms, the structure {len(at)}")
+    q = np.array([float(r["charge"]) for r in rows])
+    types = [r["clayff_type"] for r in rows]
+    kspace = " ".join(rep.get("kspace", [""])[0].split()[1:]) if rep.get("kspace") else "pppm 1.0e-5"
+    info = write_system(at, q, types, out_dir, kspace=kspace or "pppm 1.0e-5", boundary=rep.get("boundary", "p p p"),
+                        reserve_water=True)
+    log(f"system.data / system.settings rewritten with the water types reserved (ow {info['type_ids']['ow']}, "
+        f"hw {info['type_ids']['hw']}, O-H bond {info['water_bond']}, H-O-H angle {info['water_angle']})")
+    return info
+
+
+def water_molecule(type_ids, bond_type, angle_type):
+    """LAMMPS molecule file of one flexible SPC water (ClayFF charges) for create_atoms ... mol."""
+    h = np.radians(SPC_HOH / 2)
+    xs = [(0.0, 0.0, 0.0), (SPC_OH * np.sin(h), SPC_OH * np.cos(h), 0.0), (-SPC_OH * np.sin(h), SPC_OH * np.cos(h), 0.0)]
+    t = [type_ids["ow"], type_ids["hw"], type_ids["hw"]]
+    qq = [WATER_Q[0], WATER_Q[1], WATER_Q[1]]
+    L = ["# flexible SPC water (ClayFF), written by soapff-cui", "", "3 atoms", "2 bonds", "1 angles", "", "Coords", ""]
+    L += [f"{k + 1} {x:.6f} {y:.6f} {z:.6f}" for k, (x, y, z) in enumerate(xs)]
+    L += ["", "Types", ""] + [f"{k + 1} {v}" for k, v in enumerate(t)]
+    L += ["", "Charges", ""] + [f"{k + 1} {v:.4f}" for k, v in enumerate(qq)]
+    L += ["", "Bonds", "", f"1 {bond_type} 1 2", f"2 {bond_type} 1 3", "", "Angles", "", f"1 {angle_type} 2 1 3"]
+    return "\n".join(L) + "\n"
+
+
+def swelling_schedule(one_to=23, two_to=99, down=True, step_up2=2, step_down=2):
+    """water molecules added to the starting structure, state by state: one at a time up to `one_to`, then `step_up2`
+    at a time up to `two_to` (Cygan et al. 2004: 1 ... 23, 25 ... 99); then, if down, removed `step_down` at a time
+    back to 1 (deswelling).  -> (up, down) lists of water counts (relative to the starting structure)."""
+    up = list(range(1, one_to + 1)) + list(range(one_to + step_up2, two_to + 1, step_up2))
+    dn = list(range(up[-1] - step_down, 0, -step_down)) if down else []
+    return up, dn
+
+
+def swelling_lines(type_ids, n_nonwater, n_water0, mol_max, temp, press, timestep_fs, tilted, up, down,
+                   eq_ps=30.0, avg_ps=20.0, seed=4928459, overlap=2.0):
+    """LAMMPS commands of the swelling curve (Cygan et al. 2004): for each water content of `up` (then `down`), water
+    molecules are added to (removed from) the interlayer, the structure is relaxed (minimize), then NPT (x, y, z and the
+    in-plane tilt xy for a tilted box, else aniso; the interlayer shear tilts xz, yz fixed) for eq_ps and avg_ps more; every 100 fs (step, waters, phase, cell, energy) is appended
+    to swelling.dat (phase 1 = the averaging part; soapff analyze -> d001 = lz against the water content).
+    The interlayer is found from the clay: the clay is moved to the middle of the cell in z at each state (displace_atoms) and water is
+    added between its top and the box top or its bottom and the box bottom (the interlayer across the periodic boundary).
+    When no water fits (create_atoms overlap), the box is lengthened by 0.5 A along z and the insertion tried again.
+    n_nonwater: atoms that are not water at the start; n_water0: water molecules at the start; mol_max: the largest
+    molecule ID of system.data (added molecules get the IDs above it, removed are the last added)."""
+    nonwater = {"ow", "hw"} | set(ION_NAMES)
+    clay = " ".join(str(v) for k, v in sorted(type_ids.items(), key=lambda kv: kv[1]) if k not in nonwater)
+    s_eq = int(round(eq_ps * 1000.0 / timestep_fs))
+    s_avg = int(round(avg_ps * 1000.0 / timestep_fs))
+    every = max(1, int(round(100.0 / timestep_fs)))
+    # the cell: x, y, z and (tilted box) the in-plane tilt xy; the interlayer shear tilts xz, yz stay fixed: with water in
+    # the interlayer the layers slide (Cygan et al. 2004: alpha and gamma drift), the tilts run away and fix npt stops
+    # ("tilted box too far in one step"); d001 = lz does not depend on them
+    baro = (f"x {{P}} {{P}} 1000.0 y {{P}} {{P}} 1000.0 z {{P}} {{P}} 1000.0 xy 0.0 0.0 1000.0 couple none" if tilted
+            else "aniso {P} {P} 1000.0")
+    T, P = f"{float(temp):g}", f"{float(press):g}"
+    n_pre = int(round(2000.0 / timestep_fs))        # 2 ps
+    state = [# the clay back to the middle of the cell in z (once per state; a lengthened box leaves it off centre)
+             "displace_atoms all move 0 0 $(0.5*(zlo+zhi)-xcm(sw_clay,z)) units box",
+             f"minimize 1.0e-4 1.0e-6 2000 20000",
+             # the inserted water starts with large forces: a short damped run (limited displacement per step, Langevin)
+             # before the barostat, which otherwise moves the cell too far in one step ("tilted box too far")
+             f"fix sw_lim all nve/limit 0.1",
+             f"fix sw_lan all langevin {T} {T} 50.0 {seed + 3} zero yes",
+             f"run {n_pre}",
+             "unfix sw_lan", "unfix sw_lim",
+             f"fix sw_npt all npt temp {T} {T} 100.0 {baro.format(P=P)}",
+             "variable sw_phase equal 0",
+             f'fix sw_out all print {every} "${{sw_step}} ${{sw_nw}} ${{sw_phase}} ${{sw_lx}} ${{sw_ly}} ${{sw_lz}} ${{sw_xy}} '
+             f'${{sw_xz}} ${{sw_yz}} ${{sw_pe}} ${{sw_temp}}" append swelling.dat screen no',
+             f"run {s_eq}",
+             "variable sw_phase equal 1",
+             f"run {s_avg}",
+             "unfix sw_out", "unfix sw_npt",
+             "write_dump all custom swelling_states.lammpstrj id type x y z modify append yes"]
+    L = [f"# swelling curve (soapff; Cygan et al. 2004): water added to the interlayer ({len(up)} states), "
+         + (f"then removed ({len(down)} states); " if down else "")
+         + f"each state NPT {eq_ps:g} ps + {avg_ps:g} ps (recorded); d001 = lz in swelling.dat",
+         f"velocity all create {T} {seed} mom yes rot no dist gaussian",
+         f"timestep {timestep_fs:g}",
+         "shell rm -f swelling_states.lammpstrj",
+         "molecule h2o water.mol",
+         f"group sw_clay type {clay}",
+         f"variable sw_nw equal (atoms-{n_nonwater})/3-{n_water0}",
+         "variable sw_step equal step", "variable sw_lx equal lx", "variable sw_ly equal ly", "variable sw_lz equal lz",
+         "variable sw_xy equal xy", "variable sw_xz equal xz", "variable sw_yz equal yz", "variable sw_pe equal pe",
+         "variable sw_temp equal temp",
+         'print "# step added_waters phase lx ly lz xy xz yz pe temp" file swelling.dat screen no',
+         "variable sw_k equal 0",
+         "region sw_lo block INF INF INF INF EDGE 0.1 units box", "region sw_hi block INF INF INF INF 0.2 EDGE units box",
+         "region sw_il union 2 sw_lo sw_hi",
+         f"variable sw_add index {' '.join(map(str, up))}",
+         "label sw_up",
+         "label sw_ins",
+         "region sw_il delete", "region sw_lo delete", "region sw_hi delete",
+         "variable sw_z1 equal $(bound(sw_clay,zmin)-0.3)", "variable sw_z2 equal $(bound(sw_clay,zmax)+0.3)",
+         "region sw_lo block INF INF INF INF EDGE $((v_sw_z1>zlo+0.05)*v_sw_z1+(v_sw_z1<=zlo+0.05)*(zlo+0.05)) units box",
+         "region sw_hi block INF INF INF INF $((v_sw_z2<zhi-0.05)*v_sw_z2+(v_sw_z2>=zhi-0.05)*(zhi-0.05)) EDGE units box",
+         "region sw_il union 2 sw_lo sw_hi",
+         "variable sw_k equal $(v_sw_k+1)",
+         "variable sw_before equal $(v_sw_nw)",
+         f"create_atoms 0 random 1 $({seed}+7*v_sw_k:%.0f) sw_il mol h2o $({seed}+11*v_sw_k:%.0f) overlap {overlap:g} maxtry 500 units box",
+         'if "$(v_sw_nw) == ${sw_before}" then "change_box all z delta 0 0.5 units box"',
+         'if "$(v_sw_k) > 5000" then "print \'swelling: water could not be added\'" "quit 1"',
+         'if "$(v_sw_nw) < ${sw_add}" then "jump SELF sw_ins"'] + state + [
+         "next sw_add", "jump SELF sw_up"]
+    if down:
+        L += [f"variable sw_rem index {' '.join(map(str, down))}",
+              "label sw_dn",
+              f"group sw_del molecule <> $({mol_max}+v_sw_rem+1:%.0f) $({mol_max}+v_sw_nw:%.0f)",
+              "delete_atoms group sw_del mol yes compress no",
+              "group sw_del delete"] + state + ["next sw_rem", "jump SELF sw_dn"]
+    return L
+
+
 def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="pppm 1.0e-5", temp=300.0, nvt_ps=50.0,
          npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p", dump_ps=1.0, fallback=True, check=True, water_rule=False,
-         relax_ps=10.0, timestep_fs=TIMESTEP_FS, md=True, log=print):
+         relax_ps=10.0, timestep_fs=TIMESTEP_FS, md=True, reserve_water=False, stop_on_fallback=False, log=print):
     """md=False: in.lammps stops after the energy minimisation (force field, neighbour list, thermo output, minimisation and
     the walls of fixed faces); the MD (velocities, time step, fixes, computes, runs) is then written by the user (soapff-gui).
     fallback=True: atoms whose best similarity is below `threshold` get the geometric ClayFF type and charge.
     fallback=False: they keep the type and charge of the most similar library entry (same element) and are only
     reported (charges.csv source "soap-low"); only elements absent from the library fall back.
+    stop_on_fallback: any atom that the library cannot describe (fallback) stops make with an error before anything is
+    written (soapff-gui): the library lacks that environment and should be extended.
     water_rule: water molecules (an O with exactly two H within 1.2 A and no framework cation within 2.4 A, and those H)
     are typed by that rule (ow/hw, SPC/E charges) instead of by SOAP; the SOAP assignment is used for everything else."""
     bnd, periodic = parse_boundary(boundary)
@@ -605,6 +744,13 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
         sim = np.where(by_rule, 1.0, sim); ok_el = ok_el | by_rule
     unknown = ((~ok_el) | np.isnan(q) | ((sim < threshold) if fallback else False)) & ~by_rule
     low = (~unknown) & (sim < threshold)                     # nearest entry used although below the threshold
+    if stop_on_fallback and unknown.any():
+        el_ = at.get_chemical_symbols()
+        idx = np.nonzero(unknown)[0]
+        detail = ", ".join(f"{el_[i]}{i + 1} ({'not in the library' if not ok_el[i] else f'similarity {sim[i]:.3f}'})"
+                           for i in idx[:10]) + (" ..." if len(idx) > 10 else "")
+        raise FallbackError(f"{len(idx)} atoms are not in the library (fallback): {detail}; library {os.path.abspath(library)}. "
+                            f"The library lacks these environments: add a reference structure with them to the library")
     if low.any():
         warn.append(f"{int(low.sum())} atoms below similarity {threshold} kept the nearest library entry (min {sim[low].min():.3f}); "
                     f"see charges.csv (source soap-low)")
@@ -660,7 +806,7 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
                 warn.append(f"the empty gap along the non-periodic {ax} axis is only {g:.2f} A (< cutoff {cutoff} A): atoms on "
                             f"the two faces interacted through the periodic boundary of the given structure, now they do not")
                 log("WARNING " + warn[-1])
-    info = write_system(at, q, types, out_dir, cutoff=cutoff, kspace=kspace, boundary=" ".join(bnd))
+    info = write_system(at, q, types, out_dir, cutoff=cutoff, kspace=kspace, boundary=" ".join(bnd), reserve_water=reserve_water)
     if info["kspace_note"]:
         log(f"boundary {' '.join(bnd)}: long-range Coulomb by {info['kspace_note']}")
     # atoms reaching a fixed ('f') face would be lost: reflect them there

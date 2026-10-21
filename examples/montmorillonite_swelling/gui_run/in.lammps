@@ -1,0 +1,70 @@
+# soapff-cui: ClayFF + SOAP charges.  lmp -in in.lammps
+include system.settings
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo_style custom step temp press pe ke etotal vol density lx ly lz
+thermo 1000
+# minimisation with a small step limit first (built structures may contain overlapping water)
+min_style cg
+min_modify dmax 0.01
+minimize 1.0e-4 1.0e-6 1000 10000
+min_modify dmax 0.1
+minimize 1.0e-6 1.0e-6 5000 50000
+
+# ここから下に MD（fix、compute、run など）を追加します（＋ fix / ＋ compute / ＋ その他）
+# swelling curve (soapff; Cygan et al. 2004): water added to the interlayer (10 states), each state NPT 30 ps + 20 ps (averaged); d001 = lz.  Read by soapff analyze (swelling.dat)
+velocity all create 300 4928459 mom yes rot no dist gaussian
+timestep 0.5
+shell rm -f swelling_states.lammpstrj
+molecule h2o water.mol
+group sw_clay type 1 2 3 5 7 8 9 10 11 13
+variable sw_nw equal (atoms-163)/3-0
+variable sw_step equal step
+variable sw_lx equal lx
+variable sw_ly equal ly
+variable sw_lz equal lz
+variable sw_xy equal xy
+variable sw_xz equal xz
+variable sw_yz equal yz
+variable sw_pe equal pe
+variable sw_temp equal temp
+print "# step added_waters phase lx ly lz xy xz yz pe temp" file swelling.dat screen no
+variable sw_k equal 0
+region sw_lo block INF INF INF INF EDGE 0.1 units box
+region sw_hi block INF INF INF INF 0.2 EDGE units box
+region sw_il union 2 sw_lo sw_hi
+variable sw_add index 4 8 12 16 20 25 32 40 48 59
+label sw_up
+label sw_ins
+region sw_il delete
+region sw_lo delete
+region sw_hi delete
+variable sw_z1 equal $(bound(sw_clay,zmin)-0.3)
+variable sw_z2 equal $(bound(sw_clay,zmax)+0.3)
+region sw_lo block INF INF INF INF EDGE $((v_sw_z1>zlo+0.05)*v_sw_z1+(v_sw_z1<=zlo+0.05)*(zlo+0.05)) units box
+region sw_hi block INF INF INF INF $((v_sw_z2<zhi-0.05)*v_sw_z2+(v_sw_z2>=zhi-0.05)*(zhi-0.05)) EDGE units box
+region sw_il union 2 sw_lo sw_hi
+variable sw_k equal $(v_sw_k+1)
+variable sw_before equal $(v_sw_nw)
+create_atoms 0 random 1 $(4928459+7*v_sw_k:%.0f) sw_il mol h2o $(4928459+11*v_sw_k:%.0f) overlap 2 maxtry 500 units box
+if "$(v_sw_nw) == ${sw_before}" then "change_box all z delta 0 0.5 units box"
+if "$(v_sw_k) > 5000" then "print 'swelling: water could not be added'" "quit 1"
+if "$(v_sw_nw) < ${sw_add}" then "jump SELF sw_ins"
+displace_atoms all move 0 0 $(0.5*(zlo+zhi)-xcm(sw_clay,z)) units box
+minimize 1.0e-4 1.0e-6 2000 20000
+fix sw_lim all nve/limit 0.1
+fix sw_lan all langevin 300 300 50.0 4928462 zero yes
+run 4000
+unfix sw_lan
+unfix sw_lim
+fix sw_npt all npt temp 300 300 100.0 x 1 1 1000.0 y 1 1 1000.0 z 1 1 1000.0 xy 0.0 0.0 1000.0 couple none
+variable sw_phase equal 0
+fix sw_out all print 200 "${sw_step} ${sw_nw} ${sw_phase} ${sw_lx} ${sw_ly} ${sw_lz} ${sw_xy} ${sw_xz} ${sw_yz} ${sw_pe} ${sw_temp}" append swelling.dat screen no
+run 60000
+variable sw_phase equal 1
+run 40000
+unfix sw_out
+unfix sw_npt
+write_dump all custom swelling_states.lammpstrj id type x y z modify append yes
+next sw_add
+jump SELF sw_up

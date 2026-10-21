@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "GUI for soapff: clay structure in, ClayFF force field with SOAP charges, LAMMPS run (here or over SSH), analysis"
 requires-python = ">=3.9"
 # soapff-cui (the force field writer) is bundled as the package soapff_cui; tkinter comes with Python
-dependencies = ["numpy", "scipy", "ase", "dscribe", "matplotlib"]
+dependencies = ["numpy", "scipy", "ase", "dscribe", "matplotlib", "ovito"]   # ovito: Replicate (supercell) and figures
 
 [project.optional-dependencies]
 sova = ["sovapy"]          # PDF / RDF of the analysis (or point soapff-gui to another Python that has SOVA)

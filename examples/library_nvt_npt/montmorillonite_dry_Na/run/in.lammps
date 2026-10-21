@@ -23,7 +23,7 @@ dump d all custom 2000 traj.lammpstrj id type element x y z ix iy iz q
 fix nvt all nvt temp 300 300 100.0
 run 100000
 unfix nvt
-fix npt all npt temp 300 300 100.0 tri 1 1 1000.0
+fix npt all npt temp 300 300 100.0 z 1 1 1000.0
 run 100000
 unfix npt
 write_data final.data

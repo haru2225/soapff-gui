@@ -179,6 +179,12 @@ SPECIAL = [
     ("soapff の手順", "soapff:protocol", "soapff の緩和（初速度 → 緩和 NVT）",
      "初速度、時間刻み、緩和 NVT（記録しない）、ステップのリセットまでをまとめて入れます。本計算（fix nvt / npt、dump、"
      "拡散係数の MSD、run、write_data）は、そのあとに一覧から選んで足します。長さと温度は計算設定の MD の条件です。"),
+    ("soapff の手順", "soapff:swelling", "膨潤曲線（層間に水を加えながら NPT、d001 を記録）",
+     "Cygan ら（2004）の方法：層間に水分子を 1 個ずつ（その後 2 個ずつ）加え、各状態で最小化と NPT（平衡化のあと平均）を"
+     "回して d001（= lz）を swelling.dat に書きます。最後に 2 個ずつ減らす脱水も選べます。構造に水の型がなければ、"
+     "system.data に水の型を足します（water.mol も書きます）。粘土は箱の中央に保ち、層間は周期境界をまたぐ側です。"
+     "swelling.dat の列は step、加えた水の数、段階（1 = 記録）、lx ly lz xy xz yz、PE、T です（例の analyze_swelling.py で"
+     "d001 と水の量の図にできます）。in.lammps の最小化のすぐ後に置いてください。"),
 ]
 
 

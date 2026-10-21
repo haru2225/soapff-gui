@@ -11,7 +11,9 @@ import subprocess
 import tempfile
 
 INPUTS = ("system.data", "system.settings", "in.lammps")
-RESULTS = ("log.lammps", "screen.txt", "exit_code", "traj.lammpstrj", "final.data", "msd_*.dat")
+OPTIONAL_INPUTS = ("water.mol",)        # sent when present (the water molecule of the swelling curve)
+RESULTS = ("log.lammps", "screen.txt", "exit_code", "traj.lammpstrj", "final.data", "msd_*.dat", "swelling.dat",
+           "swelling_states.lammpstrj")
 
 
 class RemoteError(RuntimeError):
@@ -165,6 +167,7 @@ class Remote:
         q = shlex.quote(rdir)
         self.run(f"mkdir -p {q} && cd {q} && rm -f {' '.join(RESULTS)}")
         files = [os.path.join(local_dir, f) for f in INPUTS]
+        files += [os.path.join(local_dir, f) for f in OPTIONAL_INPUTS if os.path.isfile(os.path.join(local_dir, f))]
         missing = [f for f in files if not os.path.isfile(f)]
         if missing:
             raise RemoteError(f"入力ファイルがありません：{missing}")

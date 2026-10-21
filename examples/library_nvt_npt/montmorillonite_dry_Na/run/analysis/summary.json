@@ -1,0 +1,117 @@
+{
+ "out_dir": "/Users/harutokono/clay/soapff-gui/examples/library_nvt_npt/montmorillonite_dry_Na/run",
+ "t_end_ps": 100.0,
+ "skip_ps": 20.0,
+ "timestep_fs": 0.5,
+ "what": [
+  "msd",
+  "compute",
+  "xrd",
+  "swelling"
+ ],
+ "traj": "traj.lammpstrj",
+ "has_mineral": true,
+ "tools": {
+  "msd": "LAMMPS compute msd (Einstein relation)",
+  "pdf_rdf": "SOVA (sovapy) pair_dist_func, radial_dist_fun",
+  "sq": "SOVA (sovapy) partial_structure_factor, structure_factor_xray",
+  "compute": "LAMMPS fix ave/time, ave/chunk, ave/correlate, ave/histo output files",
+  "xrd": "Debyer (Debye scattering equation)",
+  "swelling": "LAMMPS fix npt; d001 = lz of the cell (swelling.dat of the soapff swelling block)"
+ },
+ "figures": [
+  [
+   "MSD・PDF・RDF",
+   "analysis.png"
+  ],
+  [
+   "XRD",
+   "xrd.png"
+  ]
+ ],
+ "diffusion_1e-9_m2_s": {},
+ "diffusion_note": "no LAMMPS msd_*.dat in this folder: add the MSD of soapff (catalog) before run",
+ "ionic_conductivity": null,
+ "computes": [],
+ "xrd": {
+  "debyer": "/Users/harutokono/NEMD/debyer/debyer/debyer",
+  "wavelength_A": 1.5406,
+  "two_theta": [
+   3.0,
+   80.0,
+   0.02
+  ],
+  "frames": 3,
+  "steps": [
+   196000,
+   198000,
+   200000
+  ],
+  "mode": "cluster",
+  "periodic": false,
+  "repeat": [
+   5,
+   3,
+   6
+  ],
+  "size_A": [
+   51.73328135,
+   53.88235089788074,
+   57.09370302599778
+  ],
+  "atoms": 14670,
+  "d_limit_A": 19.031234341999262,
+  "peaks": [
+   {
+    "two_theta": 5.67,
+    "d_A": 15.574233936406342,
+    "relative": 100.0
+   },
+   {
+    "two_theta": 7.27,
+    "d_A": 12.149810150712563,
+    "relative": 38.117970919259434
+   },
+   {
+    "two_theta": 8.97,
+    "d_A": 9.850622881624387,
+    "relative": 35.884211846426986
+   },
+   {
+    "two_theta": 20.27,
+    "d_A": 4.377498163374097,
+    "relative": 38.110404827373905
+   },
+   {
+    "two_theta": 28.51,
+    "d_A": 3.1282758790292555,
+    "relative": 31.430457769288093
+   },
+   {
+    "two_theta": 35.33,
+    "d_A": 2.5384653756151687,
+    "relative": 23.860645024880004
+   },
+   {
+    "two_theta": 36.97,
+    "d_A": 2.4295363877936818,
+    "relative": 31.22080447249311
+   },
+   {
+    "two_theta": 62.19,
+    "d_A": 1.491503858739355,
+    "relative": 19.528466643381066
+   }
+  ],
+  "size_oscillations": [
+   {
+    "two_theta": 4.03,
+    "d_A": 21.90771119911844,
+    "relative": 372.5522915412129
+   }
+  ]
+ },
+ "swelling": {
+  "error": "no swelling.dat in this folder"
+ }
+}
