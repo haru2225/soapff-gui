@@ -448,6 +448,9 @@ class App:
         self.cb_where = ttk.Combobox(head, textvariable=self.v_where, state="readonly", width=18, font=self.f_small)
         self.cb_where.pack(side="right", padx=(0, 10))
         self.cb_where.bind("<<ComboboxSelected>>", lambda e: self.choose_where())
+        ttk.Button(head, text="－", width=2, style="Ghost.TButton", command=self.remove_computer).pack(side="right")
+        ttk.Button(head, text="＋", width=2, style="Ghost.TButton", command=lambda: self.quick_add_computer(self.root)).pack(
+            side="right", padx=(0, 2))
         tk.Frame(rc, bg=LINE, height=1).pack(fill="x", pady=(8, 0))
         row = tk.Frame(rc, bg=PANEL)
         row.pack(fill="x", padx=16, pady=(12, 0))
@@ -1526,6 +1529,12 @@ class App:
             return int(sel[0]) if sel else None
 
         def edit(k=None):
+            if k is None:                                     # 追加: ssh の接続先だけで登録（接続して残りを埋める）
+                c = self.quick_add_computer(w)
+                if c:
+                    comps.append(dict(c))
+                    refill()
+                return
             c = self.edit_computer(w, comps[k] if k is not None else dict(COMPUTER),
                                    taken=[x["name"] for n, x in enumerate(comps) if n != k])
             if c:
@@ -1788,6 +1797,126 @@ class App:
     def choose_where(self):
         v = self.v_where.get()
         self.s["where"] = "local" if v == "このコンピュータ" else v
+        save_settings(self.s)
+        self.update_status()
+
+    @staticmethod
+    def parse_target(text):
+        """'user@host', 'user@host:port', 'ssh -p 10022 user@host', 'user@host -p 10022' -> (user, host, port)."""
+        w = text.replace("ssh ", " ").split()
+        port, rest = 22, []
+        k = 0
+        while k < len(w):
+            if w[k] == "-p" and k + 1 < len(w):
+                port = int(w[k + 1]); k += 2
+                continue
+            rest.append(w[k]); k += 1
+        if len(rest) != 1:
+            raise ValueError("「ユーザー@ホスト」の形で入れてください（例：taro@192.168.0.10、ポートは :10022 か -p 10022）")
+        t = rest[0]
+        user, _, host = t.rpartition("@")
+        if ":" in host and host.count(":") == 1:
+            host, p_ = host.split(":"); port = int(p_)
+        if not host:
+            raise ValueError("ホストがありません")
+        return user, host, port
+
+    def quick_add_computer(self, parent):
+        """register a computer from 'user@host' only: asks the password, connects, and fills in the rest (physical cores as
+        the number of processes, the lmp and mpirun found there).  Details can be changed later (計算設定 › 実行先)."""
+        if self.busy():
+            messagebox.showinfo("soapff-GUI", "計算中は登録できません", parent=parent)
+            return None
+        w = tk.Toplevel(parent)
+        w.title("コンピュータを登録（SSH）")
+        w.transient(parent)
+        f = ttk.Frame(w, padding=16)
+        f.pack(fill="both", expand=True)
+        ttk.Label(f, text="ssh の接続先", font=self.f_bold).grid(row=0, column=0, sticky="w")
+        v_t = tk.StringVar()
+        e = ttk.Entry(f, textvariable=v_t, width=40, style="Field.TEntry")
+        e.grid(row=1, column=0, sticky="w", pady=(4, 2))
+        e.focus_set()
+        ttk.Label(f, text="例：taro@192.168.0.10　（ポートが 22 でなければ taro@192.168.0.10:10022）", foreground=MUTED).grid(
+            row=2, column=0, sticky="w")
+        res = tk.StringVar(value="登録を押すとパスワードを聞き、接続して、相手の LAMMPS と CPU を調べます（パスワードは保存しません）。")
+        ttk.Label(f, textvariable=res, foreground=MUTED, wraplength=460, justify="left").grid(row=3, column=0, sticky="w",
+                                                                                            pady=(10, 0))
+        done = {}
+
+        def register():
+            try:
+                user, host, port = self.parse_target(v_t.get().strip())
+            except ValueError as ex:
+                res.set(str(ex)); return
+            name = f"{user + '@' if user else ''}{host}" + (f":{port}" if port != 22 else "")
+            if any(c["name"] == name for c in self.s["computers"]):
+                res.set(f"「{name}」はもう登録されています"); return
+            c = dict(COMPUTER, name=name, host=host, user=user, port=port)
+            pw = self.ask_password(c, parent=w)
+            if pw is None:
+                return
+            res.set(f"{name} に接続しています…")
+            b_ok.state(["disabled"])
+
+            def go():
+                r = None
+                try:
+                    r = self.make_remote(c, pw)
+                    info = r.check()
+                    cores = str(info.get("cores") or "")
+                    c["nproc"] = int(cores) if cores.isdigit() and int(cores) > 0 else 1
+                    if info.get("mpirun_used") and info.get("mpirun_used") != "NOTFOUND":
+                        c["mpirun"] = info["mpirun_used"]
+                    msg = (f"登録しました：{name}（{info.get('os')}、物理コア {info.get('cores') or '?'} → 並列数 {c['nproc']}）\n"
+                           f"lmp：{info.get('lmp')}　mpirun：{c['mpirun']}")
+                    if "NOTFOUND" in (info.get("lmp", "") + info.get("mpirun", "")):
+                        msg += ("\n⚠ lmp か mpirun が見つかりません。計算設定 › 実行先 で「相手側の lmp / mpirun」か"
+                                "「最初に実行するコマンド」（例：module load lammps）を設定してください")
+                    if info.get("mpi_warning"):
+                        msg += "\n⚠ " + info["mpi_warning"]
+                    ok = True
+                except Exception as ex:
+                    msg, ok = f"接続できませんでした：{ex}", False
+                finally:
+                    if r:
+                        r.close()
+
+                def finish():
+                    res.set(msg)
+                    b_ok.state(["!disabled"])
+                    if ok:
+                        self.s["computers"].append(c)
+                        self.s["where"] = c["name"]
+                        save_settings(self.s)
+                        self.update_status()
+                        done["c"] = c
+                        b_ok.configure(text="閉じる", command=w.destroy)
+                self.q.put(("call", finish))
+            threading.Thread(target=go, daemon=True).start()
+        bar = ttk.Frame(f)
+        bar.grid(row=4, column=0, sticky="ew", pady=(14, 0))
+        b_ok = ttk.Button(bar, text="登録", style="Accent.TButton", command=register)
+        b_ok.pack(side="right")
+        ttk.Button(bar, text="取消", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        w.bind("<Return>", lambda ev: register() if b_ok.cget("text") == "登録" else w.destroy())
+        w.grab_set()
+        w.wait_window()
+        return done.get("c")
+
+    def remove_computer(self):
+        """remove the computer chosen as 実行先 from the registered ones."""
+        name = self.v_where.get()
+        if name == "このコンピュータ" or not self.computer(name):
+            messagebox.showinfo("soapff-GUI", "消したいコンピュータを実行先で選んでから押してください")
+            return
+        if self.busy():
+            messagebox.showinfo("soapff-GUI", "計算中は消せません")
+            return
+        if not messagebox.askyesno("soapff-GUI", f"「{name}」の登録を消しますか？（相手側のファイルは消えません）"):
+            return
+        self.s["computers"] = [c for c in self.s["computers"] if c["name"] != name]
+        self.s["where"] = "local"
         save_settings(self.s)
         self.update_status()
 
