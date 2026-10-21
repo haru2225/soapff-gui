@@ -174,6 +174,7 @@ class App:
         self.f_mono, self.f_mono_s = pick_font(mono, 12), pick_font(mono, 11)
         root.title("soapff-GUI — 新しい計算")
         root.geometry("1360x860")
+        root.minsize(1100, 780)                    # smaller than this the editor would be squeezed out
         root.minsize(1100, 720)
         root.configure(bg=BG)
         self._styles()
@@ -364,14 +365,14 @@ class App:
         # editor above, command form and run below, with a draggable divider (drag it to make the editor bigger)
         self.pw = tk.PanedWindow(main, orient="vertical", bg=BG, sashwidth=10, sashrelief="flat", bd=0, opaqueresize=True)
         self.pw.pack(fill="both", expand=True, pady=(10, 0))
-        bottom = tk.Frame(self.pw, bg=BG, height=232)
+        bottom = tk.Frame(self.pw, bg=BG, height=250)
         self._bottom = bottom
-        rc = tk.Frame(bottom, bg=PANEL, highlightthickness=1, highlightbackground=LINE, width=440, height=232)
+        rc = tk.Frame(bottom, bg=PANEL, highlightthickness=1, highlightbackground=LINE, width=440, height=250)
         rc.pack(side="right", fill="y", padx=(14, 0))
         rc.pack_propagate(False)
         # the command form has a fixed height (its fields scroll): a form with many fields used to grow and squeeze the editor
         # (the in.lammps tabs and the lines) down to nothing
-        self.fc = tk.Frame(bottom, bg=PANEL, highlightthickness=1, highlightbackground=LINE, height=232)
+        self.fc = tk.Frame(bottom, bg=PANEL, highlightthickness=1, highlightbackground=LINE, height=250)
         self.fc.pack(side="left", fill="both", expand=True)
         self.fc.pack_propagate(False)
         self._form_area()
@@ -379,8 +380,8 @@ class App:
 
         # editor card
         ec = tk.Frame(self.pw, bg=PANEL, highlightthickness=1, highlightbackground=LINE)
-        self.pw.add(ec, stretch="always", minsize=150)
-        self.pw.add(bottom, stretch="never", minsize=130, height=240)
+        self.pw.add(ec, stretch="always", minsize=90)
+        self.pw.add(bottom, stretch="never", minsize=250, height=252)
         head = tk.Frame(ec, bg=PANEL)
         head.pack(fill="x", padx=14, pady=(10, 0))
         self.tabs = {}
@@ -502,6 +503,11 @@ class App:
         self.pb.pack(fill="x", padx=16, pady=(8, 0))
         self.l_thermo = tk.Label(rc, text="", bg=PANEL, fg=MUTED, font=self.f_mono_s, anchor="w")
         self.l_thermo.pack(fill="x", padx=16, pady=(6, 0))
+        acts = tk.Frame(rc, bg=PANEL)                  # packed first (at the bottom) so that 解析 is always visible
+        acts.pack(side="bottom", fill="x", padx=16, pady=(0, 10))
+        for text, cmd in (("解析", self.analyze_now), ("OVITO で開く", self.open_ovito), ("フォルダ", self.open_out)):
+            ttk.Button(acts, text=text, style="Link.TButton", command=cmd).pack(side="left", padx=(0, 6))
+        tk.Label(acts, text="↑ 実行先で計算し，終わると自動で解析します", bg=PANEL, fg=FAINT, font=self.f_small).pack(side="right")
         lf = tk.Frame(rc, bg=CODE_BG, highlightthickness=1, highlightbackground="#e1e6ea")
         lf.pack(fill="both", expand=True, padx=16, pady=(8, 8))
         self.log = tk.Text(lf, bg=CODE_BG, fg=TEXT, font=pick_font(["Menlo"], 10), relief="flat", height=4, wrap="none",
@@ -512,11 +518,6 @@ class App:
         self.log.tag_config("warn", foreground="#a15c00")
         self.log.tag_config("err", foreground=ERR)
         self.log.config(state="disabled")
-        acts = tk.Frame(rc, bg=PANEL)
-        acts.pack(fill="x", padx=16, pady=(0, 12))
-        for text, cmd in (("解析", self.analyze_now), ("OVITO で開く", self.open_ovito), ("フォルダ", self.open_out)):
-            ttk.Button(acts, text=text, style="Link.TButton", command=cmd).pack(side="left", padx=(0, 6))
-        tk.Label(acts, text="↑ 実行先", bg=PANEL, fg=FAINT, font=self.f_small).pack(side="right")
 
     # ================================================================================================== editor
     def data_section(self, i):
