@@ -20,16 +20,35 @@
   [
    "MSD・PDF・RDF",
    "analysis.png"
+  ],
+  [
+   "S(Q)",
+   "sova_sq.png"
   ]
  ],
  "sova": {
   "sovapy_version": "0.8.3",
   "frames": 100,
-  "rmax": 8.0,
+  "rmax": 8.928476800959357,
   "dr": 0.02,
   "pairs": [
    "K-ob",
-   "K-obts"
+   "K-obts",
+   "all:H-H",
+   "all:O-H",
+   "all:O-O",
+   "all:Al-H",
+   "all:Al-O",
+   "all:Al-Al",
+   "all:Si-H",
+   "all:Si-O",
+   "all:Si-Al",
+   "all:Si-Si",
+   "all:K-H",
+   "all:K-O",
+   "all:K-Al",
+   "all:K-Si",
+   "all:K-K"
   ],
   "first_peaks": {
    "K-ob": {
@@ -51,7 +70,7 @@
     "cn": 5.999999999999998
    }
   },
-  "sq_xray": false,
+  "sq_xray": true,
   "radiation": "xray",
   "sq_rmax": 8.92,
   "sq_qmax": 12.0,
