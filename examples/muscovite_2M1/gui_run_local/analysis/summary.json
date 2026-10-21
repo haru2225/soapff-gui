@@ -1,0 +1,485 @@
+{
+ "out_dir": "/Users/harutokono/clay/soapff-gui/examples/muscovite_2M1/gui_run_local",
+ "t_end_ps": 160.0,
+ "skip_ps": 32.0,
+ "timestep_fs": 0.5,
+ "what": [
+  "msd",
+  "compute",
+  "xrd",
+  "props"
+ ],
+ "traj": "traj_compress_x.lammpstrj",
+ "has_mineral": true,
+ "tools": {
+  "msd": "LAMMPS compute msd (Einstein relation)",
+  "pdf_rdf": "SOVA (sovapy) pair_dist_func, radial_dist_fun",
+  "sq": "SOVA (sovapy) partial_structure_factor, structure_factor_xray",
+  "compute": "LAMMPS fix ave/time, ave/chunk, ave/correlate, ave/histo output files",
+  "xrd": "Debyer (Debye scattering equation)"
+ },
+ "figures": [
+  [
+   "MSD・PDF・RDF",
+   "analysis.png"
+  ],
+  [
+   "XRD",
+   "xrd.png"
+  ],
+  [
+   "弾性定数 0 K",
+   "prop_elastic0.png"
+  ],
+  [
+   "tension x",
+   "prop_mech_tensile_x.png"
+  ],
+  [
+   "compression x",
+   "prop_mech_compress_x.png"
+  ],
+  [
+   "tension y",
+   "prop_mech_tensile_y.png"
+  ],
+  [
+   "compression y",
+   "prop_mech_compress_y.png"
+  ],
+  [
+   "tension z",
+   "prop_mech_tensile_z.png"
+  ],
+  [
+   "compression z",
+   "prop_mech_compress_z.png"
+  ],
+  [
+   "shear xy (solid)",
+   "prop_mech_shear_xy.png"
+  ],
+  [
+   "shear xy (-) (solid)",
+   "prop_mech_shear_xy_neg.png"
+  ],
+  [
+   "shear xz (solid)",
+   "prop_mech_shear_xz.png"
+  ],
+  [
+   "shear xz (-) (solid)",
+   "prop_mech_shear_xz_neg.png"
+  ],
+  [
+   "shear yz (solid)",
+   "prop_mech_shear_yz.png"
+  ],
+  [
+   "shear yz (-) (solid)",
+   "prop_mech_shear_yz_neg.png"
+  ]
+ ],
+ "diffusion_1e-9_m2_s": {},
+ "diffusion_note": "no LAMMPS msd_*.dat in this folder: add the MSD of soapff (catalog) before run",
+ "ionic_conductivity": null,
+ "computes": [],
+ "xrd": {
+  "debyer": "/Users/harutokono/NEMD/debyer/debyer/debyer",
+  "wavelength_A": 1.5406,
+  "two_theta": [
+   3.0,
+   80.0,
+   0.02
+  ],
+  "frames": 3,
+  "steps": [
+   316000,
+   318000,
+   320000
+  ],
+  "mode": "cluster",
+  "periodic": false,
+  "repeat": [
+   3,
+   3,
+   3
+  ],
+  "size_A": [
+   52.17793058435086,
+   62.96778086211075,
+   65.85084940014377
+  ],
+  "atoms": 18144,
+  "d_limit_A": 21.95028313338126,
+  "peaks": [
+   {
+    "two_theta": 4.63,
+    "d_A": 19.06995668489562,
+    "relative": 100.0
+   },
+   {
+    "two_theta": 6.13,
+    "d_A": 14.406523895650007,
+    "relative": 48.383352903422356
+   },
+   {
+    "two_theta": 7.75,
+    "d_A": 11.398349060987746,
+    "relative": 45.45115217050526
+   },
+   {
+    "two_theta": 16.29,
+    "d_A": 5.436947980404347,
+    "relative": 11.575570613514898
+   },
+   {
+    "two_theta": 24.71,
+    "d_A": 3.60006793603919,
+    "relative": 13.623538528427897
+   },
+   {
+    "two_theta": 26.77,
+    "d_A": 3.327527210518406,
+    "relative": 15.01415849110177
+   },
+   {
+    "two_theta": 29.93,
+    "d_A": 2.9830118231126983,
+    "relative": 10.706806545972949
+   },
+   {
+    "two_theta": 33.59,
+    "d_A": 2.665875254301542,
+    "relative": 11.231206059727716
+   }
+  ],
+  "size_oscillations": [
+   {
+    "two_theta": 3.31,
+    "d_A": 26.67134557234622,
+    "relative": 282.2245423704751
+   }
+  ]
+ },
+ "properties": [
+  {
+   "property": "elastic0",
+   "strain": "0.005",
+   "file": "elastic0.dat",
+   "C": [
+    [
+     264.946,
+     68.457,
+     23.681,
+     -0.526,
+     11.374,
+     -0.128
+    ],
+    [
+     68.457,
+     236.286,
+     22.164,
+     -0.615,
+     1.005,
+     -0.133
+    ],
+    [
+     23.681,
+     22.164,
+     66.592,
+     -0.243,
+     4.67,
+     0.056
+    ],
+    [
+     -0.526,
+     -0.615,
+     -0.243,
+     8.154,
+     0.501,
+     -1.52
+    ],
+    [
+     11.374,
+     1.005,
+     4.67,
+     0.501,
+     16.686,
+     -0.187
+    ],
+    [
+     -0.128,
+     -0.133,
+     0.056,
+     -1.52,
+     -0.187,
+     96.072
+    ]
+   ],
+   "moduli": {
+    "K_Voigt": 88.49187305890278,
+    "G_Voigt": 54.417251789512825,
+    "K_Reuss": 54.457624270813184,
+    "G_Reuss": 21.344678991939244,
+    "K_Hill": 71.47474866485798,
+    "G_Hill": 37.88096539072603,
+    "E_x": 234.50778549693464,
+    "E_y": 214.0856358819478,
+    "E_z": 62.39739991928553,
+    "nu_xy": 0.2659001856650032,
+    "nu_xz": 0.2244057110730731,
+    "nu_yz": 0.25873440581066154
+   },
+   "directions": 6,
+   "ref_stress_GPa": [
+    -0.0008592359733634327,
+    -0.003628112043939472,
+    -0.002696425358942938,
+    0.00442011739619501,
+    -0.003611400621573504,
+    0.004288482350595928
+   ],
+   "png": "prop_elastic0.png"
+  },
+  {
+   "property": "tensile",
+   "dir": "x",
+   "sign": "1",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_tensile_x.dat",
+   "label": "tension x",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 219.1601917714616,
+   "poisson_y": 0.4252578052355086,
+   "poisson_z": 0.23617910348608362,
+   "peak": 14.238087675,
+   "peak_strain": 0.0860275,
+   "initial_stress": 0.07907196972500001,
+   "png": "prop_mech_tensile_x.png"
+  },
+  {
+   "property": "tensile",
+   "dir": "x",
+   "sign": "-1",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_compress_x.dat",
+   "label": "compression x",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 254.69132015516377,
+   "poisson_y": 0.3811390144791547,
+   "poisson_z": 0.28337987525849323,
+   "peak": 30.211062,
+   "peak_strain": 0.155377,
+   "initial_stress": -0.03948780482500001,
+   "png": "prop_mech_compress_x.png"
+  },
+  {
+   "property": "tensile",
+   "dir": "y",
+   "sign": "1",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_tensile_y.dat",
+   "label": "tension y",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 217.0186959434369,
+   "poisson_x": 0.35243892681459404,
+   "poisson_z": 0.15699004976170833,
+   "peak": 13.750106474999999,
+   "peak_strain": 0.0739775,
+   "initial_stress": -0.037665913775,
+   "png": "prop_mech_tensile_y.png"
+  },
+  {
+   "property": "tensile",
+   "dir": "y",
+   "sign": "-1",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_compress_y.dat",
+   "label": "compression y",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 225.36048019387977,
+   "poisson_x": 0.39339462447087936,
+   "poisson_z": 0.20232332645294346,
+   "peak": 32.077164525,
+   "peak_strain": 0.149728,
+   "initial_stress": 0.07445482590000001,
+   "png": "prop_mech_compress_y.png"
+  },
+  {
+   "property": "tensile",
+   "dir": "z",
+   "sign": "1",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_tensile_z.dat",
+   "label": "tension z",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 55.480183787353944,
+   "poisson_x": 0.04986380830347096,
+   "poisson_y": 0.05183415565248744,
+   "peak": 4.26444501,
+   "peak_strain": 0.0973275,
+   "initial_stress": 0.07423238374999999,
+   "png": "prop_mech_tensile_z.png"
+  },
+  {
+   "property": "tensile",
+   "dir": "z",
+   "sign": "-1",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_compress_z.dat",
+   "label": "compression z",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 71.06472589388288,
+   "poisson_x": 0.06065501907841086,
+   "poisson_y": 0.02794335475493174,
+   "peak": 28.293486375,
+   "peak_strain": 0.158577,
+   "initial_stress": -0.06349159599999997,
+   "png": "prop_mech_compress_z.png"
+  },
+  {
+   "property": "shear",
+   "plane": "xy",
+   "sign": "1",
+   "mode": "solid",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_shear_xy.dat",
+   "label": "shear xy (solid)",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 89.20476917163077,
+   "peak": 11.984721,
+   "peak_strain": 0.148028,
+   "initial_stress": -0.002646892709999999,
+   "png": "prop_mech_shear_xy.png"
+  },
+  {
+   "property": "shear",
+   "plane": "xy",
+   "sign": "-1",
+   "mode": "solid",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_shear_xy_neg.dat",
+   "label": "shear xy (-) (solid)",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 92.71629837351568,
+   "peak": 12.1723749,
+   "peak_strain": 0.152078,
+   "initial_stress": 0.0169548101975,
+   "png": "prop_mech_shear_xy_neg.png"
+  },
+  {
+   "property": "shear",
+   "plane": "xz",
+   "sign": "1",
+   "mode": "solid",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_shear_xz.dat",
+   "label": "shear xz (solid)",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 13.008990846632386,
+   "peak": 3.073896525,
+   "peak_strain": 0.133927,
+   "initial_stress": 0.017875047225000006,
+   "png": "prop_mech_shear_xz.png"
+  },
+  {
+   "property": "shear",
+   "plane": "xz",
+   "sign": "-1",
+   "mode": "solid",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_shear_xz_neg.dat",
+   "label": "shear xz (-) (solid)",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 15.993078222712759,
+   "peak": 3.8932611374999997,
+   "peak_strain": 0.135228,
+   "initial_stress": -0.01324986494999999,
+   "png": "prop_mech_shear_xz_neg.png"
+  },
+  {
+   "property": "shear",
+   "plane": "yz",
+   "sign": "1",
+   "mode": "solid",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_shear_yz.dat",
+   "label": "shear yz (solid)",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 9.964830287192433,
+   "peak": 2.7093798374999998,
+   "peak_strain": 0.134677,
+   "initial_stress": -0.0801432620625,
+   "png": "prop_mech_shear_yz.png"
+  },
+  {
+   "property": "shear",
+   "plane": "yz",
+   "sign": "-1",
+   "mode": "solid",
+   "rate_s": "1e+09",
+   "max_strain": "0.16",
+   "file": "mech_shear_yz_neg.dat",
+   "label": "shear yz (-) (solid)",
+   "fit_max": 0.02,
+   "points": 3200,
+   "modulus": 10.476598301474478,
+   "peak": 2.6632161675,
+   "peak_strain": 0.134778,
+   "initial_stress": 0.08431155640249999,
+   "png": "prop_mech_shear_yz_neg.png"
+  },
+  {
+   "property": "both_ways",
+   "moduli": {
+    "tensile x": {
+     "modulus": 238.37146455331654,
+     "fit_range": 0.02
+    },
+    "tensile y": {
+     "modulus": 221.27095766751435,
+     "fit_range": 0.02
+    },
+    "tensile z": {
+     "modulus": 63.18566144782777,
+     "fit_range": 0.01
+    },
+    "shear xy": {
+     "modulus": 87.96865675778143,
+     "fit_range": 0.1
+    },
+    "shear xz": {
+     "modulus": 19.127934957470703,
+     "fit_range": 0.1
+    },
+    "shear yz": {
+     "modulus": 13.708912465548384,
+     "fit_range": 0.1
+    }
+   }
+  }
+ ]
+}

@@ -4,3 +4,5 @@ __pycache__/
 .DS_Store
 examples/**/*_soapff/
 build/
+*.lammpstrj
+*.dump

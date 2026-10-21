@@ -1,0 +1,91 @@
+{
+ "out_dir": "/Users/harutokono/clay/soapff-gui/examples/montmorillonite_2W/greathouse_charge/T366",
+ "t_end_ps": 920.0,
+ "skip_ps": 184.0,
+ "timestep_fs": 0.5,
+ "what": [
+  "msd"
+ ],
+ "traj": "traj.lammpstrj",
+ "has_mineral": true,
+ "tools": {
+  "msd": "LAMMPS compute msd (Einstein relation)",
+  "pdf_rdf": "SOVA (sovapy) pair_dist_func, radial_dist_fun",
+  "sq": "SOVA (sovapy) partial_structure_factor, structure_factor_xray",
+  "compute": "LAMMPS fix ave/time, ave/chunk, ave/correlate, ave/histo output files",
+  "xrd": "Debyer (Debye scattering equation)"
+ },
+ "figures": [
+  [
+   "MSD・PDF・RDF",
+   "analysis.png"
+  ]
+ ],
+ "diffusion_1e-9_m2_s": {
+  "s1_Na": {
+   "D_total": 1.1789714556107331,
+   "D_xy": 1.7687391519205016,
+   "D_z": -0.0005638125823599259,
+   "fit_from_ps": 184.0,
+   "fit_to_ps": 320.0,
+   "msd_at_end_A2": 175.928
+  },
+  "s1_Ow": {
+   "D_total": 3.008242542886192,
+   "D_xy": 4.510549182134139,
+   "D_z": 0.0036312111310164313,
+   "fit_from_ps": 184.0,
+   "fit_to_ps": 320.0,
+   "msd_at_end_A2": 362.673
+  },
+  "s2_Na": {
+   "D_total": 1.4158670669731594,
+   "D_xy": 2.124889374664784,
+   "D_z": -0.002177630208524616,
+   "fit_from_ps": 320.0,
+   "fit_to_ps": 520.0,
+   "msd_at_end_A2": 173.892
+  },
+  "s2_Ow": {
+   "D_total": 2.8831220266616238,
+   "D_xy": 4.311635567745179,
+   "D_z": 0.026094528395555,
+   "fit_from_ps": 320.0,
+   "fit_to_ps": 520.0,
+   "msd_at_end_A2": 349.377
+  },
+  "s3_Na": {
+   "D_total": 0.7573598480520738,
+   "D_xy": 1.1358293137703992,
+   "D_z": 0.0004207139461887586,
+   "fit_from_ps": 520.0,
+   "fit_to_ps": 720.0,
+   "msd_at_end_A2": 109.685
+  },
+  "s3_Ow": {
+   "D_total": 2.6302739797594743,
+   "D_xy": 3.9278241636427333,
+   "D_z": 0.03517279061448308,
+   "fit_from_ps": 520.0,
+   "fit_to_ps": 720.0,
+   "msd_at_end_A2": 329.016
+  },
+  "s4_Na": {
+   "D_total": 1.1617542266474417,
+   "D_xy": 1.7435609711414353,
+   "D_z": -0.001859250212808167,
+   "fit_from_ps": 720.0,
+   "fit_to_ps": 920.0,
+   "msd_at_end_A2": 148.774
+  },
+  "s4_Ow": {
+   "D_total": 3.1963589462062436,
+   "D_xy": 4.775717024545341,
+   "D_z": 0.037642522893201386,
+   "fit_from_ps": 720.0,
+   "fit_to_ps": 920.0,
+   "msd_at_end_A2": 377.689
+  }
+ },
+ "ionic_conductivity": null
+}
