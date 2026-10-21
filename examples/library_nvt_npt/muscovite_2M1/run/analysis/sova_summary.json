@@ -1,0 +1,41 @@
+{
+ "sovapy_version": "0.8.3",
+ "frames": 40,
+ "rmax": 5.120287279398432,
+ "dr": 0.02,
+ "pairs": [
+  "K-O_min",
+  "all:H-H",
+  "all:O-H",
+  "all:O-O",
+  "all:Al-H",
+  "all:Al-O",
+  "all:Al-Al",
+  "all:Si-H",
+  "all:Si-O",
+  "all:Si-Al",
+  "all:Si-Si",
+  "all:K-H",
+  "all:K-O",
+  "all:K-Al",
+  "all:K-Si",
+  "all:K-K"
+ ],
+ "first_peaks": {
+  "K-O_min": {
+   "r_peak": 3.02,
+   "g_peak": 3.1845646176138933
+  }
+ },
+ "coordination": {
+  "K-O_min": {
+   "r_min": 4.22,
+   "cn": 13.897893467868453
+  }
+ },
+ "sq_xray": true,
+ "radiation": "xray",
+ "sq_rmax": 5.12,
+ "sq_qmax": 12.0,
+ "note": "PDF g(r) by SOVA pair_dist_func (normalised by the density over the whole box: in a slab or interlayer it does not tend to 1); RDF N(r) = 4 pi r^2 rho_B g(r) by SOVA radial_dist_fun"
+}

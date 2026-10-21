@@ -1,41 +1,41 @@
-# 例：ライブラリの 13 の構造の NVT と NPT
+# Example: NVT and NPT of the 13 library structures
 
-同梱の SOAP ライブラリ（`src/soapff_gui/data/library_clayff_bulk.npz`）を作った 13 の構造それぞれについて、構造ファイルから soapff-gui で力場を作り、NVT と NPT を回したものです。
+For each of the 13 structures used to build the bundled SOAP library (`src/soapff_gui/data/library_clayff_bulk.npz`), soapff-gui built a force field from the structure file and ran NVT and NPT.
 
-| フォルダ | 鉱物 |
+| Folder | Mineral |
 |---|---|
-| `brucite/` | ブルーサイト（Mg(OH)₂） |
-| `kaolinite/` | カオリナイト |
-| `lizardite/` | リザーダイト |
-| `montmorillonite_2W/` | Na モンモリロナイト 2 水和層（JAEA の構造、水と Na⁺ を含む） |
-| `montmorillonite_dry_Na/` | 乾いた Na モンモリロナイト（Cygan ら 2004 の組成 Na₃(Si₃₁Al)(Al₁₄Mg₂)O₈₀(OH)₁₆、水なし。`examples/montmorillonite_swelling/` で作ったもの） |
-| `muscovite_1M/`、`muscovite_2M1/` | 白雲母 1M、2M1 |
-| `nanpingite/` | nanpingite（Cs 雲母） |
-| `phlogopite_1M/` | 金雲母 1M |
-| `pyrophyllite/`、`pyrophyllite_2/` | パイロフィライト（2 つの出典） |
-| `quartz/` | 石英 |
-| `talc/` | タルク |
+| `brucite/` | brucite (Mg(OH)₂) |
+| `kaolinite/` | kaolinite |
+| `lizardite/` | lizardite |
+| `montmorillonite_2W/` | Na montmorillonite with a 2-layer hydrate (JAEA structure, including water and Na⁺) |
+| `montmorillonite_dry_Na/` | dry Na montmorillonite (composition of Cygan et al. 2004, Na₃(Si₃₁Al)(Al₁₄Mg₂)O₈₀(OH)₁₆, no water; built in `examples/montmorillonite_swelling/`) |
+| `muscovite_1M/`, `muscovite_2M1/` | muscovite 1M, 2M1 |
+| `nanpingite/` | nanpingite (Cs mica) |
+| `phlogopite_1M/` | phlogopite 1M |
+| `pyrophyllite/`, `pyrophyllite_2/` | pyrophyllite (two sources) |
+| `quartz/` | quartz |
+| `talc/` | talc |
 
-各フォルダの `<名前>.extxyz` が構造ファイル（元素・座標・箱だけ。ライブラリの参照の LAMMPS データから、電荷と型を除いて書き出したもの）、`run/` が GUI の出力です。
+In each folder, `<name>.extxyz` is the structure file (elements, coordinates, and box only; written from the library's reference LAMMPS data with the charges and types removed), and `run/` is the GUI output.
 
-## 手順（GUI）
+## Procedure (GUI)
 
-1. 「新規計算」で `<名前>.extxyz` を選ぶ（同梱のライブラリ。力場と最小化までの `in.lammps` ができる）
-2. 一覧から次を加える（温度 300 K、圧力 1 atm、時間刻み 0.5 fs）
-   - ＋ その他 › soapff の緩和（初速度 → 緩和 NVT 10 ps）
-   - ＋ その他 › トラジェクトリ（1 ps ごと）
-   - ＋ fix › NVT、`run 100000`（50 ps）、`unfix`
-   - ＋ fix › NPT（箱の傾きも含めて全部：結晶）または NPT（面に垂直な方向だけ：montmorillonite_2W）、`run 100000`（50 ps）、`unfix`
-   - ＋ その他 › 最後の構造を書き出す
-3. 「計算を開始」（このコンピュータ、4 並列（240 原子以下は 2 並列）、4–35 分）。終わると自動で解析（`run/analysis/`）
+1. Choose `<name>.extxyz` with "New calculation" (the bundled library; this creates the force field and an `in.lammps` that goes up to the minimization).
+2. Add the following from the lists (temperature 300 K, pressure 1 atm, time step 0.5 fs).
+   - + other > soapff relaxation (initial velocities, then relaxation NVT 10 ps)
+   - + other > trajectory (every 1 ps)
+   - + fix > NVT, `run 100000` (50 ps), `unfix`
+   - + fix > NPT (everything including box tilt: crystals) or NPT (only the direction perpendicular to the plane: montmorillonite_2W), `run 100000` (50 ps), `unfix`
+   - + other > write the last structure
+3. Press "Start calculation" (on this computer, 4 MPI processes (2 for 240 atoms or fewer), 4-35 minutes). When it finishes, the analysis runs automatically (`run/analysis/`).
 
-`run/` には、入力（`in.lammps`、`system.data`、`system.settings`、`charges.csv`、`report.json`）、出力（`log.lammps`、`final.data`）、解析（`analysis/`）があります。軌道（`traj.lammpstrj`）は大きいので入れていません。
+`run/` contains the inputs (`in.lammps`, `system.data`, `system.settings`, `charges.csv`, `report.json`), the outputs (`log.lammps`, `final.data`), and the analysis (`analysis/`). The trajectory (`traj.lammpstrj`) is large and is not included.
 
-## 結果
+## Results
 
-`python summarize.py` で `summary.csv` と下の表が出ます。温度・圧力・体積・密度は各 50 ps の後半の平均、体積の変化は NPT の後半の平均の、入力の箱に対する変化、PE の変化は NPT の後半の前と後ろの 12.5 ps の平均の差です。
+`python summarize.py` produces `summary.csv` and the table below. Temperature, pressure, volume, and density are averages over the second half of each 50 ps run. The volume change is the change of the NPT second-half average relative to the input box. The PE change is the difference between the averages of the first and last 12.5 ps of the NPT second half.
 
-| 鉱物 | 原子数 | fallback | 型の食い違い | T NVT (K) | T NPT (K) | P NPT (atm) | 体積の変化 (%) | 密度 (g/cm³) | PE の変化 (kcal/mol/原子) |
+| Mineral | Atoms | fallback | Type mismatches | T NVT (K) | T NPT (K) | P NPT (atm) | Volume change (%) | Density (g/cm³) | PE change (kcal/mol/atom) |
 |---|---|---|---|---|---|---|---|---|---|
 | brucite | 240 | 0 | 0 | 299.8 | 304.1 | 84 | +9.17 | 2.177 | +0.0051 |
 | kaolinite | 408 | 0 | 0 | 300.9 | 299.1 | 263 | +0.67 | 2.591 | -0.0197 |
@@ -51,9 +51,9 @@
 | quartz | 162 | 0 | 0 | 299.6 | 298.2 | 1381 | +4.74 | 2.530 | -0.0133 |
 | talc | 378 | 0 | 0 | 299.5 | 303.8 | 91 | +2.85 | 2.699 | -0.0039 |
 
-- すべての鉱物で、全原子が SOAP で決まり（fallback 0）、SOAP の型と結合のつながりの型の食い違いは 0 でした。
-- どの鉱物も、温度は 300 K の ±5 K に収まり、NPT の後半でポテンシャルエネルギーはほぼ一定でした（0.03 kcal/mol/原子 以内）。
-- NPT の体積の変化は、入力の構造（実験の格子や DFT の構造）と ClayFF の平衡の格子の違いです。ブルーサイト（+9 %）、白雲母 1M（−7 %）は大きく変わります（論文の 300 K の MD と同じ傾向）。
-- montmorillonite_2W は、入力の構造の層間が狭く水が粘土に重なっているため、NPT で層間が広がり体積が 20 % 増えます。montmorillonite_2W と montmorillonite_dry_Na は x、y の箱を固定（面に垂直な方向だけの NPT）しているので、圧力は 1 atm になりません（乾いたものは 0 K で緩和した箱のまま）。
-- アルバイトは ClayFF の対象外なので、ライブラリと例から外しました。
-- 圧力の平均（P NPT）は、50 ps では ±1500 atm ほどゆらぎます（小さい結晶ほど大きい）。
+- For every mineral, all atoms were assigned by SOAP (fallback 0), and there were 0 mismatches between the SOAP types and the types from the bonding connectivity.
+- For every mineral, the temperature stayed within 300 K +/- 5 K, and the potential energy was almost constant in the second half of the NPT run (within 0.03 kcal/mol/atom).
+- The NPT volume change is the difference between the input structure (experimental lattice or DFT structure) and the ClayFF equilibrium lattice. Brucite (+9 %) and muscovite 1M (-7 %) change a lot (the same trend as the 300 K MD in the paper).
+- In montmorillonite_2W, the interlayer of the input structure is narrow and water overlaps the clay, so the interlayer expands during NPT and the volume increases by 20 %. montmorillonite_2W and montmorillonite_dry_Na keep the x and y box lengths fixed (NPT only in the direction perpendicular to the plane), so the pressure does not reach 1 atm (the dry one stays at the box relaxed at 0 K).
+- Albite is outside the scope of ClayFF, so it was removed from the library and the examples.
+- The average pressure (P NPT) fluctuates by about +/- 1500 atm over 50 ps (more for smaller crystals).

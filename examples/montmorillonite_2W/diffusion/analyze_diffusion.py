@@ -46,17 +46,17 @@ if len(sys.argv) > 1:
     import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
     plt.rcParams["font.family"] = "Hiragino Sans"
     fig, ax = plt.subplots(1, 3, figsize=(13, 3.8)); col = {300: "C0", 330: "C1", 366: "C3"}
-    for k, (g, lab) in enumerate((("Ow", "水の O"), ("Na", "Na$^+$"))):
+    for k, (g, lab) in enumerate((("Ow", "water O"), ("Na", "Na$^+$"))):
         for T in temps:
             ms = []
             for s in (1, 2, 3, 4):
                 d = np.loadtxt(f"{HERE}/T{T}/seg{s}/msd_{g}.dat", comments="#"); t = d[:, 0] * DT_FS / 1000; ms.append(d[:, 1] + d[:, 2])
             ms = np.mean(ms, 0); ax[k].plot(t, ms, color=col[T], label=f"{T} K")
             m = (t >= FIT[0]) & (t <= FIT[1]); p = np.polyfit(t[m], ms[m], 1); ax[k].plot(t[m], np.polyval(p, t[m]), "k:", lw=0.8)
-        ax[k].set_xlabel("時間 (ps)"); ax[k].set_ylabel("面内の MSD (Å$^2$)"); ax[k].set_title(f"({'ab'[k]}) {lab}"); ax[k].legend(fontsize=8)
+        ax[k].set_xlabel("time (ps)"); ax[k].set_ylabel("in-plane MSD (Å$^2$)"); ax[k].set_title(f"({'ab'[k]}) {lab}"); ax[k].legend(fontsize=8)
     Tk = np.array(temps)
-    for g, mk, lab, c in (("Ow", "o", "水", "C0"), ("Na", "s", "Na$^+$", "C2")):
-        ax[2].errorbar(1000 / Tk, [res[g][T]["mean"] for T in temps], yerr=[res[g][T]["sem"] for T in temps], fmt=mk + "-", color=c, label=f"{lab}（本稿）", capsize=3)
-        ax[2].plot(1000 / Tk, [G[g][T] for T in temps], mk + "--", mfc="none", color="gray", label=f"{lab}（Greathouse ら）")
-    ax[2].set_yscale("log"); ax[2].set_xlabel("1000 / T (K$^{-1}$)"); ax[2].set_ylabel("$D_{xy}$ (10$^{-10}$ m$^2$/s)"); ax[2].set_title("(c) 面内の拡散係数"); ax[2].legend(fontsize=7)
+    for g, mk, lab, c in (("Ow", "o", "water", "C0"), ("Na", "s", "Na$^+$", "C2")):
+        ax[2].errorbar(1000 / Tk, [res[g][T]["mean"] for T in temps], yerr=[res[g][T]["sem"] for T in temps], fmt=mk + "-", color=c, label=f"{lab} (this work)", capsize=3)
+        ax[2].plot(1000 / Tk, [G[g][T] for T in temps], mk + "--", mfc="none", color="gray", label=f"{lab} (Greathouse et al.)")
+    ax[2].set_yscale("log"); ax[2].set_xlabel("1000 / T (K$^{-1}$)"); ax[2].set_ylabel("$D_{xy}$ (10$^{-10}$ m$^2$/s)"); ax[2].set_title("(c) in-plane diffusion coefficient"); ax[2].legend(fontsize=7)
     plt.tight_layout(); plt.savefig(sys.argv[1], dpi=200)

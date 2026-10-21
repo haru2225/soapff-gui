@@ -1,15 +1,6 @@
-解析：MD 0–100.0 ps、最初の 20.0 ps を平衡化として除外（時間刻み 0.5 fs）。SOVA と XRD の軌道：traj.lammpstrj
-拡散係数：msd_*.dat がありません。カタログの「拡散係数の MSD」（soapff）を run の前に入れてください
-compute の結果：in.lammps に file 付きの fix ave/time・ave/chunk・ave/correlate・ave/histo がありません
-XRD（debyer、λ = 1.5406 Å、2θ = 3–80°、最後の 3 フレームの平均、セルを 4×3×4 並べた結晶子（62×54×59 Å、19584 原子））：xrd.csv。強いピーク（最も強いピーク = 100）
-  2θ =   5.27°   d = 16.755 Å   相対強度 100.0
-  2θ =   6.75°   d = 13.085 Å   相対強度  39.5
-  2θ =  12.19°   d =  7.255 Å   相対強度  39.5
-  2θ =  19.93°   d =  4.451 Å   相対強度  42.9
-  2θ =  22.09°   d =  4.021 Å   相対強度  29.1
-  2θ =  24.81°   d =  3.586 Å   相対強度  44.4
-  2θ =  36.67°   d =  2.449 Å   相対強度  43.5
-  2θ =  62.35°   d =  1.488 Å   相対強度  28.9
-  d > 20.8 Å の極大は結晶子の大きさによる振動（ブラッグ反射ではない）：3.75°
-  結晶子が小さいほどピークは広がり、低角のピーク（001 など）は低角側へずれる。--xrd-size（GUI では結晶子の大きさ）で大きくできる（計算時間は原子数の 2 乗）
-物性（in.lammps の soapff-property の計算）：in.lammps に物性の計算がありません（＋ 物性 で追加）
+Analysis: MD 0-100.0 ps, first 20.0 ps excluded as equilibration (time step 0.5 fs). Trajectory for SOVA and XRD: traj.lammpstrj
+Diffusion coefficients: no msd_*.dat files. Add the catalog item 'MSD for diffusion' (soapff) before run
+PDF g(r) and RDF N(r) = 4πr²ρg(r) (SOVA 0.8.3, r ≤ 7.1 Å, 40 frames): sova_pdf.csv, sova_rdf.csv
+  10 more element pairs over all atoms (all:)
+X-ray structure factor S(Q) (SOVA, all atoms, g(r) used up to 7.1 Å, Q ≤ 12 Å⁻¹): sova_sq.csv
+  Q < 2π/7.1 Å = 0.89 Å⁻¹ is not determined because g(r) is truncated. In layered and interface systems g(r) does not approach 1, so do not use the low-Q values

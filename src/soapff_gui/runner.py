@@ -73,7 +73,7 @@ def analyze(out_dir, log=print, skip_ps=None, sova_opts=None, what=None, debyer=
 
 
 def analyzable(out_dir):
-    """the outputs that 解析 can use in out_dir: dumps (*.lammpstrj) and MSD files -> list of short descriptions (empty:
+    """the outputs that the analysis can use in out_dir: dumps (*.lammpstrj) and MSD files -> list of short descriptions (empty:
     nothing to analyse yet)."""
     from soapff_cui import analysis
     if not out_dir or not os.path.isdir(out_dir):

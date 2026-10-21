@@ -1,11 +1,11 @@
-解析：MD 0–920.0 ps、最初の 184.0 ps を平衡化として除外（時間刻み 0.5 fs）
-拡散係数（10⁻⁹ m²/s、LAMMPS compute msd の傾き、アインシュタインの式、有限サイズ補正なし）
-  s1_Na    D = 0.232（面内 xy 0.347、垂直 z 0.003）  184.0–320.0 ps で直線近似
-  s1_Ow    D = 0.683（面内 xy 1.024、垂直 z 0.000）  184.0–320.0 ps で直線近似
-  s2_Na    D = 0.406（面内 xy 0.610、垂直 z -0.001）  320.0–520.0 ps で直線近似
-  s2_Ow    D = 0.995（面内 xy 1.465、垂直 z 0.054）  320.0–520.0 ps で直線近似
-  s3_Na    D = 0.325（面内 xy 0.487、垂直 z 0.001）  520.0–720.0 ps で直線近似
-  s3_Ow    D = 1.040（面内 xy 1.537、垂直 z 0.047）  520.0–720.0 ps で直線近似
-  s4_Na    D = 0.606（面内 xy 0.909、垂直 z 0.001）  720.0–920.0 ps で直線近似
-  s4_Ow    D = 1.017（面内 xy 1.502、垂直 z 0.046）  720.0–920.0 ps で直線近似
-  層間や表面の近くでは z 方向の動きが制限されるので、拡散係数は面内 xy の値を使う
+Analysis: MD 0-920.0 ps, first 184.0 ps excluded as equilibration (time step 0.5 fs)
+Diffusion coefficients (10⁻⁹ m²/s, slope of LAMMPS compute msd, Einstein relation, no finite-size correction)
+  s1_Na    D = 0.232 (in-plane xy 0.347, normal z 0.003)  linear fit over 184.0-320.0 ps
+  s1_Ow    D = 0.683 (in-plane xy 1.024, normal z 0.000)  linear fit over 184.0-320.0 ps
+  s2_Na    D = 0.406 (in-plane xy 0.610, normal z -0.001)  linear fit over 320.0-520.0 ps
+  s2_Ow    D = 0.995 (in-plane xy 1.465, normal z 0.054)  linear fit over 320.0-520.0 ps
+  s3_Na    D = 0.325 (in-plane xy 0.487, normal z 0.001)  linear fit over 520.0-720.0 ps
+  s3_Ow    D = 1.040 (in-plane xy 1.537, normal z 0.047)  linear fit over 520.0-720.0 ps
+  s4_Na    D = 0.606 (in-plane xy 0.909, normal z 0.001)  linear fit over 720.0-920.0 ps
+  s4_Ow    D = 1.017 (in-plane xy 1.502, normal z 0.046)  linear fit over 720.0-920.0 ps
+  Motion along z is restricted in interlayers and near surfaces, so use the in-plane xy value of the diffusion coefficient

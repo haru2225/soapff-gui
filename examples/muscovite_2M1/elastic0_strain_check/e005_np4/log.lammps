@@ -195,9 +195,9 @@ Changing box ...
   triclinic box = (0 0 0) to (20.706 17.9744 19.970797) with tilt (0 -2.0130661 0)
 kspace_style pppm 1.0e-5
 
-# ここから下に MD（fix、compute、run など）を追加します（＋ fix / ＋ compute / ＋ その他）
+# Add the MD (fix, compute, run, etc.) below this line (+ fix / + compute / + Other)
 
-# ===== soapff：物性の計算（弾性定数 0 K、引張・圧縮、せん断）=====
+# ===== soapff: property calculation (0 K elastic constants, tension / compression, shear) =====
 # (change_box all triclinic is needed for the tilt factors: it is placed before any dump)
 
 # soapff-property: elastic0 strain=0.001 file=elastic0.dat
@@ -1473,7 +1473,7 @@ Changing box ...
   triclinic box = (0.049755951 0.03075628 0.15822316) to (20.656244 17.943644 19.812574) with tilt (0.016746526 -2.1160913 0.018054485)
 kspace_style pppm 1.0e-5
 
-# ===== soapff：物性の計算（弾性定数 0 K）=====
+# ===== soapff: property calculation (0 K elastic constants) =====
 # (change_box all triclinic is needed for the tilt factors: it is placed before any dump)
 
 # soapff-property: elastic0 strain=0.005 file=elastic0.dat

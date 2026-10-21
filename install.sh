@@ -80,7 +80,7 @@ else
   echo "         conda install -c conda-forge lammps openmpi   |   brew install lammps open-mpi   |   sudo apt install lammps openmpi-bin"
 fi
 
-# --- OVITO (the application, for 'OVITO で開く'): macOS Homebrew cask; elsewhere conda.ovito.org into ~/.soapff-gui/ovito ---
+# --- OVITO (the application, for 'Open in OVITO'): macOS Homebrew cask; elsewhere conda.ovito.org into ~/.soapff-gui/ovito ---
 if [ -d /Applications/Ovito.app ] || [ -d "$HOME/Applications/Ovito.app" ] || command -v ovito >/dev/null 2>&1 || [ -x "$SH/ovito/bin/ovito" ]; then
   echo "OVITO found"
 elif [ "${SOAPFF_NO_OVITO:-}" = "1" ]; then

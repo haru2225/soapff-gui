@@ -309,10 +309,10 @@ def _data_volume(out_dir):
 
 
 def ionic_lines(ionic):
-    L = [f"イオン伝導度（ネルンスト–アインシュタイン：σ = e²/(V k_B T) Σ N z² D、イオン間の相関は含まない；T = {ionic['T']:.1f} K、"
-         f"V = {ionic['V']:.0f} Å³）：全体 {ionic['sigma_total']:.4g} S/m（面内 xy {ionic['sigma_xy']:.4g}、垂直 z {ionic['sigma_z']:.4g}）"]
+    L = [f"Ionic conductivity (Nernst-Einstein: σ = e²/(V k_B T) Σ N z² D, ion-ion correlations not included; T = {ionic['T']:.1f} K, "
+         f"V = {ionic['V']:.0f} Å³): total {ionic['sigma_total']:.4g} S/m (in-plane xy {ionic['sigma_xy']:.4g}, normal z {ionic['sigma_z']:.4g})"]
     for el, d in ionic["ions"].items():
-        L.append(f"  {el}（{d['N']} 個、電荷 {d['q']:+.3f} e）：{d['sigma_total']:.4g} S/m（xy {d['sigma_xy']:.4g}）")
+        L.append(f"  {el} ({d['N']} ions, charge {d['q']:+.3f} e): {d['sigma_total']:.4g} S/m (xy {d['sigma_xy']:.4g})")
     return L
 
 # --------------------------------------------------------------------------------------------- compute (fix ave/*)
@@ -594,13 +594,13 @@ def analyze(out_dir, skip_ps=None, sova_opts=None, log=print, what=WHAT, debyer=
             log(f"WARNING {e}")
     if "msd" in what or "sova" in what:
         plot(dest, dcurves, dres, sova="sova" in what and "error" not in summary["sova"])
-        summary["figures"].append(["MSD・PDF・RDF", "analysis.png"])
+        summary["figures"].append(["MSD, PDF, RDF", "analysis.png"])
         if "sova" in what and summary["sova"].get("sq_xray"):
             plot_sq(dest, summary["sova"].get("sq_rmax"), summary["sova"].get("radiation") == "neutron")
             summary["figures"].append(["S(Q)", "sova_sq.png"])
     if "compute" in what:
         summary["computes"] = computes(out_dir, dest, skip_ps, dt_fs)
-        summary["figures"] += [[f"compute：{c['file']}", c["png"]] for c in summary["computes"] if c.get("png")]
+        summary["figures"] += [[f"compute: {c['file']}", c["png"]] for c in summary["computes"] if c.get("png")]
     if "xrd" in what:
         try:
             if not has_traj:
@@ -614,7 +614,7 @@ def analyze(out_dir, skip_ps=None, sova_opts=None, log=print, what=WHAT, debyer=
     if "swelling" in what:
         try:
             summary["swelling"] = swelling(out_dir, dest)
-            summary["figures"].append(["膨潤曲線", "swelling.png"])
+            summary["figures"].append(["Swelling curve", "swelling.png"])
         except FileNotFoundError:
             summary["swelling"] = dict(error="no swelling.dat in this folder")
         except Exception as e:
@@ -629,89 +629,89 @@ def analyze(out_dir, skip_ps=None, sova_opts=None, log=print, what=WHAT, debyer=
 
 def summary_text(s):
     what = s.get("what", ("msd", "sova"))
-    L = [f"解析：MD 0–{s['t_end_ps']:.1f} ps、最初の {s['skip_ps']:.1f} ps を平衡化として除外"
-         + (f"（時間刻み {s['timestep_fs']} fs）" if "timestep_fs" in s else "")
-         + (f"。SOVA と XRD の軌道：{s['traj']}" if s.get("traj") and ("sova" in s.get("what", ()) or "xrd" in s.get("what", ())) else "")]
+    L = [f"Analysis: MD 0-{s['t_end_ps']:.1f} ps, first {s['skip_ps']:.1f} ps excluded as equilibration"
+         + (f" (time step {s['timestep_fs']} fs)" if "timestep_fs" in s else "")
+         + (f". Trajectory for SOVA and XRD: {s['traj']}" if s.get("traj") and ("sova" in s.get("what", ()) or "xrd" in s.get("what", ())) else "")]
     if "msd" in what:
         if s.get("diffusion_1e-9_m2_s"):
-            L.append("拡散係数（10⁻⁹ m²/s、LAMMPS compute msd の傾き、アインシュタインの式、有限サイズ補正なし）")
+            L.append("Diffusion coefficients (10⁻⁹ m²/s, slope of LAMMPS compute msd, Einstein relation, no finite-size correction)")
             for g, d in s["diffusion_1e-9_m2_s"].items():
-                L.append(f"  {('水（O）' if g == 'Ow' else g):8s} D = {d['D_total']:.3f}（面内 xy {d['D_xy']:.3f}、垂直 z {d['D_z']:.3f}）  "
-                         f"{d['fit_from_ps']:.1f}–{d['fit_to_ps']:.1f} ps で直線近似")
+                L.append(f"  {('water (O)' if g == 'Ow' else g):8s} D = {d['D_total']:.3f} (in-plane xy {d['D_xy']:.3f}, normal z {d['D_z']:.3f})  "
+                         f"linear fit over {d['fit_from_ps']:.1f}-{d['fit_to_ps']:.1f} ps")
             if min(d["fit_to_ps"] - d["fit_from_ps"] for d in s["diffusion_1e-9_m2_s"].values()) < 5.0:
-                L.append("  ⚠ 直線近似の範囲が 5 ps に満たないので、拡散係数は信頼できません。MD を長く（目安 50 ps 以上）してください")
+                L.append("  ⚠ The fit range is shorter than 5 ps, so the diffusion coefficients are not reliable. Run a longer MD (50 ps or more)")
             if s.get("has_mineral"):
-                L.append("  層間や表面の近くでは z 方向の動きが制限されるので、拡散係数は面内 xy の値を使う")
+                L.append("  Motion along z is restricted in interlayers and near surfaces, so use the in-plane xy value of the diffusion coefficient")
             if s.get("ionic_conductivity"):
                 L += ionic_lines(s["ionic_conductivity"])
         elif s.get("diffusion_note"):
-            L.append("拡散係数：msd_*.dat がありません。カタログの「拡散係数の MSD」（soapff）を run の前に入れてください")
+            L.append("Diffusion coefficients: no msd_*.dat files. Add the catalog item 'MSD for the diffusion coefficient' (soapff) before run")
     if "sova" in what:
         st = s.get("sova", {})
         if st.get("pairs"):
-            L.append(f"PDF g(r) と RDF N(r) = 4πr²ρg(r)（SOVA {st.get('sovapy_version', '')}、r ≤ {st['rmax']:.1f} Å、"
-                     f"{st['frames']} フレーム）：sova_pdf.csv、sova_rdf.csv")
+            L.append(f"PDF g(r) and RDF N(r) = 4πr²ρg(r) (SOVA {st.get('sovapy_version', '')}, r ≤ {st['rmax']:.1f} Å, "
+                     f"{st['frames']} frames): sova_pdf.csv, sova_rdf.csv")
             for p, d in st.get("first_peaks", {}).items():
                 cn = st.get("coordination", {}).get(p)
-                L.append(f"  {p.replace('Ow', '水O').replace('O_min', '鉱物O'):12s} 第 1 ピーク {d['r_peak']:.2f} Å（g = {d['g_peak']:.2f}）"
-                         + (f"、配位数 {cn['cn']:.2f}（{cn['r_min']:.2f} Å の極小まで）" if cn else ""))
+                L.append(f"  {p.replace('Ow', 'water O').replace('O_min', 'mineral O'):12s} 1st peak {d['r_peak']:.2f} Å (g = {d['g_peak']:.2f})"
+                         + (f", coordination number {cn['cn']:.2f} (up to the minimum at {cn['r_min']:.2f} Å)" if cn else ""))
             n_all = sum(1 for p in st["pairs"] if p.startswith("all:"))
             if n_all:
-                L.append(f"  ほかに全原子の元素の組 {n_all} 通り（all:）")
+                L.append(f"  {n_all} more element pairs over all atoms (all:)")
             if st.get("sq_xray"):
-                L.append(f"{'中性子' if st.get('radiation') == 'neutron' else 'X 線'}の構造因子 S(Q)（SOVA、全原子、g(r) を {st.get('sq_rmax', 0):.1f} Å まで使用、"
-                         f"Q ≤ {st.get('sq_qmax', 0):.0f} Å⁻¹）：sova_sq.csv")
+                L.append(f"{'Neutron' if st.get('radiation') == 'neutron' else 'X-ray'} structure factor S(Q) (SOVA, all atoms, g(r) used up to {st.get('sq_rmax', 0):.1f} Å, "
+                         f"Q ≤ {st.get('sq_qmax', 0):.0f} Å⁻¹): sova_sq.csv")
                 if st.get("sq_rmax"):
-                    L.append(f"  Q < 2π/{st['sq_rmax']:.1f} Å = {2 * np.pi / st['sq_rmax']:.2f} Å⁻¹ は g(r) の打ち切りで決まらない"
-                             + ("。層状・界面の系では g(r) が 1 に近づかないので、低 Q の値は使わない" if s.get("has_mineral") else ""))
+                    L.append(f"  Q < 2π/{st['sq_rmax']:.1f} Å = {2 * np.pi / st['sq_rmax']:.2f} Å⁻¹ is not determined because g(r) is truncated"
+                             + (". In layered and interface systems g(r) does not approach 1, so do not use the low-Q values" if s.get("has_mineral") else ""))
         elif st.get("error"):
-            L.append("PDF と RDF（SOVA）：実行できませんでした。" + st["error"].splitlines()[0])
+            L.append("PDF and RDF (SOVA): could not run. " + st["error"].splitlines()[0])
     if "swelling" in what and s.get("swelling", {}).get("states"):
         sw = s["swelling"]
-        L.append(f"膨潤曲線（d001 = lz、各状態の NPT の後半 {sw['avg_ps']:.1f} ps の平均と標準偏差；粘土 {sw['clay_mass_amu']:.0f} g/mol）：swelling.csv")
+        L.append(f"Swelling curve (d001 = lz, mean and standard deviation over the last {sw['avg_ps']:.1f} ps of NPT in each state; clay {sw['clay_mass_amu']:.0f} g/mol): swelling.csv")
         for r in sw["states"]:
             if r["direction"] == "up" and (r["waters"] <= 3 or r["waters"] % 10 == 0
                                            or r["waters"] == max(u["waters"] for u in sw["states"])):
-                L.append(f"  水 {r['waters']:3d} 個（{r['water_g_per_g']:.3f} g/g）：d001 = {r['d001']:.2f} ± {r['d001_sd']:.2f} Å")
+                L.append(f"  {r['waters']:3d} waters ({r['water_g_per_g']:.3f} g/g): d001 = {r['d001']:.2f} ± {r['d001_sd']:.2f} Å")
         if any(r["direction"] == "down" for r in sw["states"]):
             dd = [abs(r["d001"] - u["d001"]) for r in sw["states"] if r["direction"] == "down"
                   for u in sw["states"] if u["direction"] == "up" and u["waters"] == r["waters"]]
             if dd:
-                L.append(f"  脱水（水を減らす向き）と膨潤の差：平均 {np.mean(dd):.2f} Å、最大 {np.max(dd):.2f} Å（同じ水の量の {len(dd)} 状態）")
+                L.append(f"  Difference between dehydration (removing water) and swelling: mean {np.mean(dd):.2f} Å, max {np.max(dd):.2f} Å ({len(dd)} states with the same water content)")
     elif "swelling" in what and s.get("swelling", {}).get("error") and "no swelling.dat" not in s["swelling"]["error"]:
-        L.append("膨潤曲線：解析できませんでした。" + s["swelling"]["error"])
+        L.append("Swelling curve: analysis failed. " + s["swelling"]["error"])
     if "compute" in what:
         cs = s.get("computes") or []
         if not cs:
-            L.append("compute の結果：in.lammps に file 付きの fix ave/time・ave/chunk・ave/correlate・ave/histo がありません")
+            L.append("compute results: in.lammps has no fix ave/time, ave/chunk, ave/correlate or ave/histo with a file")
         else:
-            L.append(f"compute の結果（in.lammps の fix ave/* が書いたファイル {len(cs)} 個）")
+            L.append(f"compute results ({len(cs)} files written by the fix ave/* commands of in.lammps)")
         for c in cs:
-            head = f"  {c['file']}（fix {c['fix']} {c['style']}）"
+            head = f"  {c['file']} (fix {c['fix']} {c['style']})"
             if c.get("error"):
-                L.append(head + f"：読めませんでした（{c['error']}）")
+                L.append(head + f": could not read ({c['error']})")
             elif "means" in c:
-                L.append(head + (f"：{c['mean_over_ps'][0]:.1f}–{c['mean_over_ps'][1]:.1f} ps の平均 " if c.get("mean_over_ps") else "：")
-                         + "、".join(f"{k} = {v:.5g}" for k, v in c["means"].items()))
+                L.append(head + (f": mean over {c['mean_over_ps'][0]:.1f}-{c['mean_over_ps'][1]:.1f} ps " if c.get("mean_over_ps") else ": ")
+                         + ", ".join(f"{k} = {v:.5g}" for k, v in c["means"].items()))
             else:
-                L.append(head + f"：{c['blocks_total']} 回の出力のうち {c['blocks_averaged']} 回を平均（compute_*_average.csv）")
+                L.append(head + f": averaged {c['blocks_averaged']} of {c['blocks_total']} outputs (compute_*_average.csv)")
     if "xrd" in what:
         x = s.get("xrd", {})
         if x.get("peaks") is not None:
-            L.append(f"XRD（debyer、λ = {x['wavelength_A']} Å、2θ = {x['two_theta'][0]:g}–{x['two_theta'][1]:g}°、"
-                     f"最後の {x['frames']} フレームの平均、"
-                     + ("周期境界（カットオフ = 箱の半分、sinc 減衰）" if x["periodic"] else
-                        "セルを {}×{}×{} 並べた結晶子（{:.0f}×{:.0f}×{:.0f} Å、{} 原子）".format(*x["repeat"], *x["size_A"], x["atoms"]))
-                     + "）：xrd.csv。強いピーク（最も強いピーク = 100）")
+            L.append(f"XRD (debyer, λ = {x['wavelength_A']} Å, 2θ = {x['two_theta'][0]:g}-{x['two_theta'][1]:g}°, "
+                     f"mean over the last {x['frames']} frames, "
+                     + ("periodic boundaries (cutoff = half the box, sinc damping)" if x["periodic"] else
+                        "crystallite of {}×{}×{} cells ({:.0f}×{:.0f}×{:.0f} Å, {} atoms)".format(*x["repeat"], *x["size_A"], x["atoms"]))
+                     + "): xrd.csv. Strong peaks (strongest peak = 100)")
             for pk in x["peaks"]:
-                L.append(f"  2θ = {pk['two_theta']:6.2f}°   d = {pk['d_A']:6.3f} Å   相対強度 {pk['relative']:5.1f}")
+                L.append(f"  2θ = {pk['two_theta']:6.2f}°   d = {pk['d_A']:6.3f} Å   relative intensity {pk['relative']:5.1f}")
             if x.get("size_oscillations"):
-                L.append(f"  d > {x['d_limit_A']:.1f} Å の極大は" + ("結晶子の大きさ" if not x["periodic"] else "カットオフ")
-                         + "による振動（ブラッグ反射ではない）：" + "、".join(f"{p['two_theta']:.2f}°" for p in x["size_oscillations"]))
+                L.append(f"  Maxima at d > {x['d_limit_A']:.1f} Å are oscillations due to the " + ("crystallite size" if not x["periodic"] else "cutoff")
+                         + " (not Bragg reflections): " + ", ".join(f"{p['two_theta']:.2f}°" for p in x["size_oscillations"]))
             if not x["periodic"]:
-                L.append("  結晶子が小さいほどピークは広がり、低角のピーク（001 など）は低角側へずれる。--xrd-size（GUI では結晶子の大きさ）で大きくできる（計算時間は原子数の 2 乗）")
+                L.append("  The smaller the crystallite, the broader the peaks, and low-angle peaks (001 etc.) shift to lower angles. Enlarge it with --xrd-size (crystallite size in the GUI); the cost grows with the square of the atom count")
         elif x.get("error"):
-            L.append("XRD（debyer）：実行できませんでした。" + x["error"].splitlines()[0])
+            L.append("XRD (debyer): could not run. " + x["error"].splitlines()[0])
     return "\n".join(L) + "\n"
 
 

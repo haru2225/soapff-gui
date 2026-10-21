@@ -3,42 +3,42 @@ arguments (the form under the editor), the basic part up to the minimisation, un
 
 # command -> labels of its first arguments; the remaining arguments get generic labels
 SCHEMA = {
-    "units": ["単位系"],
-    "atom_style": ["原子のスタイル"],
+    "units": ["Units"],
+    "atom_style": ["Atom style"],
     "boundary": ["x", "y", "z"],
-    "read_data": ["データファイル"],
-    "include": ["ファイル"],
-    "timestep": ["時間刻み (fs)"],
-    "thermo": ["出力間隔 (ステップ)"],
-    "thermo_style": ["スタイル"],
-    "neighbor": ["スキン (Å)", "方式"],
-    "neigh_modify": ["キーワード"],
-    "minimize": ["エネルギーの許容値", "力の許容値", "最大反復", "最大評価回数"],
-    "min_style": ["方式"],
-    "min_modify": ["キーワード", "値"],
-    "run": ["ステップ数"],
-    "reset_timestep": ["ステップ"],
-    "velocity": ["対象グループ", "方法", "温度 (K)", "乱数の種"],
-    "group": ["グループ名", "方法"],
+    "read_data": ["Data file"],
+    "include": ["File"],
+    "timestep": ["Time step (fs)"],
+    "thermo": ["Output interval (steps)"],
+    "thermo_style": ["Style"],
+    "neighbor": ["Skin (Å)", "Method"],
+    "neigh_modify": ["Keyword"],
+    "minimize": ["Energy tolerance", "Force tolerance", "Max iterations", "Max evaluations"],
+    "min_style": ["Method"],
+    "min_modify": ["Keyword", "Value"],
+    "run": ["Steps"],
+    "reset_timestep": ["Step"],
+    "velocity": ["Group", "Method", "Temperature (K)", "Random seed"],
+    "group": ["Group name", "Method"],
     "unfix": ["ID"],
     "undump": ["ID"],
-    "dump": ["ID", "対象グループ", "スタイル", "間隔 (ステップ)", "ファイル"],
+    "dump": ["ID", "Group", "Style", "Interval (steps)", "File"],
     "dump_modify": ["ID"],
-    "compute": ["ID", "対象グループ", "スタイル"],
-    "write_data": ["ファイル"],
-    "write_restart": ["ファイル"],
-    "change_box": ["対象グループ"],
+    "compute": ["ID", "Group", "Style"],
+    "write_data": ["File"],
+    "write_restart": ["File"],
+    "change_box": ["Group"],
 }
 FIX_STYLE = {
     # None: a fixed keyword (kept, not shown as a field)
-    "nvt": ["ID", "対象グループ", "スタイル", None, "開始温度 (K)", "終了温度 (K)", "減衰 (fs)"],
-    "npt": ["ID", "対象グループ", "スタイル", None, "開始温度 (K)", "終了温度 (K)", "減衰 (fs)", "方向", "開始圧力 (atm)",
-            "終了圧力 (atm)", "減衰 (fs)"],
-    "nve": ["ID", "対象グループ", "スタイル"],
-    "langevin": ["ID", "対象グループ", "スタイル", "開始温度 (K)", "終了温度 (K)", "減衰 (fs)", "乱数の種"],
-    "ave/time": ["ID", "対象グループ", "スタイル", "Nevery", "Nrepeat", "Nfreq", "値"],
-    "shake": ["ID", "対象グループ", "スタイル", "許容誤差", "反復", "出力間隔"],
-    "wall/reflect": ["ID", "対象グループ", "スタイル"],
+    "nvt": ["ID", "Group", "Style", None, "Start temperature (K)", "End temperature (K)", "Damping (fs)"],
+    "npt": ["ID", "Group", "Style", None, "Start temperature (K)", "End temperature (K)", "Damping (fs)", "Direction", "Start pressure (atm)",
+            "End pressure (atm)", "Damping (fs)"],
+    "nve": ["ID", "Group", "Style"],
+    "langevin": ["ID", "Group", "Style", "Start temperature (K)", "End temperature (K)", "Damping (fs)", "Random seed"],
+    "ave/time": ["ID", "Group", "Style", "Nevery", "Nrepeat", "Nfreq", "Value"],
+    "shake": ["ID", "Group", "Style", "Tolerance", "Iterations", "Output interval"],
+    "wall/reflect": ["ID", "Group", "Style"],
 }
 
 def split(line):
@@ -59,14 +59,14 @@ def labels(command, args):
     base = labels_for(command, args)
     if base is not None:
         n = max(len(args), len(base))
-        return [base[i] if i < len(base) else f"引数 {i + 1}" for i in range(n)]
+        return [base[i] if i < len(base) else f"Arg {i + 1}" for i in range(n)]
     if command == "fix":
         style = args[2] if len(args) > 2 else ""
-        base = FIX_STYLE.get(style, ["ID", "対象グループ", "スタイル"])
+        base = FIX_STYLE.get(style, ["ID", "Group", "Style"])
     else:
         base = SCHEMA.get(command, [])
     n = max(len(args), len(base))
-    return [base[i] if i < len(base) else f"引数 {i + 1}" for i in range(n)]
+    return [base[i] if i < len(base) else f"Arg {i + 1}" for i in range(n)]
 
 
 def run_steps(lines):
@@ -96,7 +96,7 @@ def timestep(lines, default=1.0):
 
 
 def describe_run(lines, index):
-    """a short Japanese description of what the run at line `index` is (from the fix that is active there)."""
+    """a short description of what the run at line `index` is (from the fix that is active there)."""
     fixes = {}
     for line in lines[:index]:
         c, a, _ = split(line)
@@ -105,7 +105,7 @@ def describe_run(lines, index):
         elif c == "unfix" and a:
             fixes.pop(a[0], None)
     kinds = sorted(set(fixes.values()))
-    return "・".join(k.upper() for k in kinds) if kinds else "MD"
+    return " + ".join(k.upper() for k in kinds) if kinds else "MD"
 
 
 class StepTracker:
@@ -119,20 +119,20 @@ class StepTracker:
         self.total = max(sum(self.runs), 1)
         self.k = -1                    # index of the current run (-1: before the first)
         self.start = None
-        self.phase = "準備中"
+        self.phase = "Preparing"
         self.columns = None
         self.values = {}
 
     def feed(self, line):
         s = line.strip()
         if s.startswith("Setting up cg style minimization") or s.startswith("Setting up") and "minimization" in s:
-            self.phase, self.columns, self.values = "最小化", None, {}
+            self.phase, self.columns, self.values = "Minimization", None, {}
             return True
         if s.startswith("Setting up Verlet run"):
             self.k += 1
             self.start = None
             what = describe_run(self.lines, self.run_lines[self.k]) if 0 <= self.k < len(self.run_lines) else "MD"
-            self.phase = f"{what}（{self.k + 1}/{len(self.runs)}）" if self.runs else "MD"
+            self.phase = f"{what} ({self.k + 1}/{len(self.runs)})" if self.runs else "MD"
             self.columns, self.values = None, {}
             return True
         if s.startswith("Loop time of"):
@@ -162,7 +162,7 @@ class StepTracker:
         return min(done / self.total, 1.0)
 
 
-TAIL = "# ここから下に MD（fix、compute、run など）を追加します（＋ fix / ＋ compute / ＋ その他）"
+TAIL = "# Add the MD (fix, compute, run, etc.) below this line (+ fix / + compute / + Other)"
 
 
 def after_minimize(lines):

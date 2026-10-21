@@ -13,79 +13,79 @@
   "pdf_rdf": "SOVA (sovapy) pair_dist_func, radial_dist_fun",
   "sq": "SOVA (sovapy) partial_structure_factor, structure_factor_xray",
   "compute": "LAMMPS fix ave/time, ave/chunk, ave/correlate, ave/histo output files",
-  "xrd": "Debyer (Debye scattering equation)"
+  "xrd": "Debyer (Debye scattering equation)",
+  "swelling": "LAMMPS fix npt; d001 = lz of the cell (swelling.dat of the soapff swelling block)"
  },
  "figures": [
   [
-   "MSD・PDF・RDF",
+   "MSD, PDF, RDF",
    "analysis.png"
   ]
  ],
  "diffusion_1e-9_m2_s": {
   "s1_Na": {
-   "D_total": 0.23215239509479954,
-   "D_xy": 0.3466673087690755,
-   "D_z": 0.003122479365011973,
+   "D_total": 0.23215239509479932,
+   "D_xy": 0.34666730876907503,
+   "D_z": 0.00312247936501197,
    "fit_from_ps": 184.0,
    "fit_to_ps": 320.0,
    "msd_at_end_A2": 35.5879
   },
   "s1_Ow": {
-   "D_total": 0.682944416373658,
-   "D_xy": 1.024264675501644,
-   "D_z": 0.00030380876293461645,
+   "D_total": 0.682944416373657,
+   "D_xy": 1.0242646755016425,
+   "D_z": 0.0003038087629345827,
    "fit_from_ps": 184.0,
    "fit_to_ps": 320.0,
    "msd_at_end_A2": 99.1954
   },
   "s2_Na": {
-   "D_total": 0.4062192114118022,
-   "D_xy": 0.6097659780787477,
-   "D_z": -0.0008742867192777273,
+   "D_total": 0.4062192114118015,
+   "D_xy": 0.6097659780787466,
+   "D_z": -0.0008742867192777215,
    "fit_from_ps": 320.0,
    "fit_to_ps": 520.0,
    "msd_at_end_A2": 61.3299
   },
   "s2_Ow": {
-   "D_total": 0.9946833547307533,
-   "D_xy": 1.4652271675998316,
-   "D_z": 0.05359597211350876,
+   "D_total": 0.9946833547307514,
+   "D_xy": 1.4652271675998292,
+   "D_z": 0.05359597211350868,
    "fit_from_ps": 320.0,
    "fit_to_ps": 520.0,
    "msd_at_end_A2": 124.755
   },
   "s3_Na": {
-   "D_total": 0.32498574474755676,
-   "D_xy": 0.48694807591316547,
-   "D_z": 0.0010610674847566332,
+   "D_total": 0.3249857447475563,
+   "D_xy": 0.4869480759131649,
+   "D_z": 0.0010610674847566228,
    "fit_from_ps": 520.0,
    "fit_to_ps": 720.0,
    "msd_at_end_A2": 41.9064
   },
   "s3_Ow": {
-   "D_total": 1.0402725701012396,
-   "D_xy": 1.5367496599419483,
-   "D_z": 0.0473181080365213,
+   "D_total": 1.0402725701012385,
+   "D_xy": 1.5367496599419472,
+   "D_z": 0.047318108036521214,
    "fit_from_ps": 520.0,
    "fit_to_ps": 720.0,
    "msd_at_end_A2": 125.416
   },
   "s4_Na": {
-   "D_total": 0.6064272604056866,
-   "D_xy": 0.9092935303253573,
-   "D_z": 0.0006947795094410932,
+   "D_total": 0.6064272604056862,
+   "D_xy": 0.9092935303253569,
+   "D_z": 0.0006947795094410878,
    "fit_from_ps": 720.0,
    "fit_to_ps": 920.0,
    "msd_at_end_A2": 64.6011
   },
   "s4_Ow": {
-   "D_total": 1.0169844932679022,
-   "D_xy": 1.5023721072277132,
-   "D_z": 0.04620881853179813,
+   "D_total": 1.016984493267901,
+   "D_xy": 1.5023721072277116,
+   "D_z": 0.04620881853179804,
    "fit_from_ps": 720.0,
    "fit_to_ps": 920.0,
    "msd_at_end_A2": 123.638
   }
- },
- "ionic_conductivity": null
+ }
 }

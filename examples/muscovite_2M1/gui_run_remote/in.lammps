@@ -13,9 +13,9 @@ minimize 1.0e-6 1.0e-6 5000 50000
 change_box all triclinic
 kspace_style pppm 1.0e-5
 
-# ここから下に MD（fix、compute、run など）を追加します（＋ fix / ＋ compute / ＋ その他）
+# Add the MD (fix, compute, run, etc.) below this line (+ fix / + compute / + Other)
 
-# ===== soapff：物性の計算（弾性定数 0 K、引張・圧縮、せん断）=====
+# ===== soapff: property calculation (0 K elastic constants, tension / compression, shear) =====
 # (change_box all triclinic is needed for the tilt factors: it is placed before any dump)
 
 # soapff-property: elastic0 strain=0.005 file=elastic0.dat

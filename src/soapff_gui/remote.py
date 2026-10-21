@@ -34,33 +34,33 @@ def _family(text):
 
 
 def mpi_warning(info, mpirun):
-    """a Japanese warning when lmp cannot run in parallel with that mpirun ('' when fine or unknown)."""
+    """an English warning when lmp cannot run in parallel with that mpirun ('' when fine or unknown)."""
     lm = info.get("lmp_mpi", "")
     if _family(lm) == "none":
-        return ("この lmp は MPI なしで作られています（lmp -h：「" + lm.strip() + "」）。mpirun で何並列にしても、"
-                "1 並列の LAMMPS が並列数の分だけ別々に動きます。並列数を 1 にするか、MPI 版の lmp を指定してください")
+        return ("This lmp was built without MPI (lmp -h: \"" + lm.strip() + "\"). However many processes mpirun starts, "
+                "that many independent serial LAMMPS runs are started instead of one parallel run. Set the number of processes to 1 or specify an MPI build of lmp")
     run = next((v for k, v in info.items() if k.startswith("mpirun_version[") and k[15:-1] == mpirun), "")
     a, b = _family(lm), _family(run)
     if a and b and a != b:
-        return (f"lmp は {lm.strip()} で作られていますが、mpirun（{mpirun}）は別の MPI（{run.strip()}）です。"
-                "このままだと 1 並列の LAMMPS が並列数の分だけ別々に動きます。lmp と同じ MPI の mpirun を指定してください")
+        return (f"lmp was built with {lm.strip()}, but mpirun ({mpirun}) belongs to a different MPI ({run.strip()}). "
+                "As it is, that many independent serial LAMMPS runs are started instead of one parallel run. Specify the mpirun of the same MPI as lmp")
     return ""
 
 
 def explain(stderr):
-    """a Japanese hint for the common ssh failures."""
+    """an English hint for the common ssh failures."""
     s = stderr or ""
     if "Permission denied" in s:
-        return ("ログインできませんでした（認証に失敗）。パスワードを入れるか、「鍵を登録」で公開鍵を相手に登録してください。"
+        return ("Could not log in (authentication failed). Enter the password, or register your public key on the remote computer."
                 "\n" + s.strip())
     if "Connection refused" in s:
-        return "接続を拒否されました。ホスト名・ポート番号と、相手の SSH サーバーが動いているかを確認してください。\n" + s.strip()
+        return "Connection refused. Check the host name, the port number and whether the SSH server is running on the remote computer.\n" + s.strip()
     if "timed out" in s or "Operation timed out" in s:
-        return "接続できませんでした（時間切れ）。ネットワーク（VPN、Tailscale など）とアドレスを確認してください。\n" + s.strip()
+        return "Could not connect (timed out). Check the network (VPN, Tailscale, etc.) and the address.\n" + s.strip()
     if "Could not resolve hostname" in s:
-        return "ホスト名が見つかりません。\n" + s.strip()
+        return "Host name not found.\n" + s.strip()
     if "Host key verification failed" in s or "REMOTE HOST IDENTIFICATION HAS CHANGED" in s:
-        return "ホストの鍵が以前と違います（~/.ssh/known_hosts を確認してください）。\n" + s.strip()
+        return "The host key differs from the one seen before (check ~/.ssh/known_hosts).\n" + s.strip()
     return s.strip()
 
 
@@ -72,7 +72,7 @@ class Remote:
     def __init__(self, host, user="", port=22, key="", remote_root="soapff_runs", lmp="lmp", mpirun="mpirun", setup="",
                  password=None, ssh="ssh", scp="scp"):
         if not host:
-            raise RemoteError("ホストが指定されていません")
+            raise RemoteError("No host specified")
         self.host, self.user, self.port = host.strip(), user.strip(), int(port or 22)
         self.key, self.remote_root = os.path.expanduser(key.strip()) if key else "", (remote_root or "soapff_runs").strip()
         self.lmp, self.mpirun, self.setup = lmp.strip() or "lmp", mpirun.strip() or "mpirun", setup.strip()
@@ -120,7 +120,7 @@ class Remote:
         p = subprocess.run(self._ssh_args(command), env=self._env(), stdin=subprocess.DEVNULL, capture_output=True,
                            text=True, timeout=timeout)
         if check and p.returncode != 0:
-            raise RemoteError(explain(p.stderr) or f"リモートのコマンドが失敗しました（{p.returncode}）：{command}")
+            raise RemoteError(explain(p.stderr) or f"The remote command failed ({p.returncode}): {command}")
         return p.returncode, p.stdout, p.stderr
 
     def _shell(self, body):
@@ -170,11 +170,11 @@ class Remote:
         files += [os.path.join(local_dir, f) for f in OPTIONAL_INPUTS if os.path.isfile(os.path.join(local_dir, f))]
         missing = [f for f in files if not os.path.isfile(f)]
         if missing:
-            raise RemoteError(f"入力ファイルがありません：{missing}")
+            raise RemoteError(f"Input files not found: {missing}")
         p = subprocess.run([self.scp_cmd, "-P", str(self.port)] + self._opts() + files + [f"{self.target}:{rdir}/"],
                            env=self._env(), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=600)
         if p.returncode != 0:
-            raise RemoteError(explain(p.stderr) or "入力ファイルを送れませんでした")
+            raise RemoteError(explain(p.stderr) or "Could not send the input files")
         return rdir
 
     def start(self, name, nproc=1):
@@ -197,7 +197,7 @@ class Remote:
         _, out, _ = self.run(body)
         pid = out.strip().splitlines()[-1].strip() if out.strip() else ""
         if not pid.isdigit():
-            raise RemoteError(f"LAMMPS を起動できませんでした：{out}")
+            raise RemoteError(f"Could not start LAMMPS: {out}")
         return int(pid)
 
     def follow(self, name, pid):
@@ -240,7 +240,7 @@ class Remote:
                            local_parent.rstrip("/") + "/"], env=self._env(), stdin=subprocess.DEVNULL, capture_output=True,
                            text=True, timeout=24 * 3600)
         if p.returncode != 0:
-            raise RemoteError(explain(p.stderr) or f"受け取れませんでした：{remote_path}")
+            raise RemoteError(explain(p.stderr) or f"Could not receive: {remote_path}")
         return os.path.join(local_parent, os.path.basename(remote_path.rstrip("/")))
 
     def download_all(self, name, local_dir):

@@ -1,62 +1,62 @@
-# 例：Na モンモリロナイト 2 水和層（2,502 原子）
+# Example: Na montmorillonite with a 2-layer hydrate (2,502 atoms)
 
-JAEA の Na モンモリロナイト 2 水和層の初期構造（Mg 置換の 2:1 層 2 枚、層間の Na⁺ 30 個と水 344 分子、30.96 × 26.90 × 25.55 Å）を、元素と座標と箱だけにしたファイル `initial.xyz` です。水の一部は粘土に重なっています（水の H と粘土の O が 0.5 Å まで近い）。電荷も型も入っていません。
+`initial.xyz` is the JAEA initial structure of Na montmorillonite with a 2-layer hydrate (two 2:1 layers with Mg substitution, 30 interlayer Na⁺ ions and 344 water molecules, 30.96 x 26.90 x 25.55 Å), reduced to elements, coordinates, and box only. Some of the water overlaps the clay (water H and clay O are as close as 0.5 Å). It contains neither charges nor types.
 
-## 手順（soapff-gui）
+## Procedure (soapff-gui)
 
-1. soapff-gui を起動し、「新規計算」で `initial.xyz` を選びます。力場ができ、`in.lammps` は最小化までになります。
-2. 計算設定の「MD の条件」で、温度 300 K、緩和 NVT 10 ps、NVT 10 ps、NPT 100 ps、圧力 1 atm、出力間隔 1 ps（拡散係数なら 0.1〜0.5 ps）にします。
-3. `in.lammps` の最後の行を選び、次の順に一覧から入れます（入れた行のあとに次が入ります）。
-   - ＋ その他 → soapff の手順「soapff の緩和（初速度 → 緩和 NVT）」
-   - ＋ fix → 「NVT（Nosé–Hoover の温度一定）」、＋ その他 → 「トラジェクトリ」、＋ その他 → soapff の手順「拡散係数の MSD」、＋ その他 → 「MD を回す」（run）
-   - 続けて ＋ その他 → 「fix を外す」、＋ fix → 「NPT（面に垂直な方向だけ：層間・界面）」、＋ その他 → 「MD を回す」、＋ その他 → 「最後の構造を書き出す」
-   - run のステップ数は下の欄で直します（0.5 fs なので 10 ps = 20000、100 ps = 200000）。
-4. 「計算を開始」を押します（並列数 3 程度で 1 時間弱。ノート PC では 4 以上にすると、かえって遅くなることがあります）。
-5. 終わったら「解析」で水の O と Na⁺ の拡散係数、SOVA の PDF・RDF・配位数・S(Q)、debyer の XRD（001 の底面間隔など）、「OVITO で開く」で型ごとに色分けした構造を見られます。
+1. Start soapff-gui and choose `initial.xyz` with "New calculation". The force field is created, and `in.lammps` goes up to the minimization.
+2. In the "MD conditions" section of Settings, set temperature 300 K, relaxation NVT 10 ps, NVT 10 ps, NPT 100 ps, pressure 1 atm, and output interval 1 ps (0.1-0.5 ps for diffusion coefficients).
+3. Select the last line of `in.lammps` and add the following from the lists, in this order (each new item is inserted after the selected line).
+   - + other > soapff procedures "soapff relaxation (initial velocities, then relaxation NVT)"
+   - + fix > "NVT (Nosé-Hoover constant temperature)", + other > "trajectory", + other > soapff procedures "diffusion coefficient MSD", + other > "run MD" (run)
+   - Then + other > "unfix", + fix > "NPT (only the direction perpendicular to the plane: interlayer, interface)", + other > "run MD", + other > "write the last structure"
+   - Correct the number of steps of each run in the field below (the time step is 0.5 fs, so 10 ps = 20000 and 100 ps = 200000).
+4. Press "Start calculation" (a little under 1 hour with about 3 MPI processes; on a laptop, using 4 or more can actually be slower).
+5. When it finishes, use "Analyze" to see the diffusion coefficients of water O and Na⁺, the SOVA PDF, RDF, coordination numbers, and S(Q). "Open in OVITO" shows the structure colored by type.
 
-力場は ClayFF（Cygan et al. 2004 の表 1・表 2）と柔軟な SPC 水、時間刻み 0.5 fs です。
+The force field is ClayFF (Tables 1 and 2 of Cygan et al. 2004) with flexible SPC water, and the time step is 0.5 fs.
 
-## 期待される結果（`expected/`）
+## Expected results (`expected/`)
 
-力場の作成（`expected/report.json`）：
+Force-field generation (`expected/report.json`):
 
-| 項目 | 値 |
+| Item | Value |
 |---|---|
-| 原子数 | 2,502（粘土 1,440、水 1,032、イオン 30） |
-| SOAP で電荷と型を決めた原子 | 2,502（fallback 0）、最小の類似度 1.000 |
-| 型と電荷 | st +2.1（288）、ao +1.575（114）、mgo +1.36（30）、ob −1.05（600）、obos −1.1808（120）、oh −0.95（84）、ohs −1.0808（60）、ho +0.425（144）、Na +1.0（30）、ow −0.82（344）、hw +0.41（688） |
-| 結合 / 角度 | 832 / 632（水の H–O–H 344、M–O–H 288） |
-| 電荷の合計 | +0.006 e が粘土の原子への一様な補正で 0 になる |
+| Atoms | 2,502 (clay 1,440, water 1,032, ions 30) |
+| Atoms whose charge and type were assigned by SOAP | 2,502 (fallback 0), minimum similarity 1.000 |
+| Types and charges | st +2.1 (288), ao +1.575 (114), mgo +1.36 (30), ob -1.05 (600), obos -1.1808 (120), oh -0.95 (84), ohs -1.0808 (60), ho +0.425 (144), Na +1.0 (30), ow -0.82 (344), hw +0.41 (688) |
+| Bonds / angles | 832 / 632 (water H-O-H 344, M-O-H 288) |
+| Total charge | +0.006 e, set to 0 by a uniform correction on the clay atoms |
 
-MD（`expected/md.png`、300 K）：
-- 緩和 NVT で温度は 272〜312 K（後半の平均 299 K）、NVT で 293〜312 K。
-- NPT で層間距離 d₀₀₁（箱の高さの半分）が 12.8 Å から 5 ps ほどで約 15.3 Å に広がり、そのあと 15.2〜15.4 Å で一定。ポテンシャルエネルギーは最初の 40 ps ほどで下がり、以降ほぼ一定。
-- x、y の箱の長さは固定なので、全体の圧力は 1 atm にならず、後半で約 6×10³ atm です。
+MD (`expected/md.png`, 300 K):
+- In the relaxation NVT the temperature is 272-312 K (second-half average 299 K), and in the NVT 293-312 K.
+- In NPT the interlayer distance d₀₀₁ (half the box height) grows from 12.8 Å to about 15.3 Å in about 5 ps, and then stays constant at 15.2-15.4 Å. The potential energy decreases over roughly the first 40 ps and is almost constant afterwards.
+- The x and y box lengths are fixed, so the overall pressure does not reach 1 atm; it is about 6x10³ atm in the second half.
 
-## 拡散係数（論文の計算、`diffusion/`）
+## Diffusion coefficients (calculation for the paper, `diffusion/`)
 
-同じ ClayFF と柔軟な SPC 水で 2 水和層の拡散係数を求めた Greathouse ら（J. Phys. Chem. C 120, 1640, 2016、層電荷 0.75 e の高電荷モデル）と比べた計算です。
+This calculation is compared with Greathouse et al. (J. Phys. Chem. C 120, 1640, 2016; high-charge model with a layer charge of 0.75 e), who obtained the diffusion coefficients of the 2-layer hydrate with the same ClayFF and flexible SPC water.
 
-1. `sh diffusion/make_start.sh`：`initial.xyz` から力場を作り、300 K で最小化、緩和 NVT 10 ps、NVT 10 ps、NPT（面に垂直、P = 0）100 ps（`diffusion/start/`）。
-2. `sh diffusion/run_all_T.sh`（`make_T.sh 300`、`330`、`366`）：各温度で新しい速度を与え、NVT 20 ps、NPT（面に垂直、P = 0）100 ps で平衡化し、NPT を 200 ps ずつ 4 区間続ける。区間ごとに `compute msd` を定義し直す（時間の原点は区間の始め）。0.5 fs。
-3. `python diffusion/analyze_diffusion.py [図.png]`：区間ごとに面内の MSD を 50–200 ps で直線で近似して D_xy、4 区間の平均と標準誤差、アレニウスの活性化エネルギー → `diffusion_summary.json`。
+1. `sh diffusion/make_start.sh`: builds the force field from `initial.xyz`, then minimization, relaxation NVT 10 ps, NVT 10 ps, and NPT (perpendicular to the plane, P = 0) 100 ps at 300 K (`diffusion/start/`).
+2. `sh diffusion/run_all_T.sh` (`make_T.sh 300`, `330`, `366`): at each temperature, assigns new velocities, equilibrates with NVT 20 ps and NPT (perpendicular to the plane, P = 0) 100 ps, and then continues NPT for four 200 ps segments. `compute msd` is redefined for each segment (the time origin is the start of the segment). Time step 0.5 fs.
+3. `python diffusion/analyze_diffusion.py [figure.png]`: for each segment, fits the in-plane MSD with a straight line over 50-200 ps to get D_xy, then computes the mean and standard error over the 4 segments and the Arrhenius activation energy -> `diffusion_summary.json`.
 
-軌道（`traj.lammpstrj`）は大きいので入れていません。MSD（`msd_Ow.dat`、`msd_Na.dat`）、入力、log、最後の構造（`final.data`）は入っています。
+The trajectory (`traj.lammpstrj`) is large and is not included. The MSD files (`msd_Ow.dat`, `msd_Na.dat`), the inputs, the logs, and the last structure (`final.data`) are included.
 
-| | 300 K | 330 K | 366 K | 活性化エネルギー |
+| | 300 K | 330 K | 366 K | Activation energy |
 |---|---|---|---|---|
-| 層間距離 d₀₀₁（Å） | 15.31 | 15.43 | 15.63 | |
-| 水の O の D_xy（10⁻¹⁰ m²/s） | 11.7 ± 0.9 | 18.3 ± 0.5 | 32.5 ± 1.5 | 14.1 ± 1.1 kJ/mol |
-| Greathouse ら | 13.1 | 24.3 | 39.4 | 15.2 kJ/mol |
-| Na⁺ の D_xy | 4.3 ± 0.9 | 10.3 ± 0.7 | 15.3 ± 4.7 | 17.8 ± 3.9 kJ/mol |
-| Greathouse ら | 5.1 | 10.4 | 17.0 | 16.5 kJ/mol |
+| Interlayer distance d₀₀₁ (Å) | 15.31 | 15.43 | 15.63 | |
+| D_xy of water O (10⁻¹⁰ m²/s) | 11.7 ± 0.9 | 18.3 ± 0.5 | 32.5 ± 1.5 | 14.1 ± 1.1 kJ/mol |
+| Greathouse et al. | 13.1 | 24.3 | 39.4 | 15.2 kJ/mol |
+| D_xy of Na⁺ | 4.3 ± 0.9 | 10.3 ± 0.7 | 15.3 ± 4.7 | 17.8 ± 3.9 kJ/mol |
+| Greathouse et al. | 5.1 | 10.4 | 17.0 | 16.5 kJ/mol |
 
-本稿の値は Greathouse らの 0.75–0.99 倍で、活性化エネルギーは誤差の範囲で一致します。ずれの理由：
+The values here are 0.75-0.99 times those of Greathouse et al., and the activation energies agree within the errors. Reasons for the differences:
 
-- **系が違う**：本稿の層電荷は 0.83 e / O₂₀(OH)₄（八面体の Mg 置換）で、Greathouse らの高電荷モデル（0.75 e）より Na⁺ が多い。Na⁺ は水を強く引きつけて動きを遅くするので、水も Na⁺ も遅くなる方向です。水の量も O₂₀(OH)₄ あたり 9.6 分子と 7.9 分子で違います（水が多いと速くなる方向）。
-- **平均のとり方**：本稿は 200 ps の区間 4 つ（合計 800 ps）で、時間の原点は区間ごとに 1 つ、50–200 ps で直線近似。Greathouse らは 2,000 ps の座標を 2 fs ごとに保存し、全フレームを時間の原点として平均した MSD を 150–250 ps で直線近似しています。本稿の方が統計が少なく、特に Na⁺ は区間ごとのばらつきが大きい（366 K で 7.2–28.1）。
-- **有限サイズ**：どちらも箱の大きさの補正をしていませんが、箱の大きさが違うので、補正の大きさも違います。
+- **Different systems**: the layer charge here is 0.83 e / O₂₀(OH)₄ (octahedral Mg substitution), which has more Na⁺ than the high-charge model of Greathouse et al. (0.75 e). Na⁺ attracts water strongly and slows it down, which pushes both water and Na⁺ toward slower diffusion. The amount of water also differs, 9.6 and 7.9 molecules per O₂₀(OH)₄ (more water pushes toward faster diffusion).
+- **Averaging**: here there are four 200 ps segments (800 ps in total) with one time origin per segment, fitted with a straight line over 50-200 ps. Greathouse et al. saved coordinates every 2 fs over 2,000 ps and fitted, over 150-250 ps, an MSD averaged with every frame as a time origin. The statistics here are poorer, and in particular the segment-to-segment scatter of Na⁺ is large (7.2-28.1 at 366 K).
+- **Finite size**: neither applies a box-size correction, but the box sizes differ, so the size of the correction would also differ.
 
-力場（ClayFF、柔軟な SPC、時間刻み 0.5 fs、NPT の条件）は同じなので、差は主に系と統計によるものです。
+The force field (ClayFF, flexible SPC, time step 0.5 fs, NPT conditions) is the same, so the difference is mainly due to the system and the statistics.
 
-層電荷と水の量を Greathouse らにそろえた構造で soapff-gui だけを使って計算し直すと、0.86–1.16 倍で一致しました（`greathouse_charge/`）。ずれの主な原因は系の組成の違いでした。
+When the calculation was redone using only soapff-gui on a structure whose layer charge and water content were matched to Greathouse et al., the results agreed to within 0.86-1.16 times (`greathouse_charge/`). The main cause of the difference was the difference in system composition.

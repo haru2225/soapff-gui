@@ -1,28 +1,28 @@
-# 例：Na モンモリロナイトの膨潤曲線（Cygan et al. 2004 と同じ計算）
+# Example: swelling curve of Na montmorillonite (same calculation as Cygan et al. 2004)
 
-Cygan ら（2004, J. Phys. Chem. B 108, 1255）の Na モンモリロナイト Na₃(Si₃₁Al)(Al₁₄Mg₂)O₈₀(OH)₁₆·nH₂O（4 単位胞、層 1 枚）で、層間に水を加えながら NPT を回し、底面間隔 d001 と水の量の関係を求めたものです。
+For the Na montmorillonite Na₃(Si₃₁Al)(Al₁₄Mg₂)O₈₀(OH)₁₆·nH₂O of Cygan et al. (2004, J. Phys. Chem. B 108, 1255) (4 unit cells, one layer), NPT was run while water was added to the interlayer, and the relation between the basal spacing d001 and the amount of water was obtained.
 
-## 1. 構造（`build_structure.py`）
+## 1. Structure (`build_structure.py`)
 
-パイロフィライト（ライブラリの参照）の層を 2×2×1 に並べ、四面体の Si 1 個を Al に、八面体の Al 2 個を Mg に換え、層間に Na⁺ 3 個を置きます。Mg の位置は、16 の八面体の席から 2 つを選ぶ全 120 通りのうち、ClayFF で箱も緩めた静的なエネルギーが最も低いものです（Na⁺ の置き方は各 4 通り。O が四面体の Al と Mg の両方に結合する 29 通り（ClayFF の obss）は、ライブラリにないので除外）。`screening.csv` に全結果、`dry.extxyz` に選んだ構造（163 原子、乾燥）を書きます。
+A pyrophyllite layer (the library reference) is replicated 2x2x1, 1 tetrahedral Si is changed to Al, 2 octahedral Al atoms are changed to Mg, and 3 Na⁺ ions are placed in the interlayer. The Mg positions are the ones with the lowest static ClayFF energy (with the box also relaxed) among all 120 ways of choosing 2 of the 16 octahedral sites (4 placements of Na⁺ for each; the 29 arrangements in which an O bonds to both a tetrahedral Al and a Mg (the ClayFF obss type) are excluded because the library does not have them). All results are written to `screening.csv`, and the chosen structure (163 atoms, dry) to `dry.extxyz`.
 
-乾燥した層間の Na⁺ はほかの参照にない環境なので、この構造（ClayFF の型と標準の電荷を付けたもの、`dry_reference.data`）をライブラリに加えてあります。
+Na⁺ in a dry interlayer is an environment that no other reference has, so this structure (with ClayFF types and standard charges, `dry_reference.data`) has been added to the library.
 
-## 2. 計算（soapff-gui）
+## 2. Calculation (soapff-gui)
 
-1. 「新規計算」で `dry.extxyz` を選ぶ（fallback 0、型の照合の食い違い 0）。
-2. 「＋ その他 › soapff の手順 › 膨潤曲線」で、水の個数を「4 8 12 16 20 25 32 40 48 59」と指定（各状態 NPT 30 ps で平衡化、続く 20 ps を記録）。水の型が構造にないので、`system.data` に水の型が足され、`water.mol` が書かれる。
-3. 「計算を開始」（SSH の計算機、4 並列、約 15 分）。
+1. Choose `dry.extxyz` with "New calculation" (fallback 0, 0 mismatches in the type cross-check).
+2. With "+ other > soapff procedures > swelling curve", specify the numbers of water molecules as "4 8 12 16 20 25 32 40 48 59" (each state is equilibrated with NPT for 30 ps, and the following 20 ps are recorded). The structure has no water type, so a water type is added to `system.data` and `water.mol` is written.
+3. Press "Start calculation" (SSH computer, 4 MPI processes, about 15 minutes).
 
-各状態では、水分子を層間（粘土と箱の端の間、周期境界をまたぐ側）に `create_atoms … mol` で入れ（ほかの原子から 2 Å 以上。入らないときは箱を z に 0.5 Å 伸ばす）、粘土を箱の中央に戻し、最小化、2 ps の減衰つきの緩和、NPT（300 K、1 atm）を回します。NPT は x、y、z と xy の傾きを動かし、層をまたぐ傾き xz、yz は固定します（水が入ると層がずれて傾きが大きくなり、LAMMPS が止まるため。d001 = lz はこれによらない）。
+For each state, water molecules are inserted into the interlayer (the region between the clay and the box edge, on the side across the periodic boundary) with `create_atoms ... mol` (at least 2 Å from other atoms; if they do not fit, the box is stretched by 0.5 Å in z), the clay is moved back to the center of the box, and then a minimization, a 2 ps relaxation with damping, and NPT (300 K, 1 atm) are run. The NPT moves x, y, z, and the xy tilt, and keeps the tilts across the layer, xz and yz, fixed (when water enters, the layer slides and the tilt becomes large, which makes LAMMPS stop; d001 = lz does not depend on this).
 
-`gui_run/` に入力（`in.lammps`、`system.data`、`system.settings`、`water.mol`）と出力（`log.lammps`、`swelling.dat`、各状態の最後の構造 `swelling_states.lammpstrj`（大きいので git には入れていない））があります。
+`gui_run/` contains the inputs (`in.lammps`, `system.data`, `system.settings`, `water.mol`) and the outputs (`log.lammps`, `swelling.dat`, and the last structure of each state `swelling_states.lammpstrj` (large, so it is not in git)).
 
-## 3. 解析（`analyze_swelling.py`）
+## 3. Analysis (`analyze_swelling.py`)
 
-`swelling.dat` から、各状態の後半 20 ps の lz（= d001）の平均と標準偏差と、水の量（g H₂O / g 粘土。粘土は水以外の全原子 2,945 g/mol）を求めます（`gui_run/swelling.csv`、`swelling.png`）。
+From `swelling.dat`, the mean and standard deviation of lz (= d001) over the last 20 ps of each state, and the water content (g H₂O / g clay; the clay is all atoms other than water, 2,945 g/mol), are obtained (`gui_run/swelling.csv`, `swelling.png`).
 
-| 水（個） | g/g | d001（Å） |
+| Water (molecules) | g/g | d001 (Å) |
 |---|---|---|
 | 4 | 0.024 | 11.35 |
 | 8 | 0.049 | 12.03 |
@@ -35,4 +35,4 @@ Cygan ら（2004, J. Phys. Chem. B 108, 1255）の Na モンモリロナイト N
 | 48 | 0.294 | 17.34 |
 | 59 | 0.361 | 18.92 |
 
-1 水和層（0.05–0.12 g/g で約 12.0–12.4 Å）、2 水和層への膨張（0.15–0.2 g/g で約 14–15 Å）、それより多い水で膨らみ続けることが、Cygan らの図 8 の MD と同じでした。
+The 1-layer hydrate (about 12.0-12.4 Å at 0.05-0.12 g/g), the expansion to the 2-layer hydrate (about 14-15 Å at 0.15-0.2 g/g), and the continued swelling with more water were the same as in the MD of Fig. 8 of Cygan et al.

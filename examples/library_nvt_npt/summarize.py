@@ -44,7 +44,7 @@ with open(f"{HERE}/summary.csv", "w", newline="") as f:
     w = csv.DictWriter(f, fieldnames=list(rows[0]))
     w.writeheader()
     w.writerows(rows)
-print("| 鉱物 | 原子数 | fallback | 型の食い違い | T NVT (K) | T NPT (K) | P NPT (atm) | 体積の変化 (%) | 密度 (g/cm³) | PE の変化 (kcal/mol/原子) |")
+print("| mineral | atoms | fallback | type mismatches | T NVT (K) | T NPT (K) | P NPT (atm) | volume change (%) | density (g/cm³) | PE change (kcal/mol/atom) |")
 print("|---|---|---|---|---|---|---|---|---|---|")
 for r in rows:
     print(f"| {r['mineral']} | {r['atoms']} | {r['fallback']} | {r['type_differ']} | {r['T_nvt']:.1f} | {r['T_npt']:.1f} | "

@@ -1,0 +1,47 @@
+{
+ "sovapy_version": "0.8.3",
+ "frames": 40,
+ "rmax": 4.613185362753395,
+ "dr": 0.02,
+ "pairs": [
+  "Na-O_min",
+  "all:H-H",
+  "all:O-H",
+  "all:O-O",
+  "all:Na-H",
+  "all:Na-O",
+  "all:Na-Na",
+  "all:Mg-H",
+  "all:Mg-O",
+  "all:Mg-Na",
+  "all:Mg-Mg",
+  "all:Al-H",
+  "all:Al-O",
+  "all:Al-Na",
+  "all:Al-Mg",
+  "all:Al-Al",
+  "all:Si-H",
+  "all:Si-O",
+  "all:Si-Na",
+  "all:Si-Mg",
+  "all:Si-Al",
+  "all:Si-Si"
+ ],
+ "first_peaks": {
+  "Na-O_min": {
+   "r_peak": 2.52,
+   "g_peak": 2.831371666379343
+  }
+ },
+ "coordination": {
+  "Na-O_min": {
+   "r_min": 3.62,
+   "cn": 10.20325527177661
+  }
+ },
+ "sq_xray": true,
+ "radiation": "xray",
+ "sq_rmax": 4.6000000000000005,
+ "sq_qmax": 12.0,
+ "note": "PDF g(r) by SOVA pair_dist_func (normalised by the density over the whole box: in a slab or interlayer it does not tend to 1); RDF N(r) = 4 pi r^2 rho_B g(r) by SOVA radial_dist_fun"
+}

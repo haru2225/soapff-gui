@@ -12,7 +12,7 @@ minimize 1.0e-4 1.0e-6 1000 10000
 min_modify dmax 0.1
 minimize 1.0e-6 1.0e-6 5000 50000
 
-# ここから下に MD（fix、compute、run など）を追加します（＋ fix / ＋ compute / ＋ その他）
+# Add the MD (fix, compute, run, etc.) below this line (+ fix / + compute / + Other)
 velocity all create 366.0 4928459 mom yes rot no dist gaussian
 timestep 0.5
 # relaxation of the initial structure: NVT, not recorded

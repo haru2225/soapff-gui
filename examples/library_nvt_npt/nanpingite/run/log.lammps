@@ -191,7 +191,7 @@ Ave special neighs/atom = 0.19047619
 Neighbor list builds = 4
 Dangerous builds = 0
 
-# ここから下に MD（fix、compute、run など）を追加します（＋ fix / ＋ compute / ＋ その他）
+# Add the MD (fix, compute, run, etc.) below this line (+ fix / + compute / + Other)
 velocity all create 300.0 4928459 mom yes rot no dist gaussian
 timestep 0.5
 # relaxation of the initial structure: NVT, not recorded

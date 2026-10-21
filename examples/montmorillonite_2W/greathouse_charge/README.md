@@ -1,22 +1,22 @@
-# 拡散係数：層電荷と水の量を Greathouse ら（2016）にそろえた Na モンモリロナイト 2 水和層（論文の計算）
+# Diffusion coefficients: Na montmorillonite with a 2-layer hydrate, layer charge and water content matched to Greathouse et al. (2016) (calculation for the paper)
 
-`../initial.xyz`（JAEA、層電荷 0.83 e / O₂₀(OH)₄、水 9.6 分子 / O₂₀(OH)₄）から、Greathouse ら（J. Phys. Chem. C 120, 1640, 2016）の高電荷モデルの組成（0.75 e、水 7.9 分子）にそろえた構造で、soapff-gui だけを使って計算したものです。
+Starting from `../initial.xyz` (JAEA, layer charge 0.83 e / O₂₀(OH)₄, 9.6 water molecules / O₂₀(OH)₄), the structure was adjusted to the composition of the high-charge model of Greathouse et al. (J. Phys. Chem. C 120, 1640, 2016) (0.75 e, 7.9 water molecules), and the calculation was done using only soapff-gui.
 
-1. `python make_structure.py` → `initial.xyz`（2,319 原子）：八面体の Mg 3 個（ほかの Mg にいちばん近いもの）を Al に戻し（層ごとに Mg 14 個と 13 個）、層間の Na⁺ を 3 個（層ごとに 14 個と 13 個残る）、水を各層間から 30 分子（乱数、種 1）除く。置換は八面体のまま（Greathouse らの置換の位置は確かめていない）。
-2. soapff-gui で `initial.xyz` から力場を作る（全原子 SOAP、fallback 0、型の照合の食い違い 0）。
-   `python check_types.py`：正解（JAEA の構造の ClayFF の型と標準の電荷。Al にした Mg は ao、その Mg だけに結合していた O は obos → ob、ohs → oh）と比べて、2,319 原子すべてで型と電荷が一致（誤り 0、類似度の最小 0.952、fallback 0）。`kept_atoms.txt` と `mg_to_al.txt` は、`make_structure.py` が残した原子の番号（JAEA の構造での番号）と、Al にした Mg の番号。
-3. 入力を一覧から組み立てる（温度 T、圧力 0）：＋ その他 → soapff の手順「soapff の緩和」（初速度、10 ps の NVT）、＋ fix「NVT」＋ run 40000（20 ps）＋ unfix、＋ fix「NPT（面に垂直な方向だけ）」＋ run 200000（100 ps）、＋ その他「トラジェクトリ」（10 ps ごと）、続けて 4 回「拡散係数の MSD」（ID とファイル名を `msd_s1_…`〜`msd_s4_…` に変える）＋ run 400000（200 ps）＋ unfix / uncompute、最後に write_data。
-4. 実行先を SSH の計算機（物理 8 コア、16 スレッド）にして、300、330、366 K を同時に 5、5、6 並列で回す（各 3 時間）。
-5. `python analyze_diffusion.py` → `diffusion_summary.json`：区間ごとに面内の MSD を 50–200 ps で直線近似して D_xy、4 区間の平均と標準誤差、活性化エネルギー。
+1. `python make_structure.py` -> `initial.xyz` (2,319 atoms): 3 octahedral Mg atoms (the ones closest to other Mg atoms) are turned back into Al (leaving 14 and 13 Mg per layer), 3 interlayer Na⁺ ions are removed (leaving 14 and 13 per layer), and 30 water molecules are removed from each interlayer (random, seed 1). The substituted sites stay octahedral (the substitution sites of Greathouse et al. were not checked).
+2. Build the force field from `initial.xyz` with soapff-gui (all atoms by SOAP, fallback 0, 0 mismatches in the type cross-check).
+   `python check_types.py`: compared with the correct answer (the ClayFF types and standard charges of the JAEA structure; Mg changed to Al becomes ao, and O bonded only to those Mg atoms changes from obos to ob and from ohs to oh), the types and charges of all 2,319 atoms agree (0 errors, minimum similarity 0.952, fallback 0). `kept_atoms.txt` and `mg_to_al.txt` are the indices of the atoms kept by `make_structure.py` (indices in the JAEA structure) and of the Mg atoms changed to Al.
+3. Build the input from the lists (temperature T, pressure 0): + other > soapff procedures "soapff relaxation" (initial velocities, 10 ps NVT), + fix "NVT" + run 40000 (20 ps) + unfix, + fix "NPT (only the direction perpendicular to the plane)" + run 200000 (100 ps), + other "trajectory" (every 10 ps), then four times "diffusion coefficient MSD" (change the ID and file name to `msd_s1_...` through `msd_s4_...`) + run 400000 (200 ps) + unfix / uncompute, and finally write_data.
+4. Set "Run on" to an SSH computer (8 physical cores, 16 threads) and run 300, 330, and 366 K at the same time with 5, 5, and 6 MPI processes (3 hours each).
+5. `python analyze_diffusion.py` -> `diffusion_summary.json`: for each segment, fits the in-plane MSD with a straight line over 50-200 ps to get D_xy, then gives the mean and standard error over the 4 segments and the activation energy.
 
-`T300/`、`T330/`、`T366/` に入力、log、MSD、最後の構造があります（軌道は入れていません）。
+`T300/`, `T330/`, and `T366/` contain the inputs, logs, MSD files, and last structures (trajectories are not included).
 
-| D_xy（10⁻¹⁰ m²/s） | 300 K | 330 K | 366 K | 活性化エネルギー（kJ/mol） |
+| D_xy (10⁻¹⁰ m²/s) | 300 K | 330 K | 366 K | Activation energy (kJ/mol) |
 |---|---|---|---|---|
-| 水の O（本計算） | 13.9 ± 1.1 | 24.7 ± 2.8 | 45.6 ± 2.6 | 16.4 ± 0.4 |
-| 水の O（Greathouse ら） | 13.1 | 24.3 | 39.4 | 15.2 |
-| Na⁺（本計算） | 5.9 ± 1.4 | 9.0 ± 1.9 | 15.8 ± 1.8 | 13.7 ± 1.1 |
-| Na⁺（Greathouse ら） | 5.1 | 10.4 | 17.0 | 16.5 |
-| 層間距離 d₀₀₁（Å） | 14.83 | 14.92 | 15.04 | |
+| Water O (this work) | 13.9 ± 1.1 | 24.7 ± 2.8 | 45.6 ± 2.6 | 16.4 ± 0.4 |
+| Water O (Greathouse et al.) | 13.1 | 24.3 | 39.4 | 15.2 |
+| Na⁺ (this work) | 5.9 ± 1.4 | 9.0 ± 1.9 | 15.8 ± 1.8 | 13.7 ± 1.1 |
+| Na⁺ (Greathouse et al.) | 5.1 | 10.4 | 17.0 | 16.5 |
+| Interlayer distance d₀₀₁ (Å) | 14.83 | 14.92 | 15.04 | |
 
-Greathouse らの値の 0.86–1.16 倍で、水の O は標準誤差の 2.5 倍以内、Na⁺ は 0.8 倍以内で一致しました。JAEA の組成のまま（`../diffusion/`）では 0.75–0.99 倍だったので、ずれの主な原因は系の組成（層電荷と水の量）の違いでした。
+The values are 0.86-1.16 times those of Greathouse et al.; water O agrees within 2.5 standard errors and Na⁺ within 0.8 times. With the JAEA composition unchanged (`../diffusion/`) the ratio was 0.75-0.99, so the main cause of the difference was the system composition (layer charge and water content).

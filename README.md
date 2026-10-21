@@ -1,64 +1,64 @@
 # soapff-GUI
 
-粘土鉱物の構造ファイル（元素・座標・箱だけ）を選ぶと、SOAP で全原子の ClayFF の型と電荷を決めて LAMMPS の入力を作り、MD を回して解析する GUI です。力場は ClayFF（Cygan et al. 2004 の表のとおり）と柔軟な SPC 水です。
+A GUI for clay minerals. You pick a structure file (elements, coordinates, and box only); SOAP assigns the ClayFF type and charge of every atom, the GUI writes the LAMMPS input, runs the MD, and analyzes it. The force field is ClayFF (as tabulated in Cygan et al. 2004) with flexible SPC water.
 
-## できること
+## Features
 
-- **力場の自動生成**：同梱のライブラリ（13 構造、5,833 原子）でいちばん似た原子の型と電荷を付け、結合・角度・LJ をそろえた `system.data`、`system.settings`、最小化までの `in.lammps` を書く。ライブラリにない環境の原子（類似度 0.95 未満）があると、力場を作らずに止まる。
-- **MD の追加**：最小化より後は、LAMMPS の fix・compute・その他のコマンドの一覧から選んで加える（温度・圧力・時間刻み・ID は自動で埋める）。コマンドを**コピー＆ペースト**でも入れられる（行を選んで ⌘V、またはエディタの「テキストで開く」で全体を大きい窓で編集して「適用」）。エディタは下の境目をドラッグするか「⤢ 拡大」で大きくできる。
-- **スーパーセル**：OVITO の Replicate で a・b・c 方向に並べてから力場を作る。
-- **膨潤曲線の計算**：層間に水分子を加えながら NPT を回し、各状態の箱を `swelling.dat` に記録する（Cygan et al. 2004 と同じ手順。図にするのは `examples/montmorillonite_swelling/analyze_swelling.py`）。
-- **実行**：このコンピュータか、SSH で登録した別のコンピュータ（`ユーザー@ホスト` を入れるだけで登録）で LAMMPS を回す。
-- **解析**：拡散係数（`compute msd` があるとき）、SOVA の PDF・RDF・配位数・S(Q)。SOVA の dr、r の最大、Q の範囲と刻み、X 線／中性子、フレーム数、求める組と型で分けた組（例：K-ob K-obts）は「解析」の画面（計算設定 › 解析）で選べます。OVITO で表示。
+- **Automatic force-field generation**: each atom gets the type and charge of the most similar atom in the bundled library (13 structures, 5,833 atoms). The GUI writes `system.data`, `system.settings` (bonds, angles, and LJ parameters), and an `in.lammps` that goes up to the minimization. If any atom has an environment that is not in the library (similarity below 0.95), it stops without building a force field.
+- **Adding MD steps**: after the minimization, choose from the lists of LAMMPS fix, compute, and other commands to add them (temperature, pressure, time step, and IDs are filled in automatically). Commands can also be entered by **copy and paste** (select a line and press Cmd+V, or use "Open as text (large, paste)" in the editor to edit the whole input in a large window and press "Apply"). The editor can be enlarged by dragging the border at the bottom or with "Expand".
+- **Supercell**: replicates the structure along a, b, and c with OVITO's Replicate, then builds the force field.
+- **Swelling curve**: runs NPT while adding water molecules to the interlayer, and records the box of each state in `swelling.dat` (same procedure as Cygan et al. 2004; the plot is made by `examples/montmorillonite_swelling/analyze_swelling.py`).
+- **Running**: LAMMPS runs on this computer or on another computer registered over SSH (just enter `user@host` to register it).
+- **Analysis**: diffusion coefficients (when a `compute msd` is present), and SOVA PDF, RDF, coordination numbers, and S(Q). The SOVA dr, maximum r, Q range and step, X-ray or neutron, number of frames, and the pairs to compute, including pairs split by type (example: K-ob K-obts), can be set on the analysis screen (Settings > Analysis). Structures can be displayed in OVITO ("OVITO" (or the menu item "Open in OVITO")).
 
-## インストール
+## Installation
 
-| OS | 手順 |
+| OS | Steps |
 |---|---|
-| macOS | `git clone https://github.com/haru2225/soapff-gui.git && sh soapff-gui/install.sh` → `~/Applications/soapff-GUI.app` から起動 |
-| Linux | `sudo apt install python3-venv python3-tk`（Ubuntu の例）のあと、macOS と同じ。起動は `~/.soapff-gui/venv/bin/soapff-gui` |
-| Windows | python.org の Python 3.10–3.12 を入れ、`git clone …` のあと `powershell -ExecutionPolicy Bypass -File soapff-gui\install.ps1` → デスクトップのショートカットから起動（動作は未確認。SSH の実行は使えないので、SSH を使うときは WSL2 に Linux の手順で入れる） |
+| macOS | `git clone https://github.com/haru2225/soapff-gui.git && sh soapff-gui/install.sh`, then launch from `~/Applications/soapff-GUI.app` |
+| Linux | `sudo apt install python3-venv python3-tk` (Ubuntu example), then the same as macOS. Launch with `~/.soapff-gui/venv/bin/soapff-gui` |
+| Windows | Install Python 3.10-3.12 from python.org, run `git clone ...`, then `powershell -ExecutionPolicy Bypass -File soapff-gui\install.ps1`, and launch from the desktop shortcut (not tested. Running over SSH is not available, so to use SSH, install in WSL2 following the Linux steps) |
 
-- **`install.sh` は必要なものを自動で入れます**（`sudo` は使いません）：Python のライブラリ（numpy、scipy、ASE、dscribe、matplotlib、ovito）、**LAMMPS と Open MPI**（conda-forge の MPI 版、`~/.soapff-gui/lammps`、約 1 GB。すでに `lmp` があれば入れない）、**SOVA**（`pip install sovapy`、Python 3.11 以上）、**OVITO のアプリ**（macOS は `brew install --cask ovito`、Linux は conda.ovito.org から `~/.soapff-gui/ovito`、約 1.5 GB）。`SOAPFF_NO_LAMMPS=1` と `SOAPFF_NO_OVITO=1` でそれぞれ飛ばせます。
-- Windows の `install.ps1` は Python のライブラリと SOVA だけ入れます（LAMMPS は https://packages.lammps.org/windows.html 、OVITO は https://www.ovito.org から）。見つからないときは「計算設定 › 実行先」で場所を指定します。
-- Tk のある Python が見つからないときは `brew install python-tk@3.12` か `brew install uv` のあと、もう一度 `install.sh` を実行します。更新は `git pull` です（依存が増えたら `~/.soapff-gui/venv/bin/python -m pip install -e soapff-gui`）。
+- **`install.sh` installs everything that is needed automatically** (it does not use `sudo`): the Python libraries (numpy, scipy, ASE, dscribe, matplotlib, ovito), **LAMMPS and Open MPI** (the MPI build from conda-forge, in `~/.soapff-gui/lammps`, about 1 GB; skipped if `lmp` is already installed), **SOVA** (`pip install sovapy`, Python 3.11 or later), and the **OVITO application** (on macOS `brew install --cask ovito`; on Linux from conda.ovito.org into `~/.soapff-gui/ovito`, about 1.5 GB). `SOAPFF_NO_LAMMPS=1` and `SOAPFF_NO_OVITO=1` skip the respective installs.
+- The Windows `install.ps1` installs only the Python libraries and SOVA (get LAMMPS from https://packages.lammps.org/windows.html and OVITO from https://www.ovito.org). If they are not found, specify their locations in "Settings > Run on".
+- If no Python with Tk is found, run `brew install python-tk@3.12` or `brew install uv` and then run `install.sh` again. To update, run `git pull` (if dependencies were added, run `~/.soapff-gui/venv/bin/python -m pip install -e soapff-gui`).
 
-## 使い方
+## Usage
 
-1. 「新規計算」（またはスーパーセルにするなら「スーパーセル」）で構造ファイルを選ぶ → 力場と最小化までの入力ができる。
-2. 「＋ fix」「＋ compute」「＋ その他」から MD を加える（例：soapff の緩和 → NVT → NPT → 最後の構造を書き出す）。膨潤曲線は「＋ その他 › soapff の手順 › 膨潤曲線」。
-3. 実行先を選んで「計算を開始」。終わると解析し、図と数値を表示する（`analysis/summary.txt`）。
+1. Choose a structure file with "New calculation" (or "Supercell" to make a supercell). The force field and an input that goes up to the minimization are created.
+2. Add MD steps with "+ fix", "+ compute", and "+ Other" (example: soapff relaxation, then NVT, then NPT, then write the last structure). For the swelling curve, use "+ other > soapff procedures > swelling curve".
+3. Choose where to run ("Run on") and press "Start calculation". When the run finishes, the GUI analyzes it and shows the plots and numbers (`analysis/summary.txt`).
 
-## 別のコンピュータ（SSH）で計算する
+## Running on another computer (SSH)
 
-力場の作成と解析はこのコンピュータで、LAMMPS だけを相手側（Linux か macOS）で動かします。
+Force-field generation and analysis run on this computer; only LAMMPS runs on the remote side (Linux or macOS).
 
-1. **相手側**：SSH でログインでき、`lmp`（KSPACE と MOLECULE 入り）と `mpirun` があること。
-2. **登録**：「実行」の欄の「実行先」の横の **＋登録** を押し、`ssh` の接続先（例：`taro@192.168.0.10`、ポートが 22 でなければ `taro@192.168.0.10:10022`）を入れて「登録」。パスワードを聞かれるので答えると、接続して相手の CPU と LAMMPS を調べ、並列数（物理コア数）と `mpirun` を自動で設定します。
-3. **実行**：実行先でそのコンピュータを選んで「計算を開始」。入力を送って `nohup` で起動し（接続が切れても続く）、終わると結果のフォルダを丸ごと受け取ります。
-4. **削除**：実行先で選んで **－削除**。細かい設定（相手側のフォルダ、`lmp` と `mpirun` の場所、`module load lammps` など最初に実行するコマンド、並列数）は「計算設定 › 実行先」で変えられます。
+1. **Remote side**: you can log in over SSH, and `lmp` (with KSPACE and MOLECULE) and `mpirun` are available.
+2. **Register**: next to "Run on" in the "Run" section, press **+ Add**, enter the `ssh` destination (example: `taro@192.168.0.10`, or `taro@192.168.0.10:10022` if the port is not 22), and press "Add". When asked for the password, enter it; the GUI connects, checks the remote CPU and LAMMPS, and sets the number of MPI processes (physical cores) and `mpirun` automatically.
+3. **Run**: choose that computer under "Run on" and press "Start calculation". The GUI sends the input and starts it with `nohup` (it keeps running if the connection drops); when it finishes, the whole result folder is copied back.
+4. **Remove**: choose it under "Run on" and press **- Remove**. Detailed settings (the remote folder, the locations of `lmp` and `mpirun`, commands to run first such as `module load lammps`, and the number of processes) can be changed in "Settings > Run on".
 
-パスワードは保存しません（登録、計算、接続テストのたびに聞きます）。鍵（`ssh-copy-id`）でログインできるなら、パスワードは空欄で OK です。
+Passwords are not saved (you are asked each time you register, run, or press "Test connection"). If you can log in with a key (`ssh-copy-id`), leave the password empty.
 
-## 例（`examples/`）
+## Examples (`examples/`)
 
-| フォルダ | 中身 |
+| Folder | Contents |
 |---|---|
-| `library_nvt_npt/` | ライブラリの 13 構造それぞれの NVT と NPT（GUI で作った入力・出力・解析） |
-| `montmorillonite_2W/` | Na モンモリロナイト 2 水和層の拡散係数（300・330・366 K、Greathouse et al. 2016 と比較） |
-| `montmorillonite_swelling/` | Cygan et al. 2004 と同じ Na モンモリロナイトの構造の作り方と膨潤曲線 |
-| `muscovite_2M1/` | 白雲母 2M1 の弾性定数と引張・せん断（論文の計算） |
+| `library_nvt_npt/` | NVT and NPT of each of the 13 library structures (inputs, outputs, and analysis made with the GUI) |
+| `montmorillonite_2W/` | Diffusion coefficients of Na montmorillonite with a 2-layer hydrate (300, 330, and 366 K; compared with Greathouse et al. 2016) |
+| `montmorillonite_swelling/` | How to build the same Na montmorillonite structure as Cygan et al. 2004, and its swelling curve |
+| `muscovite_2M1/` | Elastic constants, tension, and shear of muscovite 2M1 (calculations for the paper) |
 
-## 扱える構造と限界
+## Supported structures and limits
 
-- ライブラリ：Na モンモリロナイト（2 水和層、乾燥）、石英、ブルーサイト、パイロフィライト、白雲母（2M1、1M）、金雲母、nanpingite、カオリナイト、リザーダイト、タルク。これらの結晶は、大きさの違う超格子でも、300 K の MD のあとの構造でも、全原子の型と電荷が正解と一致しました。
-- 表面、界面、エッジ、ほかの鉱物は、ライブラリにその環境がないので扱えません（その参照をライブラリに加える）。
-- 力場は ClayFF と柔軟な SPC 水に固定です。
+- Library: Na montmorillonite (2-layer hydrate, dry), quartz, brucite, pyrophyllite, muscovite (2M1, 1M), phlogopite, nanpingite, kaolinite, lizardite, and talc. For these crystals, the types and charges of all atoms matched the correct answer, both for supercells of different sizes and for structures after MD at 300 K.
+- Surfaces, interfaces, edges, and other minerals cannot be handled because the library has no such environments (add a reference for them to the library).
+- The force field is fixed to ClayFF and flexible SPC water.
 
-## 構成
+## Layout
 
 ```
-src/soapff_gui/  GUI（app.py）、コマンドの一覧（catalog.py）、SSH（remote.py）、実行（runner.py）、ライブラリ（data/）
-src/soapff_cui/  力場の作成（core.py）、解析（analysis.py）。コマンドの soapff-cui
-examples/        上の例
+src/soapff_gui/  GUI (app.py), command lists (catalog.py), SSH (remote.py), execution (runner.py), library (data/)
+src/soapff_cui/  force-field generation (core.py), analysis (analysis.py). The command is soapff-cui
+examples/        the examples above
 ```

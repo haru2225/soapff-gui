@@ -1,10 +1,10 @@
 """soapff-GUI: choose a clay structure; soapff-cui writes the LAMMPS input (ClayFF + SOAP charges), which is shown line by
-line and can be edited (select a line, change its values below); press 計算を開始 to run LAMMPS on this computer or on
-another one over SSH, then analyse (diffusion coefficients; SOVA PDF, RDF, S(Q); the results of the computes;
-XRD with Debyer) and look at the result in OVITO.
+line and can be edited (select a line, change its values below); press "Start calculation" to run LAMMPS on this computer or on
+another one over SSH, then analyse (diffusion coefficients; SOVA PDF, RDF, S(Q); the results of the computes)
+and look at the result in OVITO.
 
-Layout (design/soapff-gui-ui-concept.png): menu row, toolbar (新規計算 / 計算設定 › 実行・解析 / 計算を開始), project sidebar
-(新しい計算, 計算履歴, 構造ライブラリ, 最近使った計算), the input file (in.lammps) as an editor, the form of the selected
+Layout (design/soapff-gui-ui-concept.png): menu row, toolbar (New calculation / Calculation settings › Run & analysis / Start calculation), project sidebar
+(New calculation, Calculation history, Structure library, Recent calculations), the input file (in.lammps) as an editor, the form of the selected
 command, the run panel (status, progress, log) and a status bar."""
 import json
 import math
@@ -23,10 +23,10 @@ import webbrowser
 from . import __version__, catalog, lammps_input as L, remote, runner
 
 SETTINGS = os.path.join(os.path.expanduser("~"), ".config", "soapff-gui", "settings.json")
-STRUCTURE_TYPES = [("構造ファイル", "*.xyz *.extxyz *.cif *.vasp *.data *.lammps *.lmp POSCAR* CONTCAR*"), ("すべて", "*")]
+STRUCTURE_TYPES = [("Structure files", "*.xyz *.extxyz *.cif *.vasp *.data *.lammps *.lmp POSCAR* CONTCAR*"), ("All files", "*")]
 AXIS_STYLES = ["p", "f", "m", "s", "fm", "mf", "fs", "sf", "ms", "sm"]
-BARO = {"z": "z：面に垂直な方向だけ（層間・界面）", "aniso": "aniso：3 辺を別々に（バルク結晶）",
-        "tri": "tri：箱の傾きも含めて全部（バルク結晶）", "iso": "iso：等方"}
+BARO = {"z": "z: only the direction normal to the surface (interlayer / interface)", "aniso": "aniso: the 3 edges independently (bulk crystal)",
+        "tri": "tri: everything, including the box tilt (bulk crystal)", "iso": "iso: isotropic"}
 DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p",
                 nproc=max(1, min(3, (os.cpu_count() or 2) // 2)), threshold=0.95, cutoff=10.0, library="", lmp="", mpirun="",
                 last_dir=os.path.expanduser("~"), dump_ps=1.0, auto_analyze=True, skip_ps="",
@@ -37,12 +37,39 @@ DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, b
                           all_elements=True),
                 swelling=dict(one_to=23, two_to=99, down=True, eq_ps=30.0, avg_ps=20.0))
 # the analyses (soapff_cui.analysis): key, label
-ANALYSES = (("msd", "拡散係数（LAMMPS の compute msd があるとき）"), ("sova", "SOVA：PDF g(r)・RDF N(r)・配位数・S(Q)"))
-XRD_MODES = {"cluster": "結晶子：セルを並べた有限の結晶（結晶・粘土鉱物）",
-             "periodic": "周期境界：カットオフ = 箱の半分（液体・ガラス、直方体の箱のみ）"}
+ANALYSES = (("msd", "Diffusion coefficient (when LAMMPS has a compute msd)"), ("sova", "SOVA: PDF g(r), RDF N(r), coordination numbers, S(Q)"))
+XRD_MODES = {"cluster": "Crystallite: a finite crystal of tiled cells (crystals, clay minerals)",
+             "periodic": "Periodic boundary: cutoff = half the box (liquids, glasses; orthorhombic boxes only)"}
 # a registered computer (SSH): name, host, user, port, root (folder for the runs there), lmp, mpirun, setup (shell commands
 # run first, e.g. 'module load lammps'), nproc.  The password is never stored: it is asked every time.
 COMPUTER = dict(name="", host="", user="", port=22, root="soapff_runs", lmp="lmp", mpirun="mpirun", setup="", nproc=4)
+
+# the name of the local computer in the "Run on" list (stored in settings as where="local")
+LOCAL_NAME = "This computer"
+LEGACY_LOCAL_NAME = "このコンピュータ"        # backward compatibility: the name used by earlier (Japanese) versions
+# status words stored in the calculation history (settings.json)
+STATUS_INPUT, STATUS_RUNNING, STATUS_DONE, STATUS_ERROR, STATUS_STOPPED = "Input created", "Running", "Done", "Error", "Stopped"
+# backward compatibility: the status words written by earlier (Japanese) versions
+LEGACY_STATUS = {"入力作成": STATUS_INPUT, "計算中": STATUS_RUNNING, "完了": STATUS_DONE, "エラー": STATUS_ERROR,
+                 "停止": STATUS_STOPPED}
+LOG_PLACEHOLDER = "The run log appears here."
+
+
+def is_local_name(name):
+    """True for the name of the local computer (also the Japanese one that may be in saved settings / history)."""
+    return name in (LOCAL_NAME, LEGACY_LOCAL_NAME)
+
+
+def status_of(h):
+    """the status of a history entry, with the Japanese words of earlier versions mapped to the English ones."""
+    st = h.get("status", "")
+    return LEGACY_STATUS.get(st, st)
+
+
+def where_of(h):
+    """the 'run on' label of a history entry (earlier versions stored the Japanese name and full-width parentheses)."""
+    w = h.get("where", "")
+    return LOCAL_NAME if is_local_name(w) else w.replace("（", " (").replace("）", ")")
 
 # colours and fonts of the design
 BG, PANEL, SIDE, LINE = "#e9edf0", "#ffffff", "#f4f6f7", "#d5dbe0"
@@ -76,7 +103,7 @@ def load_settings():
     s["analyses"] = list(s.get("analyses") or []) + [k for k, _ in ANALYSES if k not in known and k not in (s.get("analyses") or [])]
     s["analyses"] = [k for k in s["analyses"] if k in dict(ANALYSES)]      # e.g. "props" of an earlier version
     s["analyses_known"] = [k for k, _ in ANALYSES]
-    for k in ("props_selected", "props_params"):                          # settings of the removed ＋ 物性
+    for k in ("props_selected", "props_params"):                          # settings of the removed "+ Properties" feature
         s.pop(k, None)
     s["lmp"] = s.get("lmp") or lmp or ""
     s["mpirun"] = s.get("mpirun") or mpirun or ""
@@ -87,7 +114,7 @@ def load_settings():
                                    port=s.get("r_port", 22)))
     for k in [k for k in s if k.startswith("r_")]:
         s.pop(k)
-    if s.get("where") != "local" and not any(c["name"] == s.get("where") for c in s["computers"]):
+    if is_local_name(s.get("where")) or (s.get("where") != "local" and not any(c["name"] == s.get("where") for c in s["computers"])):
         s["where"] = "local"
     return s
 
@@ -112,14 +139,14 @@ def open_folder(path):
 def ago(t):
     d = time.time() - float(t or 0)
     if d < 60:
-        return "たった今"
+        return "just now"
     if d < 3600:
-        return f"{int(d // 60)} 分前"
+        return f"{int(d // 60)} min ago"
     if d < 86400:
-        return f"{int(d // 3600)} 時間前"
+        return f"{int(d // 3600)} h ago"
     if d < 2 * 86400:
-        return "昨日"
-    return f"{int(d // 86400)} 日前"
+        return "yesterday"
+    return f"{int(d // 86400)} d ago"
 
 
 def pick_font(cands, size, weight="normal"):
@@ -129,13 +156,13 @@ def pick_font(cands, size, weight="normal"):
 
 
 FILES = ("in.lammps", "system.settings", "system.data")
-FILE_NOTE = {"in.lammps": "LAMMPS input", "system.settings": "力場の設定（in.lammps から include）",
-             "system.data": "原子・結合・角度（読み取り専用）"}
+FILE_NOTE = {"in.lammps": "LAMMPS input", "system.settings": "Force field (included by in.lammps)",
+             "system.data": "Atoms, bonds, angles (read-only)"}
 READONLY = {"system.data"}
 # columns of the sections of a LAMMPS data file (atom_style full)
-DATA_COLS = {"Masses": ["型番号", "質量"], "Atoms": ["原子番号", "分子番号", "型", "電荷 (e)", "x (Å)", "y (Å)", "z (Å)", "ix", "iy", "iz"],
-             "Bonds": ["結合番号", "結合の型", "原子 1", "原子 2"], "Angles": ["角度番号", "角度の型", "原子 1", "原子 2 (中心)", "原子 3"],
-             "Velocities": ["原子番号", "vx", "vy", "vz"]}
+DATA_COLS = {"Masses": ["Type no.", "Mass"], "Atoms": ["Atom no.", "Molecule no.", "Type", "Charge (e)", "x (Å)", "y (Å)", "z (Å)", "ix", "iy", "iz"],
+             "Bonds": ["Bond no.", "Bond type", "Atom 1", "Atom 2"], "Angles": ["Angle no.", "Angle type", "Atom 1", "Atom 2 (center)", "Atom 3"],
+             "Velocities": ["Atom no.", "vx", "vy", "vz"]}
 
 
 class App:
@@ -171,7 +198,7 @@ class App:
         self.f_ui, self.f_small, self.f_bold = pick_font(ui, 12), pick_font(ui, 11), pick_font(ui, 12, "bold")
         self.f_title, self.f_head = pick_font(ui, 17, "bold"), pick_font(ui, 11, "bold")
         self.f_mono, self.f_mono_s = pick_font(mono, 12), pick_font(mono, 11)
-        root.title("soapff-GUI — 新しい計算")
+        root.title("soapff-GUI — New calculation")
         root.geometry("1360x860")
         root.minsize(1100, 780)                    # smaller than this the editor would be squeezed out
         root.minsize(1100, 720)
@@ -245,17 +272,17 @@ class App:
         # --- toolbar
         tb = tk.Frame(r, bg=BG, height=56)
         tb.pack(fill="x")
-        ttk.Button(tb, text="新規計算", style="Ghost.TButton", command=self.new_calc).pack(side="left", padx=(18, 4), pady=10)
-        ttk.Button(tb, text="スーパーセル", style="Ghost.TButton", command=self.new_supercell).pack(side="left", padx=(0, 14), pady=10)
+        ttk.Button(tb, text="New calculation", style="Ghost.TButton", command=self.new_calc).pack(side="left", padx=(18, 4), pady=10)
+        ttk.Button(tb, text="Supercell", style="Ghost.TButton", command=self.new_supercell).pack(side="left", padx=(0, 14), pady=10)
         tk.Frame(tb, bg=LINE, width=1).pack(side="left", fill="y", pady=12)
-        self.crumb_settings = tk.Label(tb, text="計算設定", bg=BG, fg=MUTED, font=self.f_small, cursor="hand2")
+        self.crumb_settings = tk.Label(tb, text="Calculation settings", bg=BG, fg=MUTED, font=self.f_small, cursor="hand2")
         self.crumb_settings.pack(side="left", padx=(16, 8))
         self.crumb_settings.bind("<Button-1>", lambda e: self.open_settings())
         tk.Label(tb, text="›", bg=BG, fg=FAINT, font=self.f_small).pack(side="left")
-        self.crumb_run = tk.Label(tb, text="実行・解析", bg=BG, fg=MUTED, font=self.f_small, cursor="hand2")
+        self.crumb_run = tk.Label(tb, text="Run & analysis", bg=BG, fg=MUTED, font=self.f_small, cursor="hand2")
         self.crumb_run.pack(side="left", padx=8)
         self.crumb_run.bind("<Button-1>", lambda e: self.show_results())
-        self.b_start_top = ttk.Button(tb, text="計算を開始", style="Accent.TButton", command=self.start_or_stop)
+        self.b_start_top = ttk.Button(tb, text="Start calculation", style="Accent.TButton", command=self.start_or_stop)
         self.b_start_top.pack(side="right", padx=18, pady=10)
         tk.Frame(r, bg=LINE, height=1).pack(fill="x")
 
@@ -277,25 +304,25 @@ class App:
 
     def _menu_spec(self):
         return [
-            ("ファイル", [("新規計算…", self.new_calc, "⌘N"), ("スーパーセルを作って新規計算（OVITO Replicate）…", self.new_supercell),
-                          ("構造を変更…", self.new_calc),
-                          ("既存の出力フォルダを開く…", self.open_project), None,
-                          ("別のコンピュータからフォルダを受け取る…", self.fetch_dialog), None,
-                          ("出力フォルダを開く", self.open_out), None, ("終了", self.on_close)]),
-            ("編集", [("行を追加（自由入力）", self.new_line), ("minimize より後をすべて消す", self.cut_after_minimize), None,
-                      ("fix を追加…", lambda: self.open_catalog("fix")), ("compute を追加…", lambda: self.open_catalog("compute")),
-                      ("その他のコマンドを追加…", lambda: self.open_catalog("other")), None, ("行を削除", self.delete_line), None,
-                      ("上へ移動", lambda: self.move_line(-1)), ("下へ移動", lambda: self.move_line(1)), None,
-                      ("元に戻す", self.do_undo, "⌘Z")]),
-            ("表示", [("in.lammps", lambda: self.show_tab("in.lammps")), ("system.settings（力場の設定）",
+            ("File", [("New calculation…", self.new_calc, "⌘N"), ("New calculation from a supercell (OVITO Replicate)…", self.new_supercell),
+                          ("Change structure…", self.new_calc),
+                          ("Open existing output folder…", self.open_project), None,
+                          ("Fetch a folder from another computer…", self.fetch_dialog), None,
+                          ("Open output folder", self.open_out), None, ("Quit", self.on_close)]),
+            ("Edit", [("Add line (free input)", self.new_line), ("Delete everything after minimize", self.cut_after_minimize), None,
+                      ("Add fix…", lambda: self.open_catalog("fix")), ("Add compute…", lambda: self.open_catalog("compute")),
+                      ("Add other command…", lambda: self.open_catalog("other")), None, ("Delete line", self.delete_line), None,
+                      ("Move up", lambda: self.move_line(-1)), ("Move down", lambda: self.move_line(1)), None,
+                      ("Undo", self.do_undo, "⌘Z")]),
+            ("View", [("in.lammps", lambda: self.show_tab("in.lammps")), ("system.settings (force field)",
                                                                          lambda: self.show_tab("system.settings")),
-                      ("system.data（原子・結合・角度）", lambda: self.show_tab("system.data")), None,
-                      ("解析結果", self.show_results), ("グラフ（列を選んで描く）…", self.open_plotter), ("OVITO で開く", self.open_ovito), None,
-                      ("計算履歴", self.show_history), ("構造ライブラリ", self.show_library)]),
-            ("計算", [("計算を開始", self.start, "⌘R"), ("停止", self.stop), None,
-                      ("入力を作り直す（MD の条件から）", self.regenerate), ("解析", self.analyze_now), None,
-                      ("計算設定…", self.open_settings)]),
-            ("ヘルプ", [("README を開く", self.open_readme), ("soapff-GUI について", self.about)]),
+                      ("system.data (atoms, bonds, angles)", lambda: self.show_tab("system.data")), None,
+                      ("Analysis results", self.show_results), ("Plot (choose columns)…", self.open_plotter), ("Open in OVITO", self.open_ovito), None,
+                      ("Calculation history", self.show_history), ("Structure library", self.show_library)]),
+            ("Run", [("Start calculation", self.start, "⌘R"), ("Stop", self.stop), None,
+                      ("Rebuild input (from the MD conditions)", self.regenerate), ("Analyze", self.analyze_now), None,
+                      ("Calculation settings…", self.open_settings)]),
+            ("Help", [("Open README", self.open_readme), ("About soapff-GUI", self.about)]),
         ]
 
     def _sidebar(self, body):
@@ -303,10 +330,10 @@ class App:
         sd.pack(side="left", fill="y")
         sd.pack_propagate(False)
         tk.Frame(body, bg=LINE, width=1).pack(side="left", fill="y")
-        tk.Label(sd, text="プロジェクト", bg=SIDE, fg=MUTED, font=self.f_head).pack(anchor="w", padx=20, pady=(22, 8))
+        tk.Label(sd, text="Project", bg=SIDE, fg=MUTED, font=self.f_head).pack(anchor="w", padx=20, pady=(22, 8))
         self.nav = {}
-        for key, label, cmd in (("new", "新しい計算", lambda: None), ("history", "計算履歴", self.show_history),
-                                ("library", "構造ライブラリ", self.show_library)):
+        for key, label, cmd in (("new", "New calculation", lambda: None), ("history", "Calculation history", self.show_history),
+                                ("library", "Structure library", self.show_library)):
             row = tk.Frame(sd, bg=SIDE, cursor="hand2")
             row.pack(fill="x", padx=10, pady=2)
             bar = tk.Frame(row, bg=SIDE, width=3)
@@ -318,7 +345,7 @@ class App:
             self.nav[key] = (row, bar, lab)
         self._nav_select("new")
         tk.Frame(sd, bg=LINE, height=1).pack(fill="x", padx=18, pady=14)
-        tk.Label(sd, text="最近使った計算", bg=SIDE, fg=MUTED, font=self.f_head).pack(anchor="w", padx=20, pady=(0, 6))
+        tk.Label(sd, text="Recent calculations", bg=SIDE, fg=MUTED, font=self.f_head).pack(anchor="w", padx=20, pady=(0, 6))
         self.recent = tk.Frame(sd, bg=SIDE)
         self.recent.pack(fill="x", padx=14)
 
@@ -338,27 +365,27 @@ class App:
         return outer
 
     def _main(self, main):
-        tk.Label(main, text="入力ファイル", bg=BG, fg="#23313b", font=self.f_title).pack(anchor="w")
-        tk.Label(main, text="コマンドの行を選択して編集できます。", bg=BG, fg=MUTED, font=self.f_small).pack(anchor="w", pady=(0, 8))
+        tk.Label(main, text="Input file", bg=BG, fg="#23313b", font=self.f_title).pack(anchor="w")
+        tk.Label(main, text="Select a command line to edit it.", bg=BG, fg=MUTED, font=self.f_small).pack(anchor="w", pady=(0, 8))
 
         # structure card
         c = self._card(main, fill="x")
         left = tk.Frame(c, bg=PANEL)
         left.pack(side="left", padx=16, pady=6, fill="x", expand=True)
-        tk.Label(left, text="構造", bg=PANEL, fg=FAINT, font=pick_font(["Hiragino Sans"], 10)).pack(anchor="w")
-        self.l_struct = tk.Label(left, text="未選択（新規計算から構造ファイルを選んでください）", bg=PANEL, fg=TEXT, font=self.f_bold)
+        tk.Label(left, text="Structure", bg=PANEL, fg=FAINT, font=pick_font(["Hiragino Sans"], 10)).pack(anchor="w")
+        self.l_struct = tk.Label(left, text="None selected (choose a structure file with New calculation)", bg=PANEL, fg=TEXT, font=self.f_bold)
         self.l_struct.pack(anchor="w")
         self.l_struct2 = tk.Label(left, text="", bg=PANEL, fg=MUTED, font=self.f_small)
         self.l_struct2.pack(anchor="w")
         tk.Frame(c, bg=LINE, width=1).pack(side="left", fill="y", pady=8)
         mid = tk.Frame(c, bg=PANEL)
         mid.pack(side="left", padx=16, pady=6, fill="x", expand=True)
-        tk.Label(mid, text="出力ファイル", bg=PANEL, fg=FAINT, font=pick_font(["Hiragino Sans"], 10)).pack(anchor="w")
+        tk.Label(mid, text="Output files", bg=PANEL, fg=FAINT, font=pick_font(["Hiragino Sans"], 10)).pack(anchor="w")
         self.l_outfile = tk.Label(mid, text="in.lammps", bg=PANEL, fg=TEXT, font=self.f_mono)
         self.l_outfile.pack(anchor="w")
         self.l_outdir = tk.Label(mid, text="", bg=PANEL, fg=MUTED, font=self.f_small)
         self.l_outdir.pack(anchor="w")
-        ttk.Button(c, text="構造を変更", style="Link.TButton", command=self.new_calc).pack(side="right", padx=16)
+        ttk.Button(c, text="Change structure", style="Link.TButton", command=self.new_calc).pack(side="right", padx=16)
 
         # bottom row: selected command | run
         # editor above, command form and run below, with a draggable divider (drag it to make the editor bigger)
@@ -390,16 +417,16 @@ class App:
             t.pack(side="left", padx=(0, 6))
             t.bind("<Button-1>", lambda e, f=f: self.show_tab(f))
             self.tabs[f] = t
-        self.l_save = tk.Label(head, text="LAMMPS input · 自動保存", bg=PANEL, fg=MUTED, font=self.f_small)
+        self.l_save = tk.Label(head, text="LAMMPS input · autosave", bg=PANEL, fg=MUTED, font=self.f_small)
         self.l_save.pack(side="right")
-        ttk.Button(head, text="テキストで開く（大きく・貼り付け）", style="Tiny.TButton", command=self.open_text_editor).pack(
+        ttk.Button(head, text="Open as text (large, paste)", style="Tiny.TButton", command=self.open_text_editor).pack(
             side="right", padx=(0, 12))
-        self.b_expand = ttk.Button(head, text="⤢ 拡大", style="Tiny.TButton", command=self.toggle_expand)
+        self.b_expand = ttk.Button(head, text="⤢ Expand", style="Tiny.TButton", command=self.toggle_expand)
         self.b_expand.pack(side="right", padx=(0, 6))
         # boundary of the box (system.settings); changing it rebuilds the force field (k-space solver, walls, centring)
         bf = tk.Frame(head, bg=PANEL)
         bf.pack(side="right", padx=(0, 18))
-        tk.Label(bf, text="境界条件", bg=PANEL, fg=MUTED, font=self.f_small).pack(side="left", padx=(0, 6))
+        tk.Label(bf, text="Boundary", bg=PANEL, fg=MUTED, font=self.f_small).pack(side="left", padx=(0, 6))
         self.v_bnd = []
         for ax in "xyz":
             tk.Label(bf, text=ax, bg=PANEL, fg=FAINT, font=self.f_small).pack(side="left", padx=(4, 2))
@@ -438,10 +465,10 @@ class App:
             self.ed.bind(ev, self.copy_line)
         foot = tk.Frame(ec, bg=PANEL)
         foot.pack(fill="x", padx=14, pady=6)
-        for text, kind in (("＋ fix", "fix"), ("＋ compute", "compute"), ("＋ その他（run・timestep など）", "other")):
+        for text, kind in (("+ fix", "fix"), ("+ compute", "compute"), ("+ Other (run, timestep, ...)", "other")):
             ttk.Button(foot, text=text, style="Link.TButton", command=lambda k=kind: self.open_catalog(k)).pack(side="left", padx=(0, 6))
-        ttk.Button(foot, text="＋ 行を追加（自由入力）", style="Link.TButton", command=self.new_line).pack(side="left", padx=(0, 6))
-        tk.Label(foot, text="行を選択して値を編集 · 上下キーで移動 · Enter で下に行を追加 · Delete で削除", bg=PANEL, fg=MUTED,
+        ttk.Button(foot, text="+ Add line (free input)", style="Link.TButton", command=self.new_line).pack(side="left", padx=(0, 6))
+        tk.Label(foot, text="Select a line to edit · Up/Down: move · Enter: add line · Delete: remove", bg=PANEL, fg=MUTED,
                  font=self.f_small).pack(side="right")
         self.b_insert_anchor = foot
 
@@ -449,14 +476,14 @@ class App:
     def _form_area(self):
         head = tk.Frame(self.fc, bg=PANEL)
         head.pack(fill="x", padx=16, pady=(10, 0))
-        self.l_formtitle = tk.Label(head, text="選択したコマンド", bg=PANEL, fg="#23313b", font=self.f_bold)
+        self.l_formtitle = tk.Label(head, text="Selected command", bg=PANEL, fg="#23313b", font=self.f_bold)
         self.l_formtitle.pack(side="left")
         self.l_formline = tk.Label(head, text="", bg=PANEL, fg=MUTED, font=self.f_small)
         self.l_formline.pack(side="right")
         tk.Frame(self.fc, bg=LINE, height=1).pack(fill="x", pady=(8, 0))
         self.l_preview = tk.Label(self.fc, text="", bg=CODE_BG, fg=TEXT, font=self.f_mono_s, anchor="w", padx=12, pady=8)
         self.l_preview.pack(side="bottom", fill="x", padx=16, pady=(0, 12))
-        tk.Label(self.fc, text="生成される行", bg=PANEL, fg=MUTED, font=self.f_small).pack(side="bottom", anchor="w", padx=16,
+        tk.Label(self.fc, text="Generated line", bg=PANEL, fg=MUTED, font=self.f_small).pack(side="bottom", anchor="w", padx=16,
                                                                                          pady=(6, 2))
         area = tk.Frame(self.fc, bg=PANEL)
         area.pack(fill="both", expand=True, padx=(16, 4), pady=(8, 0))
@@ -475,26 +502,26 @@ class App:
     def _run_area(self, rc):
         head = tk.Frame(rc, bg=PANEL)
         head.pack(fill="x", padx=16, pady=(8, 0))
-        tk.Label(head, text="実行", bg=PANEL, fg="#23313b", font=self.f_bold).pack(side="left", pady=4)
-        self.b_start = ttk.Button(head, text="計算を開始", style="Small.Accent.TButton", command=self.start_or_stop)
+        tk.Label(head, text="Run", bg=PANEL, fg="#23313b", font=self.f_bold).pack(side="left", pady=4)
+        self.b_start = ttk.Button(head, text="Start calculation", style="Small.Accent.TButton", command=self.start_or_stop)
         self.b_start.pack(side="right")
-        wrow = tk.Frame(rc, bg=PANEL)                  # 実行先: chosen computer, ＋ to register one, － to remove it
+        wrow = tk.Frame(rc, bg=PANEL)                  # Run on: chosen computer, + to register one, - to remove it
         wrow.pack(fill="x", padx=16, pady=(6, 0))
-        tk.Label(wrow, text="実行先", bg=PANEL, fg=MUTED, font=self.f_small).pack(side="left")
+        tk.Label(wrow, text="Run on", bg=PANEL, fg=MUTED, font=self.f_small).pack(side="left")
         self.v_where = tk.StringVar()
-        self.cb_where = ttk.Combobox(wrow, textvariable=self.v_where, state="readonly", width=13, font=self.f_small)
+        self.cb_where = ttk.Combobox(wrow, textvariable=self.v_where, state="readonly", width=12, font=self.f_small)
         self.cb_where.pack(side="left", padx=(6, 4))
         self.cb_where.bind("<<ComboboxSelected>>", lambda e: self.choose_where())
-        ttk.Button(wrow, text="＋登録", width=6, style="Tiny.TButton", command=lambda: self.quick_add_computer(self.root)).pack(
+        ttk.Button(wrow, text="+ Add", width=5, style="Tiny.TButton", command=lambda: self.quick_add_computer(self.root)).pack(
             side="left", padx=(0, 4))
-        ttk.Button(wrow, text="－削除", width=6, style="Tiny.TButton", command=self.remove_computer).pack(side="left")
+        ttk.Button(wrow, text="- Remove", width=7, style="Tiny.TButton", command=self.remove_computer).pack(side="left")
         tk.Frame(rc, bg=LINE, height=1).pack(fill="x", pady=(8, 0))
         row = tk.Frame(rc, bg=PANEL)
         row.pack(fill="x", padx=16, pady=(12, 0))
         self.dot = tk.Canvas(row, width=10, height=10, bg=PANEL, highlightthickness=0)
         self.dot.pack(side="left")
         self.dot_id = self.dot.create_oval(1, 1, 9, 9, fill=FAINT, outline="")
-        self.l_phase = tk.Label(row, text="待機中", bg=PANEL, fg=TEXT, font=self.f_small)
+        self.l_phase = tk.Label(row, text="Idle", bg=PANEL, fg=TEXT, font=self.f_small)
         self.l_phase.pack(side="left", padx=6)
         self.l_pct = tk.Label(row, text="0%", bg=PANEL, fg=MUTED, font=self.f_small)
         self.l_pct.pack(side="right")
@@ -502,18 +529,18 @@ class App:
         self.pb.pack(fill="x", padx=16, pady=(8, 0))
         self.l_thermo = tk.Label(rc, text="", bg=PANEL, fg=MUTED, font=self.f_mono_s, anchor="w")
         self.l_thermo.pack(fill="x", padx=16, pady=(6, 0))
-        acts = tk.Frame(rc, bg=PANEL)                  # packed first (at the bottom) so that 解析 is always visible
+        acts = tk.Frame(rc, bg=PANEL)                  # packed first (at the bottom) so that "Analyze" is always visible
         acts.pack(side="bottom", fill="x", padx=16, pady=(0, 10))
-        for text, cmd in (("解析", self.analyze_now), ("グラフ", self.open_plotter), ("OVITO で開く", self.open_ovito),
-                          ("フォルダ", self.open_out)):
+        for text, cmd in (("Analyze", self.analyze_now), ("Plot", self.open_plotter), ("OVITO", self.open_ovito),
+                          ("Folder", self.open_out)):
             ttk.Button(acts, text=text, style="Link.TButton", command=cmd).pack(side="left", padx=(0, 6))
-        tk.Label(acts, text="↑ 計算が終わると自動で解析します", bg=PANEL, fg=FAINT, font=self.f_small).pack(side="right")
+        tk.Label(acts, text="↑ analyzed automatically after a run", bg=PANEL, fg=FAINT, font=self.f_small).pack(side="right")
         lf = tk.Frame(rc, bg=CODE_BG, highlightthickness=1, highlightbackground="#e1e6ea")
         lf.pack(fill="both", expand=True, padx=16, pady=(8, 8))
         self.log = tk.Text(lf, bg=CODE_BG, fg=TEXT, font=pick_font(["Menlo"], 10), relief="flat", height=4, wrap="none",
                            highlightthickness=0, padx=8, pady=6)
         self.log.pack(fill="both", expand=True)
-        self.log.insert("end", "実行ログはここに表示されます。", "muted")
+        self.log.insert("end", LOG_PLACEHOLDER, "muted")
         self.log.tag_config("muted", foreground=FAINT)
         self.log.tag_config("warn", foreground="#a15c00")
         self.log.tag_config("err", foreground=ERR)
@@ -560,8 +587,8 @@ class App:
         ed.configure(state="normal")
         ed.delete("1.0", "end")
         if not self.lines:
-            ed.insert("end", "\n   構造ファイルを選ぶと、soapff-cui が LAMMPS の入力（in.lammps、system.settings）を作り、ここに表示します。\n", "comment")
-            ed.insert("end", "   上の「新規計算」か「構造を変更」から始めてください。\n", "comment")
+            ed.insert("end", "\n   Choose a structure file and soapff-cui writes the LAMMPS input (in.lammps, system.settings) and shows it here.\n", "comment")
+            ed.insert("end", "   Start with \"New calculation\" or \"Change structure\" above.\n", "comment")
         for i, line in enumerate(self.lines):
             sel = i == self.sel
             ed.insert("end", "▎" if sel else " ", "bar")
@@ -576,7 +603,7 @@ class App:
             else:
                 ed.insert("end", line.strip(), "comment")
             if sel:
-                ed.insert("end", "\t選択中 · クリックして編集", "hint")
+                ed.insert("end", "\tSelected · click to edit", "hint")
             ed.insert("end", "\n")
             tags = ("selline",) if sel else (("stripe",) if i % 2 else ())
             for t in tags:
@@ -611,11 +638,11 @@ class App:
         if not getattr(self, "_expanded", False):
             self.pw.forget(self._bottom)
             self._expanded = True
-            self.b_expand.config(text="⤡ 戻す")
+            self.b_expand.config(text="⤡ Restore")
         else:
             self.pw.add(self._bottom, stretch="never", minsize=130, height=240)
             self._expanded = False
-            self.b_expand.config(text="⤢ 拡大")
+            self.b_expand.config(text="⤢ Expand")
 
     def copy_line(self, e=None):
         """Copy: the selected line to the clipboard."""
@@ -637,18 +664,18 @@ class App:
             new.pop()
         if new:
             self.insert_lines(new)
-            self.log_add(f"{len(new)} 行を貼り付けました\n", None)
+            self.log_add(f"Pasted {len(new)} line(s)\n", None)
         return "break"
 
     def open_text_editor(self):
-        """the whole file of the editor tab as plain text in a large window: edit, copy and paste freely, then 適用."""
+        """the whole file of the editor tab as plain text in a large window: edit, copy and paste freely, then Apply."""
         name = self.tab
         if not self.docs.get(name):
-            messagebox.showinfo("soapff-GUI", "先に構造ファイルを選んで、入力を作ってください")
+            messagebox.showinfo("soapff-GUI", "First choose a structure file and create the input")
             return
         ro = name in READONLY
         w = tk.Toplevel(self.root)
-        w.title(f"{name}" + ("（読み取り専用）" if ro else "（テキストで編集）"))
+        w.title(f"{name}" + (" (read-only)" if ro else " (text editing)"))
         sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
         w.geometry(f"{min(1100, sw - 100)}x{min(780, sh - 120)}")
         f = ttk.Frame(w, padding=8)
@@ -667,7 +694,7 @@ class App:
         t.insert("1.0", "\n".join(self.docs[name]) + "\n")
         if ro:
             t.config(state="disabled")
-        msg = tk.StringVar(value="" if ro else "ここで編集・コピー・貼り付けして「適用」を押すと、入力の各行がこの内容になります（元に戻すは ⌘Z）")
+        msg = tk.StringVar(value="" if ro else "Edit, copy and paste here, then press \"Apply\" to replace the lines of the input with this text (undo with ⌘Z)")
         ttk.Label(bar, textvariable=msg, foreground=MUTED).pack(side="left")
 
         def apply():
@@ -682,12 +709,12 @@ class App:
             self.render()
             self.build_form()
             self.schedule_save()
-            msg.set(f"適用しました（{len(lines)} 行）")
+            msg.set(f"Applied ({len(lines)} lines)")
         if not ro:
-            ttk.Button(bar, text="適用", style="Accent.TButton", command=apply).pack(side="right")
+            ttk.Button(bar, text="Apply", style="Accent.TButton", command=apply).pack(side="right")
             w.bind("<Command-s>", lambda ev: apply())
             w.bind("<Control-s>", lambda ev: apply())
-        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="right", padx=8)
+        ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="right", padx=8)
         t.focus_set()
 
     def move_sel(self, d):
@@ -717,7 +744,7 @@ class App:
             w.destroy()
         self.form_vars = []
         if self.sel is None or not self.lines:
-            self.l_formtitle.config(text="選択したコマンド")
+            self.l_formtitle.config(text="Selected command")
             self.l_formline.config(text="")
             self.l_preview.config(text="")
             return
@@ -725,22 +752,22 @@ class App:
         if self.tab in READONLY:
             return self.data_form(line)
         c, a, cm = L.split(line)
-        self.l_formline.config(text=f"{self.sel + 1} 行目")
+        self.l_formline.config(text=f"Line {self.sel + 1}")
         if not c:
-            self.l_formtitle.config(text="選択した行: コメント・空行")
-            specs = [("内容", line.strip(), None)]
+            self.l_formtitle.config(text="Selected line: comment / blank")
+            specs = [("Content", line.strip(), None)]
         else:
-            self.l_formtitle.config(text=f"選択したコマンド: {c}")
+            self.l_formtitle.config(text=f"Selected command: {c}")
             labs = L.labels(c, a)
             specs = [(lab, a[k] if k < len(a) else "", k) for k, lab in enumerate(labs)]
             if cm:
-                specs.append(("コメント", cm, "comment"))
+                specs.append(("Comment", cm, "comment"))
         self._form_cmd = c
         if c == "boundary":
             self.boundary_form(a)
             return
         if c == "include" and a and a[0] in FILES:
-            tk.Button(self.fields, text=f"{a[0]} を開く", command=lambda f=a[0]: self.show_tab(f), relief="flat", bg=ACCENT_BG,
+            tk.Button(self.fields, text=f"Open {a[0]}", command=lambda f=a[0]: self.show_tab(f), relief="flat", bg=ACCENT_BG,
                       fg=ACCENT, activebackground=SEL_BG, font=self.f_small, padx=10, pady=4, cursor="hand2").pack(
                 anchor="w", pady=(0, 6))
         col = 0
@@ -772,8 +799,8 @@ class App:
         self._form_cmd = ""
         self.form_vars = []
         sec = self.data_section(self.sel)
-        self.l_formline.config(text=f"{self.sel + 1} 行目（読み取り専用）")
-        self.l_formtitle.config(text=f"system.data: {sec or 'ヘッダー'}")
+        self.l_formline.config(text=f"Line {self.sel + 1} (read-only)")
+        self.l_formtitle.config(text=f"system.data: {sec or 'Header'}")
         body, _, comment = line.partition("#")
         vals = body.split()
         cols = DATA_COLS.get(sec, []) if vals and vals[0] not in DATA_COLS else []
@@ -786,16 +813,16 @@ class App:
                 rowf.pack(fill="x", anchor="w")
             cell = tk.Frame(rowf, bg=PANEL)
             cell.pack(side="left", padx=(0, 12), pady=(0, 6))
-            lab = cols[k] if k < len(cols) else ("値" if cols else f"{k + 1}")
+            lab = cols[k] if k < len(cols) else ("Value" if cols else f"{k + 1}")
             tk.Label(cell, text=lab, bg=PANEL, fg=MUTED, font=self.f_small).pack(anchor="w")
             shown = v
             if sec == "Atoms" and k == 2 and v.isdigit() and int(v) in names:
-                shown = f"{v}（{names[int(v)]}）"
+                shown = f"{v} ({names[int(v)]})"
             tk.Label(cell, text=shown, bg=CODE_BG, fg=TEXT, font=self.f_mono_s, width=14, anchor="w", padx=6, pady=4).pack(anchor="w")
         if comment.strip():
-            tk.Label(self.fields, text=f"コメント：{comment.strip()}", bg=PANEL, fg=MUTED, font=self.f_small).pack(anchor="w")
-        tk.Label(self.fields, text="system.data は soapff-cui が書く原子・結合・角度の表です（ここでは見るだけ）。"
-                                   "変えるときは構造ファイルか境界条件を変えて作り直します。",
+            tk.Label(self.fields, text=f"Comment: {comment.strip()}", bg=PANEL, fg=MUTED, font=self.f_small).pack(anchor="w")
+        tk.Label(self.fields, text="system.data is the table of atoms, bonds and angles written by soapff-cui (view only here). "
+                                   "To change it, change the structure file or the boundary and rebuild.", wraplength=560, justify="left",
                  bg=PANEL, fg=FAINT, font=self.f_small).pack(anchor="w", pady=(4, 0))
         self.l_preview.config(text=line.strip())
 
@@ -812,10 +839,10 @@ class App:
             v = tk.StringVar(value=x)
             ttk.Combobox(cell, textvariable=v, values=AXIS_STYLES, width=5, state="readonly", font=self.f_mono_s).pack(anchor="w")
             vs.append(v)
-        ttk.Button(row, text="この境界条件で作り直す", style="Small.Accent.TButton",
+        ttk.Button(row, text="Rebuild with this boundary", style="Small.Accent.TButton",
                    command=lambda: self.change_boundary([v.get() for v in vs])).pack(side="left", padx=(8, 0), pady=(14, 0))
-        tk.Label(self.fields, text="p：周期　f：固定　s：原子に合わせて縮む　m：原子に合わせて広がる（面ごとに fm など）。"
-                                   "変えると力場（長距離クーロン力の計算法など）と入力を作り直します。",
+        tk.Label(self.fields, text="p: periodic   f: fixed   s: shrinks to fit the atoms   m: expands to fit the atoms (per face, e.g. fm). "
+                                   "Changing it rebuilds the force field (long-range Coulomb method etc.) and the input.",
                  bg=PANEL, fg=MUTED, font=self.f_small, wraplength=560, justify="left").pack(anchor="w")
         self.form_vars = []
         self.l_preview.config(text=f"boundary {' '.join(b)}")
@@ -869,20 +896,20 @@ class App:
     def open_catalog(self, kind):
         """LAMMPS fix / compute styles (and run, timestep ...) to insert after the selected line of in.lammps."""
         if not self.docs["in.lammps"]:
-            messagebox.showinfo("soapff-GUI", "先に構造ファイルを選んで、入力を作ってください")
+            messagebox.showinfo("soapff-GUI", "First choose a structure file and create the input")
             return
         if self.tab != "in.lammps":
             self.show_tab("in.lammps")
         items = catalog.entries(kind) + (catalog.entries("special") if kind in ("other", "compute") else [])
         w = tk.Toplevel(self.root)
-        w.title({"fix": "fix を追加", "compute": "compute を追加", "other": "コマンドを追加"}[kind])
+        w.title({"fix": "Add fix", "compute": "Add compute", "other": "Add command"}[kind])
         w.geometry("980x600")
         w.configure(bg=PANEL)
         left = tk.Frame(w, bg=PANEL)
         left.pack(side="left", fill="both", padx=(12, 6), pady=12)
         q = tk.StringVar()
         ttk.Entry(left, textvariable=q, style="Field.TEntry", width=40).pack(fill="x")
-        tk.Label(left, text="名前・説明で絞り込み", bg=PANEL, fg=FAINT, font=self.f_small).pack(anchor="w", pady=(2, 6))
+        tk.Label(left, text="Filter by name or description", bg=PANEL, fg=FAINT, font=self.f_small).pack(anchor="w", pady=(2, 6))
         tv = ttk.Treeview(left, show="tree", height=22)
         tv.column("#0", width=420)
         tv.pack(fill="both", expand=True)
@@ -894,7 +921,7 @@ class App:
         l_style.pack(fill="x", pady=(2, 8))
         l_desc = tk.Label(right, text="", bg=PANEL, fg=TEXT, font=self.f_small, anchor="w", justify="left", wraplength=480)
         l_desc.pack(fill="x")
-        tk.Label(right, text="入る行", bg=PANEL, fg=MUTED, font=self.f_small).pack(anchor="w", pady=(12, 2))
+        tk.Label(right, text="Lines to be inserted", bg=PANEL, fg=MUTED, font=self.f_small).pack(anchor="w", pady=(12, 2))
         l_tpl = tk.Label(right, text="", bg=CODE_BG, fg=TEXT, font=self.f_mono_s, anchor="w", justify="left", padx=10, pady=8,
                          wraplength=480)
         l_tpl.pack(fill="x")
@@ -937,9 +964,9 @@ class App:
             l_desc.config(text=e["desc"].replace("{N}", "N").replace("{T}", "T") or " ")
             l_tpl.config(text="\n".join(lines))
             labs = [x for x in (catalog.BASE if e["kind"] in ("fix", "compute") else []) + e["labels"] if x]
-            l_fields.config(text=("欄：" + "、".join(labs)) if labs else "")
+            l_fields.config(text=("Fields: " + ", ".join(labs)) if labs else "")
             n = self.sel + 1 if self.sel is not None else len(self.lines)
-            where.config(text=f"{n} 行目のあとに入ります（入れたあと、下の欄で値を直せます）")
+            where.config(text=f"Inserted after line {n} (you can edit the values in the fields below afterwards)")
 
         def insert(*_):
             e = chosen()
@@ -950,9 +977,9 @@ class App:
         def manual():
             if cur.get("doc"):
                 webbrowser.open(cur["doc"])
-        ttk.Button(bar, text="挿入", style="Accent.TButton", command=insert).pack(side="right")
-        ttk.Button(bar, text="LAMMPS のマニュアル", style="Ghost.TButton", command=manual).pack(side="right", padx=8)
-        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        ttk.Button(bar, text="Insert", style="Accent.TButton", command=insert).pack(side="right")
+        ttk.Button(bar, text="LAMMPS manual", style="Ghost.TButton", command=manual).pack(side="right", padx=8)
+        ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="left")
         q.trace_add("write", fill)
         tv.bind("<<TreeviewSelect>>", show)
         tv.bind("<Double-1>", insert)
@@ -964,10 +991,10 @@ class App:
         lines = self.docs["in.lammps"]
         extra = L.after_minimize(lines)
         if not extra:
-            messagebox.showinfo("soapff-GUI", "minimize より後のコマンドはありません")
+            messagebox.showinfo("soapff-GUI", "There are no commands after minimize")
             return
-        if not messagebox.askyesno("soapff-GUI", f"in.lammps の minimize より後のコマンド {len(extra)} 行"
-                                                 f"（{extra[0]} …）を消します。よろしいですか？（元に戻す で戻せます）"):
+        if not messagebox.askyesno("soapff-GUI", f"This deletes the {len(extra)} line(s) of in.lammps after minimize"
+                                                 f" ({extra[0]} …). Continue? (Undo restores them)"):
             return
         if self.tab != "in.lammps":
             self.show_tab("in.lammps")
@@ -988,18 +1015,18 @@ class App:
         nd = int(tc.get("differ", 0))
         if not fb and not nd:
             return
-        lines = [f"ライブラリ：{rep.get('library', '?')}"]
+        lines = [f"Library: {rep.get('library', '?')}"]
         if fb:
             per = rep.get("per_type") or {}
-            kinds = "、".join(f"{t} {v['fallback']}" for t, v in per.items() if v.get("fallback"))
-            lines.append(f"・ライブラリで決まらず、結合のつながりから型を決めた原子：{fb} 個（{kinds}）")
+            kinds = ", ".join(f"{t} {v['fallback']}" for t, v in per.items() if v.get("fallback"))
+            lines.append(f"- Atoms not determined by the library, typed from the bond connectivity instead: {fb} ({kinds})")
         if nd:
-            kinds = "、".join(f"{k} が {v} 個" for k, v in (tc.get("kinds") or {}).items())
-            lines.append(f"・SOAP の型が結合のつながりの型と違う原子：{nd} 個（{kinds}。「結合の型→SOAP の型」）")
-        lines.append("この鉱物の環境がライブラリにない可能性があります。計算設定 › ライブラリと詳細 で同梱のライブラリ"
-                     f"（{runner.default_library()}）を選ぶか、この鉱物の参照をライブラリに加えてください。"
-                     "原子ごとの値は charges.csv（列 source、bond_type）にあります。")
-        self.log_add("警告：" + " ".join(lines) + "\n", "warn")
+            kinds = ", ".join(f"{k}: {v}" for k, v in (tc.get("kinds") or {}).items())
+            lines.append(f"- Atoms whose SOAP type differs from the bond-connectivity type: {nd} ({kinds}; 'bond type → SOAP type')")
+        lines.append("The environment of this mineral may be missing from the library. In Calculation settings › Library and details, choose the bundled library "
+                     f"({runner.default_library()}) or add reference structures of this mineral to the library. "
+                     "The per-atom values are in charges.csv (columns source, bond_type).")
+        self.log_add("Warning: " + " ".join(lines) + "\n", "warn")
         messagebox.showwarning("soapff-GUI", "\n".join(lines))
 
     def type_ids(self):
@@ -1028,7 +1055,7 @@ class App:
             every = max(1, int(round(100.0 / dt)))
             msd = core.analysis_lines(tid, every)
             if e["style"] == "soapff:diffusion":
-                return msd or ["# 水もイオンもないので、拡散係数の MSD はありません"]
+                return msd or ["# There is no water or ion, so there is no MSD for the diffusion coefficient"]
             if e["style"] == "soapff:swelling":
                 return self.swelling_block(dt)
             names = [t for t, _ in sorted(tid.items(), key=lambda kv: kv[1])]
@@ -1056,31 +1083,31 @@ class App:
         """parameters of the swelling curve (dialog) -> dict, or None when cancelled."""
         p = dict(DEFAULTS["swelling"], **(self.s.get("swelling") or {}))
         w = tk.Toplevel(self.root)
-        w.title("膨潤曲線（Cygan ら 2004 の方法）")
+        w.title("Swelling curve (method of Cygan et al. 2004)")
         w.transient(self.root)
         f = ttk.Frame(w, padding=16)
         f.pack(fill="both", expand=True)
-        ttk.Label(f, text="層間に水分子を加えながら NPT を回し、各状態の d001（= lz）を記録します。", wraplength=440).grid(
+        ttk.Label(f, text="Runs NPT while adding water molecules to the interlayer and records d001 (= lz) for each state.", wraplength=440).grid(
             row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
         v = {}
-        for r, (k, lab, note) in enumerate((("one_to", "1 個ずつ加える（個まで）", "Cygan ら：23"),
-                                             ("two_to", "その後 2 個ずつ加える（個まで）", "Cygan ら：99"),
-                                             ("eq_ps", "各状態の平衡化 NPT (ps)", "Cygan ら：30"),
-                                             ("avg_ps", "続けて平均する NPT (ps)", "Cygan ら：20")), start=1):
+        for r, (k, lab, note) in enumerate((("one_to", "Add 1 at a time (up to, molecules)", "Cygan et al.: 23"),
+                                             ("two_to", "Then add 2 at a time (up to, molecules)", "Cygan et al.: 99"),
+                                             ("eq_ps", "Equilibration NPT per state (ps)", "Cygan et al.: 30"),
+                                             ("avg_ps", "Averaging NPT afterwards (ps)", "Cygan et al.: 20")), start=1):
             ttk.Label(f, text=lab).grid(row=r, column=0, sticky="w", pady=2)
             v[k] = tk.StringVar(value=f"{p[k]:g}" if isinstance(p[k], float) else str(p[k]))
             ttk.Entry(f, textvariable=v[k], width=8).grid(row=r, column=1, sticky="w", padx=6)
             ttk.Label(f, text=note, foreground=MUTED).grid(row=r, column=2, sticky="w")
         v["down"] = tk.BooleanVar(value=bool(p["down"]))
-        ttk.Checkbutton(f, text="最後に 2 個ずつ減らす（脱水）も行う", variable=v["down"]).grid(row=5, column=0, columnspan=3,
+        ttk.Checkbutton(f, text="Also remove 2 at a time at the end (dehydration)", variable=v["down"]).grid(row=5, column=0, columnspan=3,
                                                                                          sticky="w", pady=(6, 0))
-        ttk.Label(f, text="または水の個数を直接指定").grid(row=8, column=0, sticky="w", pady=(10, 0))
+        ttk.Label(f, text="Or specify the water counts directly").grid(row=8, column=0, sticky="w", pady=(10, 0))
         v["waters"] = tk.StringVar(value=" ".join(str(x) for x in p.get("waters", [])))
         ttk.Entry(f, textvariable=v["waters"], width=34).grid(row=8, column=1, columnspan=2, sticky="w", padx=6, pady=(10, 0))
-        ttk.Label(f, text="例：4 8 12 16 20 25 32 40 48 59（空欄なら上の設定。脱水はなし）", foreground=MUTED).grid(
+        ttk.Label(f, text="Example: 4 8 12 16 20 25 32 40 48 59 (if empty, the settings above are used; no dehydration)", foreground=MUTED).grid(
             row=9, column=0, columnspan=3, sticky="w")
-        ttk.Label(f, text=f"温度 {self.s['temp']:g} K、圧力 {self.s['press']:g} atm（計算設定の MD の条件）。"
-                          "水の型が構造にないときは system.data と system.settings を書き直します（system.settings の手での変更は消えます）。",
+        ttk.Label(f, text=f"Temperature {self.s['temp']:g} K, pressure {self.s['press']:g} atm (the MD conditions of the Calculation settings). "
+                          "If the structure has no water types, system.data and system.settings are rewritten (manual changes to system.settings are lost).",
                   foreground=MUTED, wraplength=440).grid(row=6, column=0, columnspan=3, sticky="w", pady=(8, 0))
         out = {}
 
@@ -1093,13 +1120,13 @@ class App:
                 assert all(x >= 1 for x in out["waters"])
             except (ValueError, AssertionError):
                 out.clear()
-                messagebox.showerror("soapff-GUI", "数を確かめてください（1 ≤ 1 個ずつの上限 ≤ 2 個ずつの上限、時間 > 0）", parent=w)
+                messagebox.showerror("soapff-GUI", "Check the numbers (1 ≤ upper limit for adding 1 at a time ≤ upper limit for adding 2 at a time; times > 0)", parent=w)
                 return
             w.destroy()
         bar = ttk.Frame(f)
         bar.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(12, 0))
-        ttk.Button(bar, text="in.lammps に追加", style="Accent.TButton", command=ok).pack(side="right")
-        ttk.Button(bar, text="やめる", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        ttk.Button(bar, text="Add to in.lammps", style="Accent.TButton", command=ok).pack(side="right")
+        ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left")
         w.grab_set()
         self.root.wait_window(w)
         if out:
@@ -1136,8 +1163,8 @@ class App:
             up, down = list(p["waters"]), []                    # the listed water counts, in increasing order; no deswelling
         else:
             up, down = core.swelling_schedule(p["one_to"], p["two_to"], p["down"])
-        self.log_add(f"膨潤曲線：水を {len(up)} 状態（{up[0]}〜{up[-1]} 個）で加え" + (f"、{len(down)} 状態で減らす" if down else "")
-                     + f"（各 NPT {p['eq_ps']:g} + {p['avg_ps']:g} ps）。water.mol を書きました\n", None)
+        self.log_add(f"Swelling curve: adding water in {len(up)} states ({up[0]} to {up[-1]} molecules)" + (f", removing it in {len(down)} states" if down else "")
+                     + f" (NPT {p['eq_ps']:g} + {p['avg_ps']:g} ps each). Wrote water.mol\n", None)
         return core.swelling_lines(tid, n_nonwater, n_water0, mol_max, self.s["temp"], self.s["press"], dt, tilted, up, down,
                                    eq_ps=p["eq_ps"], avg_ps=p["avg_ps"])
 
@@ -1151,11 +1178,11 @@ class App:
         self.schedule_save()
 
     def new_line(self):
-        """an empty line below the selected one, typed in the 内容 field of the form (e.g. 'run 10000')."""
+        """an empty line below the selected one, typed in the "Content" field of the form (e.g. 'run 10000')."""
         if self.tab in READONLY:
             return
         if not self.lines and not self.out:
-            messagebox.showinfo("soapff-GUI", "先に構造ファイルを選んで、入力を作ってください")
+            messagebox.showinfo("soapff-GUI", "First choose a structure file and create the input")
             return
         self.insert_lines([""])
         self.focus_form()
@@ -1191,7 +1218,7 @@ class App:
         if self._save_after:
             self.root.after_cancel(self._save_after)
         self._save_after = self.root.after(400, self.save_input)
-        self.l_save.config(text=f"{FILE_NOTE[self.tab]} · 保存待ち")
+        self.l_save.config(text=f"{FILE_NOTE[self.tab]} · save pending")
 
     def save_input(self):
         self._save_after = None
@@ -1201,7 +1228,7 @@ class App:
                     with open(os.path.join(self.out, f), "w") as fh:
                         fh.write("\n".join(self.docs[f]) + "\n")
             self.dirty.clear()
-            self.l_save.config(text=f"{FILE_NOTE[self.tab]} · 自動保存（{time.strftime('%H:%M:%S')}）")
+            self.l_save.config(text=f"{FILE_NOTE[self.tab]} · autosaved ({time.strftime('%H:%M:%S')})")
 
     def show_tab(self, f):
         """show in.lammps or system.settings in the editor."""
@@ -1216,7 +1243,7 @@ class App:
             on = name == f
             t.configure(fg="#23313b" if on else MUTED, highlightbackground="#c9d1d7" if on else PANEL,
                         bg=PANEL if on else "#f1f4f6")
-        self.l_save.config(text=f"{FILE_NOTE[f]} · 自動保存")
+        self.l_save.config(text=f"{FILE_NOTE[f]} · autosaved")
         self.l_outfile.config(text=f)
         self.render()
         self.build_form()
@@ -1238,21 +1265,21 @@ class App:
             self.set_boundary_widgets(old)
             return
         if self.busy():
-            messagebox.showinfo("soapff-GUI", "計算中は変えられません")
+            messagebox.showinfo("soapff-GUI", "Cannot be changed during a run")
             self.set_boundary_widgets(old)
             return
         if new != ["p", "p", "p"] and float(self.s.get("npt_ps", 0)) > 0:
-            messagebox.showerror("soapff-GUI", "周期でない方向があるときは NPT を使えません（真空を含む箱の圧力は決まらないため）。\n"
-                                               "計算設定の「MD の条件」で NPT を 0 にしてから選んでください")
+            messagebox.showerror("soapff-GUI", "NPT cannot be used when a direction is non-periodic (the pressure of a box containing vacuum is undefined).\n"
+                                               "Set NPT to 0 under \"MD conditions\" in the Calculation settings, then choose again")
             self.set_boundary_widgets(old)
             return
         if not self.structure or not os.path.isfile(self.structure):
-            messagebox.showerror("soapff-GUI", "構造ファイルがわからないので作り直せません。「新規計算」から選んでください")
+            messagebox.showerror("soapff-GUI", "The structure file is unknown, so the input cannot be rebuilt. Choose one with \"New calculation\"")
             self.set_boundary_widgets(old)
             return
-        if not messagebox.askyesno("soapff-GUI", f"境界条件を {' '.join(old)} から {' '.join(new)} に変えて、力場と入力を作り直します。\n"
-                                                 "（長距離クーロン力の計算法や、周期でない方向の扱いも変わります）\n"
-                                                 "in.lammps と system.settings を手で直した行は消えます。よろしいですか？"):
+        if not messagebox.askyesno("soapff-GUI", f"Change the boundary from {' '.join(old)} to {' '.join(new)} and rebuild the force field and input.\n"
+                                                 "(The long-range Coulomb method and the handling of non-periodic directions also change.)\n"
+                                                 "Lines of in.lammps and system.settings that you edited by hand are lost. Continue?"):
             self.set_boundary_widgets(old)
             return
         self.s["boundary"] = " ".join(new)
@@ -1266,17 +1293,17 @@ class App:
     # ================================================================================================== projects
     def new_calc(self):
         if self.busy():
-            messagebox.showinfo("soapff-GUI", "計算中です。終わるか停止してから選んでください")
+            messagebox.showinfo("soapff-GUI", "A run is in progress. Choose after it finishes or is stopped")
             return
-        p = filedialog.askopenfilename(title="構造ファイルを選ぶ", initialdir=self.s["last_dir"], filetypes=STRUCTURE_TYPES)
+        p = filedialog.askopenfilename(title="Choose a structure file", initialdir=self.s["last_dir"], filetypes=STRUCTURE_TYPES)
         if not p:
             return
         self.s["last_dir"] = os.path.dirname(p)
         stem = os.path.splitext(os.path.basename(p))[0]
         out = os.path.join(os.path.dirname(p), f"{stem}_soapff")
         if os.path.isfile(os.path.join(out, "in.lammps")):
-            ans = messagebox.askyesnocancel("soapff-GUI", f"{out} に前の入力があります。\n\nはい：前の入力をそのまま開く\n"
-                                                          f"いいえ：力場と入力を作り直す（上書き）")
+            ans = messagebox.askyesnocancel("soapff-GUI", f"{out} contains a previous input.\n\nYes: open the previous input as it is\n"
+                                                          f"No: rebuild the force field and input (overwrite)")
             if ans is None:
                 return
             if ans:
@@ -1286,28 +1313,28 @@ class App:
 
     def new_supercell(self):
         """a structure file -> supercell nx x ny x nz by OVITO's Replicate (ovito Python module; ASE without it), shown with
-        its size, optionally opened in OVITO, then the force field and input are made from it (as 新規計算)."""
+        its size, optionally opened in OVITO, then the force field and input are made from it (as New calculation)."""
         if self.busy():
-            messagebox.showinfo("soapff-GUI", "計算中です。終わるか停止してから選んでください")
+            messagebox.showinfo("soapff-GUI", "A run is in progress. Choose after it finishes or is stopped")
             return
-        p = filedialog.askopenfilename(title="もとの構造ファイルを選ぶ", initialdir=self.s["last_dir"], filetypes=STRUCTURE_TYPES)
+        p = filedialog.askopenfilename(title="Choose the original structure file", initialdir=self.s["last_dir"], filetypes=STRUCTURE_TYPES)
         if not p:
             return
         self.s["last_dir"] = os.path.dirname(p)
         try:
             at = runner.import_soapff().read_structure(p)
         except Exception as e:
-            messagebox.showerror("soapff-GUI", f"構造を読めません：{e}")
+            messagebox.showerror("soapff-GUI", f"Cannot read the structure: {e}")
             return
         L0 = at.cell.lengths()
         w = tk.Toplevel(self.root)
-        w.title("スーパーセル（OVITO Replicate）")
+        w.title("Supercell (OVITO Replicate)")
         w.transient(self.root)
         f = ttk.Frame(w, padding=16)
         f.pack(fill="both", expand=True)
-        ttk.Label(f, text=f"{os.path.basename(p)}：{len(at)} 原子、a b c = {L0[0]:.2f} {L0[1]:.2f} {L0[2]:.2f} Å",
+        ttk.Label(f, text=f"{os.path.basename(p)}: {len(at)} atoms, a b c = {L0[0]:.2f} {L0[1]:.2f} {L0[2]:.2f} Å",
                   font=self.f_bold).grid(row=0, column=0, columnspan=6, sticky="w")
-        ttk.Label(f, text="各方向に並べる数（OVITO の Replicate と同じ。箱も広げる）", foreground=MUTED).grid(
+        ttk.Label(f, text="Number of repeats in each direction (same as OVITO's Replicate; the box is enlarged too)", foreground=MUTED).grid(
             row=1, column=0, columnspan=6, sticky="w", pady=(4, 8))
         v = []
         for k, ax in enumerate("abc"):
@@ -1317,8 +1344,8 @@ class App:
             v.append(sv)
         info = tk.StringVar()
         ttk.Label(f, textvariable=info).grid(row=3, column=0, columnspan=6, sticky="w", pady=(8, 0))
-        tool = "OVITO（ovito モジュール）" if runner.has_ovito_module() else "ASE（ovito モジュールがないので同じ並べ方を ASE で）"
-        ttk.Label(f, text=f"使うもの：{tool}", foreground=MUTED).grid(row=4, column=0, columnspan=6, sticky="w")
+        tool = "OVITO (ovito module)" if runner.has_ovito_module() else "ASE (no ovito module, so the same tiling is done with ASE)"
+        ttk.Label(f, text=f"Using: {tool}", foreground=MUTED).grid(row=4, column=0, columnspan=6, sticky="w")
 
         def nums():
             try:
@@ -1329,9 +1356,9 @@ class App:
 
         def update(*_):
             n = nums()
-            info.set(f"→ {len(at) * n[0] * n[1] * n[2]} 原子、a b c = {L0[0] * n[0]:.2f} {L0[1] * n[1]:.2f} {L0[2] * n[2]:.2f} Å"
-                     + ("（SOAP のカットオフの 2 倍 10 Å より短い辺があります）" if min(L0[k] * n[k] for k in range(3)) < 10.0 else "")
-                     if n else "1 以上の整数を入れてください")
+            info.set(f"→ {len(at) * n[0] * n[1] * n[2]} atoms, a b c = {L0[0] * n[0]:.2f} {L0[1] * n[1]:.2f} {L0[2] * n[2]:.2f} Å"
+                     + (" (an edge is shorter than 10 Å, twice the SOAP cutoff)" if min(L0[k] * n[k] for k in range(3)) < 10.0 else "")
+                     if n else "Enter integers of 1 or more")
         for x in v:
             x.trace_add("write", update)
         update()
@@ -1343,9 +1370,9 @@ class App:
             try:
                 out, nat, abc, used = runner.replicate(p, n)
             except Exception as e:
-                messagebox.showerror("soapff-GUI", f"スーパーセルを作れませんでした：{e}", parent=w)
+                messagebox.showerror("soapff-GUI", f"Could not create the supercell: {e}", parent=w)
                 return None
-            self.log_add(f"スーパーセル {n[0]}×{n[1]}×{n[2]}（{used}）：{out}（{nat} 原子）\n", None)
+            self.log_add(f"Supercell {n[0]}×{n[1]}×{n[2]} ({used}): {out} ({nat} atoms)\n", None)
             return out
 
         def preview():
@@ -1365,28 +1392,28 @@ class App:
             self.make_input(out, os.path.join(os.path.dirname(out), f"{stem}_soapff"))
         bar = ttk.Frame(f)
         bar.grid(row=5, column=0, columnspan=6, sticky="ew", pady=(14, 0))
-        ttk.Button(bar, text="この構造で力場を作る", style="Accent.TButton", command=go).pack(side="right")
-        ttk.Button(bar, text="OVITO で確認", style="Ghost.TButton", command=preview).pack(side="right", padx=8)
-        ttk.Button(bar, text="やめる", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        ttk.Button(bar, text="Build force field from this structure", style="Accent.TButton", command=go).pack(side="right")
+        ttk.Button(bar, text="Check in OVITO", style="Ghost.TButton", command=preview).pack(side="right", padx=8)
+        ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left")
 
     def open_project(self):
-        d = filedialog.askdirectory(title="出力フォルダ（in.lammps のあるフォルダ）を選ぶ", initialdir=self.s["last_dir"])
+        d = filedialog.askdirectory(title="Choose the output folder (the one containing in.lammps)", initialdir=self.s["last_dir"])
         if d and os.path.isfile(os.path.join(d, "in.lammps")):
             st = next((h["structure"] for h in self.s["history"] if h.get("out") == d), "")
             self.load_project(st, d)
         elif d:
-            messagebox.showerror("soapff-GUI", "このフォルダには in.lammps がありません")
+            messagebox.showerror("soapff-GUI", "This folder has no in.lammps")
 
     def make_input(self, structure, out):
         """soapff make in a worker thread (writes system.data, system.settings, in.lammps ...)."""
         md = {k: self.s[k] for k in ("temp", "relax_ps", "nvt_ps", "npt_ps", "press", "baro", "boundary", "threshold",
                                      "cutoff", "dump_ps")}
         if not os.path.isfile(self.s["library"]):
-            messagebox.showerror("soapff-GUI", f"SOAP ライブラリがありません：{self.s['library']}\n計算設定で選んでください")
+            messagebox.showerror("soapff-GUI", f"SOAP library not found: {self.s['library']}\nChoose one in the Calculation settings")
             return
         self.log_clear()
-        self.set_state("準備中", FAINT, 0)
-        self.l_phase.config(text="力場を作成中…")
+        self.set_state("Preparing", FAINT, 0)
+        self.l_phase.config(text="Building force field…")
 
         def go():
             put = self.q.put
@@ -1405,7 +1432,7 @@ class App:
         try:
             docs = {f: open(os.path.join(out, f)).read().splitlines() for f in FILES}
         except OSError as e:
-            messagebox.showerror("soapff-GUI", f"入力を読めません：{e}")
+            messagebox.showerror("soapff-GUI", f"Cannot read the input: {e}")
             return
         try:
             self.report = json.load(open(os.path.join(out, "report.json")))
@@ -1420,7 +1447,7 @@ class App:
         self.show_tab("in.lammps")
         self.set_boundary_widgets(self.current_boundary())
         self.show_project()
-        self.remember(status=self.history_entry().get("status", "入力作成"))
+        self.remember(status=status_of(self.history_entry()) or STATUS_INPUT)
 
     def show_project(self):
         name = os.path.basename(self.structure) if self.structure else os.path.basename(self.out)
@@ -1430,8 +1457,8 @@ class App:
         if r:
             ms = min((p["min_similarity"] for p in r["per_type"].values()), default=float("nan"))
             roles = r.get("roles", {})
-            self.l_struct2.config(text=f"粘土 {roles.get('mineral', 0)} · 水 {roles.get('water', 0)} · イオン {roles.get('ion', 0)}"
-                                       f"   SOAP {r['from_soap']} / fallback {r['fallback']} · 最小類似度 {ms:.3f}",
+            self.l_struct2.config(text=f"Clay {roles.get('mineral', 0)} · Water {roles.get('water', 0)} · Ions {roles.get('ion', 0)}"
+                                       f"   SOAP {r['from_soap']} / fallback {r['fallback']} · min similarity {ms:.3f}",
                                   fg="#a15c00" if r["fallback"] else MUTED)
         else:
             self.l_struct2.config(text="")
@@ -1459,15 +1486,15 @@ class App:
         for h in self.s["history"][:6]:
             row = tk.Frame(self.recent, bg=SIDE, cursor="hand2")
             row.pack(fill="x", pady=4)
-            col = OK if h.get("status") == "完了" else (ACCENT if h.get("status") == "計算中" else
-                                                        (ERR if h.get("status") in ("エラー",) else FAINT))
+            col = OK if status_of(h) == STATUS_DONE else (ACCENT if status_of(h) == STATUS_RUNNING else
+                                                        (ERR if status_of(h) == STATUS_ERROR else FAINT))
             tk.Label(row, text="●", bg=SIDE, fg=col, font=pick_font(["Hiragino Sans"], 8)).pack(side="left", anchor="n",
                                                                                                 padx=(6, 6), pady=3)
             box = tk.Frame(row, bg=SIDE)
             box.pack(side="left", fill="x")
             a = tk.Label(box, text=h.get("name", "?"), bg=SIDE, fg=TEXT, font=self.f_small, anchor="w")
             a.pack(anchor="w")
-            b = tk.Label(box, text=f"{h.get('status', '')} · {ago(h.get('time'))}", bg=SIDE, fg=FAINT,
+            b = tk.Label(box, text=f"{status_of(h)} · {ago(h.get('time'))}", bg=SIDE, fg=FAINT,
                          font=pick_font(["Hiragino Sans"], 10), anchor="w")
             b.pack(anchor="w")
             for w in (row, box, a, b):
@@ -1475,27 +1502,27 @@ class App:
 
     def open_history(self, h):
         if self.busy():
-            messagebox.showinfo("soapff-GUI", "計算中です")
+            messagebox.showinfo("soapff-GUI", "A run is in progress")
             return
         if os.path.isfile(os.path.join(h.get("out", ""), "in.lammps")):
             self.load_project(h.get("structure", ""), h["out"])
         else:
-            messagebox.showerror("soapff-GUI", f"見つかりません：{h.get('out')}")
+            messagebox.showerror("soapff-GUI", f"Not found: {h.get('out')}")
 
     def show_history(self):
         self._nav_select("history")
         w = tk.Toplevel(self.root)
-        w.title("計算履歴")
+        w.title("Calculation history")
         w.geometry("900x420")
         tv = ttk.Treeview(w, columns=("status", "when", "where", "out"), show="tree headings")
-        for col, txt, wd in (("#0", "名前", 200), ("status", "状態", 90), ("when", "日時", 150), ("where", "実行先", 180),
-                             ("out", "出力フォルダ", 400)):
+        for col, txt, wd in (("#0", "Name", 200), ("status", "Status", 110), ("when", "Date", 140), ("where", "Run on", 170),
+                             ("out", "Output folder", 400)):
             tv.heading(col, text=txt)
             tv.column(col, width=wd, anchor="w")
         for k, h in enumerate(self.s["history"]):
             tv.insert("", "end", iid=str(k), text=h.get("name", ""),
-                      values=(h.get("status", ""), time.strftime("%Y-%m-%d %H:%M", time.localtime(h.get("time", 0))),
-                              h.get("where", ""), h.get("out", "")))
+                      values=(status_of(h), time.strftime("%Y-%m-%d %H:%M", time.localtime(h.get("time", 0))),
+                              where_of(h), h.get("out", "")))
         tv.pack(fill="both", expand=True, padx=10, pady=10)
         bar = ttk.Frame(w)
         bar.pack(fill="x", padx=10, pady=(0, 10))
@@ -1522,16 +1549,16 @@ class App:
                 save_settings(self.s)
                 tv.delete(tv.selection()[0])
                 self.refresh_recent()
-        ttk.Button(bar, text="開く", style="Accent.TButton", command=open_).pack(side="left")
-        ttk.Button(bar, text="フォルダを開く", style="Ghost.TButton", command=folder).pack(side="left", padx=6)
-        ttk.Button(bar, text="履歴から外す", style="Ghost.TButton", command=forget).pack(side="left")
+        ttk.Button(bar, text="Open", style="Accent.TButton", command=open_).pack(side="left")
+        ttk.Button(bar, text="Open folder", style="Ghost.TButton", command=folder).pack(side="left", padx=6)
+        ttk.Button(bar, text="Remove from history", style="Ghost.TButton", command=forget).pack(side="left")
         tv.bind("<Double-1>", lambda e: open_())
         w.bind("<Destroy>", lambda e: self._nav_select("new") if e.widget is w else None)
 
     def show_library(self):
         self._nav_select("library")
         w = tk.Toplevel(self.root)
-        w.title("構造ライブラリ")
+        w.title("Structure library")
         w.geometry("760x520")
         txt = scrolledtext.ScrolledText(w, font=self.f_mono_s, height=20)
         txt.pack(fill="both", expand=True, padx=10, pady=10)
@@ -1540,42 +1567,42 @@ class App:
             txt.config(state="normal")
             txt.delete("1.0", "end")
             p = self.s["library"]
-            txt.insert("end", f"ライブラリ：{p}\n\n")
+            txt.insert("end", f"Library: {p}\n\n")
             try:
                 import numpy as np
                 import collections
                 d = np.load(p, allow_pickle=False)
                 el, ty, q = d["element"], d["type"], d["q"]
                 org = d["origin"] if "origin" in d.files else []
-                txt.insert("end", f"{len(el)} 行（1 行 = 参照の構造の原子 1 個：SOAP ベクトル {d['X'].shape[1]} 成分、電荷、型）\n")
-                txt.insert("end", f"元素：{' '.join(d['species'])}\n\n参照の構造\n")
+                txt.insert("end", f"{len(el)} rows (1 row = 1 atom of a reference structure: SOAP vector of {d['X'].shape[1]} components, charge, type)\n")
+                txt.insert("end", f"Elements: {' '.join(d['species'])}\n\nReference structures\n")
                 for o, n in collections.Counter(org).items():
-                    txt.insert("end", f"  {o:30s} {n:6d} 原子\n")
-                txt.insert("end", "\n型ごとの行数と電荷\n")
+                    txt.insert("end", f"  {o:30s} {n:6d} atoms\n")
+                txt.insert("end", "\nRows and charges per type\n")
                 for (e, t), n in sorted(collections.Counter(zip(el, ty)).items()):
                     qs = sorted({round(float(x), 4) for x, ee, tt in zip(q, el, ty) if ee == e and tt == t})
-                    txt.insert("end", f"  {e:3s} {t:6s} {n:6d}   電荷 {qs}\n")
+                    txt.insert("end", f"  {e:3s} {t:6s} {n:6d}   charge {qs}\n")
             except Exception as e:
-                txt.insert("end", f"読めません：{e}\n")
+                txt.insert("end", f"Cannot read: {e}\n")
             txt.config(state="disabled")
 
         def choose():
-            p = filedialog.askopenfilename(title="ライブラリを選ぶ", filetypes=[("SOAP ライブラリ", "*.npz")])
+            p = filedialog.askopenfilename(title="Choose a library", filetypes=[("SOAP library", "*.npz")])
             if p:
                 self.s["library"] = p
                 save_settings(self.s)
                 fill()
         bar = ttk.Frame(w)
         bar.pack(fill="x", padx=10, pady=(0, 10))
-        ttk.Button(bar, text="別のライブラリを選ぶ…", style="Ghost.TButton", command=choose).pack(side="left")
-        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="right")
+        ttk.Button(bar, text="Choose another library…", style="Ghost.TButton", command=choose).pack(side="left")
+        ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="right")
         fill()
         w.bind("<Destroy>", lambda e: self._nav_select("new") if e.widget is w else None)
 
     # ================================================================================================== settings
     def open_settings(self):
         w = tk.Toplevel(self.root)
-        w.title("計算設定")
+        w.title("Calculation settings")
         w.withdraw()                              # shown at the size of its largest tab (below)
         w.configure(bg=PANEL)
         nb = ttk.Notebook(w)
@@ -1588,7 +1615,7 @@ class App:
             e = ttk.Entry(parent, textvariable=v[key], width=width, style="Field.TEntry", show=show)
             e.grid(row=row, column=1, sticky="w" if width < 30 else "ew", pady=4)
             if browse:
-                ttk.Button(parent, text="選ぶ…", style="Ghost.TButton",
+                ttk.Button(parent, text="Browse…", style="Ghost.TButton",
                            command=lambda: v[key].set((filedialog.askdirectory() if browse == "dir" else
                                                        filedialog.askopenfilename()) or v[key].get())).grid(row=row, column=2, padx=6)
             if note:
@@ -1597,16 +1624,16 @@ class App:
 
         # --- MD
         md = ttk.Frame(nb, padding=16)
-        nb.add(md, text="MD の条件")
-        for i, (k, lab, note) in enumerate((("temp", "温度 (K)", ""), ("relax_ps", "緩和 NVT (ps)", "最小化のあと。記録しない"),
-                                            ("nvt_ps", "NVT (ps)", ""), ("npt_ps", "NPT (ps)", "0 でなし"),
-                                            ("press", "圧力 (atm)", ""), ("dump_ps", "出力間隔 (ps)", "拡散係数なら 0.1〜0.5"))):
+        nb.add(md, text="MD conditions")
+        for i, (k, lab, note) in enumerate((("temp", "Temperature (K)", ""), ("relax_ps", "Relaxation NVT (ps)", "After minimization; not recorded"),
+                                            ("nvt_ps", "NVT (ps)", ""), ("npt_ps", "NPT (ps)", "0 = none"),
+                                            ("press", "Pressure (atm)", ""), ("dump_ps", "Output interval (ps)", "0.1 to 0.5 for diffusion coefficients"))):
             entry(md, i, k, lab, note=note)
-        ttk.Label(md, text="圧力の方向").grid(row=6, column=0, sticky="w", pady=4)
+        ttk.Label(md, text="Pressure direction").grid(row=6, column=0, sticky="w", pady=4)
         v["baro"] = tk.StringVar(value=self.s["baro"])
         ttk.Combobox(md, textvariable=v["baro"], values=list(BARO), width=8, state="readonly").grid(row=6, column=1, sticky="w")
-        ttk.Label(md, text="z：層間・界面、aniso / tri：バルク結晶", foreground=MUTED).grid(row=6, column=2, sticky="w", padx=6)
-        ttk.Label(md, text="境界条件 (x y z)").grid(row=7, column=0, sticky="w", pady=4)
+        ttk.Label(md, text="z: interlayer / interface; aniso / tri: bulk crystal", foreground=MUTED).grid(row=6, column=2, sticky="w", padx=6)
+        ttk.Label(md, text="Boundary (x y z)").grid(row=7, column=0, sticky="w", pady=4)
         bf = ttk.Frame(md)
         bf.grid(row=7, column=1, columnspan=2, sticky="w")
         b0 = (self.s["boundary"].split() + ["p", "p", "p"])[:3]
@@ -1615,28 +1642,28 @@ class App:
             x = tk.StringVar(value=b0[k])
             ttk.Combobox(bf, textvariable=x, values=AXIS_STYLES, width=3, state="readonly").pack(side="left", padx=(0, 4))
             vb.append(x)
-        ttk.Label(md, text="この条件は、次に入力を作るとき（新規計算、または下のボタン）に使います。\n"
-                           "作ったあとの入力は、メイン画面で行ごとに直せます。", foreground=MUTED, justify="left").grid(
+        ttk.Label(md, text="These conditions are used the next time an input is built (New calculation, or the button below).\n"
+                           "Once built, the input can be edited line by line in the main window.", foreground=MUTED, justify="left").grid(
             row=8, column=0, columnspan=4, sticky="w", pady=(14, 6))
 
         # --- where to run
         ex = ttk.Frame(nb, padding=16)
-        nb.add(ex, text="実行先")
+        nb.add(ex, text="Run on")
         ex.columnconfigure(0, weight=1)
-        lo = ttk.LabelFrame(ex, text="このコンピュータ", padding=10)
+        lo = ttk.LabelFrame(ex, text=LOCAL_NAME, padding=10)
         lo.grid(row=0, column=0, sticky="ew", pady=(0, 8))
         lo.columnconfigure(1, weight=1)
         entry(lo, 0, "lmp", "LAMMPS (lmp)", width=46, browse="file")
         entry(lo, 1, "mpirun", "mpirun", width=46, browse="file")
-        entry(lo, 2, "nproc", "並列数", width=6, note="ノート PC では P コアの数以下に")
-        rm = ttk.LabelFrame(ex, text="登録したコンピュータ（SSH）", padding=10)
+        entry(lo, 2, "nproc", "Parallel processes", width=6, note="On a laptop, at most the number of P-cores")
+        rm = ttk.LabelFrame(ex, text="Registered computers (SSH)", padding=10)
         rm.grid(row=1, column=0, sticky="nsew")
         ex.rowconfigure(1, weight=1)
         rm.columnconfigure(0, weight=1)
         comps = [dict(c) for c in self.s["computers"]]
         tv = ttk.Treeview(rm, columns=("host", "user", "port", "nproc"), show="tree headings", height=5)
-        for col, txt, wd in (("#0", "名前", 170), ("host", "ホスト", 170), ("user", "ユーザー", 150), ("port", "ポート", 70),
-                             ("nproc", "並列数", 70)):
+        for col, txt, wd in (("#0", "Name", 170), ("host", "Host", 170), ("user", "User", 130), ("port", "Port", 70),
+                             ("nproc", "Processes", 90)):
             tv.heading(col, text=txt)
             tv.column(col, width=wd, anchor="w")
         tv.grid(row=0, column=0, sticky="nsew")
@@ -1651,7 +1678,7 @@ class App:
             return int(sel[0]) if sel else None
 
         def edit(k=None):
-            if k is None:                                     # 追加: ssh の接続先だけで登録（接続して残りを埋める）
+            if k is None:                                     # Add: register with only the ssh destination (connect and fill in the rest)
                 c = self.quick_add_computer(w)
                 if c:
                     comps.append(dict(c))
@@ -1668,38 +1695,38 @@ class App:
 
         def remove():
             k = chosen()
-            if k is not None and messagebox.askyesno("soapff-GUI", f"「{comps[k]['name']}」の登録を消しますか？", parent=w):
+            if k is not None and messagebox.askyesno("soapff-GUI", f"Remove the registration of \"{comps[k]['name']}\"?", parent=w):
                 del comps[k]
                 refill()
-        res = tk.StringVar(value="パスワードは保存しません。接続テストと計算を始めるたびに聞きます。")
+        res = tk.StringVar(value="Passwords are not saved. You are asked at each connection test and at the start of each run.")
 
         def test():
             k = chosen()
             if k is None:
-                res.set("テストするコンピュータを選んでください")
+                res.set("Select the computer to test")
                 return
             c = comps[k]
             pw = self.ask_password(c, parent=w)
             if pw is None:
                 return
-            res.set(f"{c['name']} に接続しています…")
+            res.set(f"Connecting to {c['name']}…")
 
             def go():
                 r = None
                 try:
                     r = self.make_remote(c, pw)
                     info = r.check()
-                    vers = "　".join(f"{k[15:-1]}：{v}" for k, v in info.items() if k.startswith("mpirun_version["))
-                    msg = (f"接続できました：{c['name']} = {info.get('host')}（{info.get('os')}、CPU {info.get('cpus')}、"
-                           f"物理コア {info.get('cores') or '?'}。並列数は物理コア数以下に）\n"
-                           f"lmp：{info.get('lmp')}（{info.get('lmp_mpi') or 'MPI 不明'}）\n"
-                           f"使う mpirun：{info.get('mpirun_used')}　{vers}\nフォルダ：{info.get('root')}")
+                    vers = "  ".join(f"{k[15:-1]}: {v}" for k, v in info.items() if k.startswith("mpirun_version["))
+                    msg = (f"Connected: {c['name']} = {info.get('host')} ({info.get('os')}, CPU {info.get('cpus')}, "
+                           f"physical cores {info.get('cores') or '?'}. Keep the processes at or below the physical cores)\n"
+                           f"lmp: {info.get('lmp')} ({info.get('lmp_mpi') or 'MPI unknown'})\n"
+                           f"mpirun used: {info.get('mpirun_used')}  {vers}\nFolder: {info.get('root')}")
                     if info.get("mpi_warning"):
                         msg += "\n⚠ " + info["mpi_warning"]
                     if "NOTFOUND" in (info.get("lmp", "") + info.get("mpirun", "")):
-                        msg += "\n⚠ lmp か mpirun が見つかりません。登録の「相手側の lmp / mpirun」か「最初に実行するコマンド」を設定してください"
+                        msg += "\n⚠ lmp or mpirun not found. Set \"Remote lmp\" / \"Remote mpirun\" or \"Setup commands\" in the registration"
                 except Exception as e:
-                    msg = f"接続できませんでした：{e}"
+                    msg = f"Could not connect: {e}"
                 finally:
                     if r:
                         r.close()
@@ -1707,11 +1734,11 @@ class App:
             threading.Thread(target=go, daemon=True).start()
         btns = ttk.Frame(rm)
         btns.grid(row=1, column=0, sticky="w", pady=(8, 0))
-        ttk.Button(btns, text="追加…", style="Ghost.TButton", command=edit).pack(side="left")
-        ttk.Button(btns, text="編集…", style="Ghost.TButton", command=lambda: chosen() is not None and edit(chosen())).pack(
+        ttk.Button(btns, text="Add…", style="Ghost.TButton", command=edit).pack(side="left")
+        ttk.Button(btns, text="Edit…", style="Ghost.TButton", command=lambda: chosen() is not None and edit(chosen())).pack(
             side="left", padx=6)
-        ttk.Button(btns, text="削除", style="Ghost.TButton", command=remove).pack(side="left")
-        ttk.Button(btns, text="接続テスト", style="Ghost.TButton", command=test).pack(side="left", padx=6)
+        ttk.Button(btns, text="Remove", style="Ghost.TButton", command=remove).pack(side="left")
+        ttk.Button(btns, text="Test connection", style="Ghost.TButton", command=test).pack(side="left", padx=6)
         ttk.Label(rm, textvariable=res, foreground=MUTED, wraplength=660, justify="left").grid(row=2, column=0, sticky="w",
                                                                                               pady=(8, 0))
         tv.bind("<Double-1>", lambda e: chosen() is not None and edit(chosen()))
@@ -1719,17 +1746,17 @@ class App:
 
         # --- library and details
         de = ttk.Frame(nb, padding=16)
-        nb.add(de, text="ライブラリと詳細")
+        nb.add(de, text="Library and details")
         de.columnconfigure(1, weight=1)
-        entry(de, 0, "library", "SOAP ライブラリ", width=50, browse="file")
-        ttk.Button(de, text="同梱のものに戻す", style="Ghost.TButton",
+        entry(de, 0, "library", "SOAP library", width=50, browse="file")
+        ttk.Button(de, text="Restore bundled", style="Ghost.TButton",
                    command=lambda: v["library"].set(runner.default_library())).grid(row=0, column=3, padx=(0, 6))
-        entry(de, 1, "threshold", "類似度のしきい値", width=8)
-        entry(de, 2, "cutoff", "カットオフ (Å)", width=8)
+        entry(de, 1, "threshold", "Similarity threshold", width=8)
+        entry(de, 2, "cutoff", "Cutoff (Å)", width=8)
 
         # --- analysis
         an = ttk.Frame(nb, padding=16)
-        nb.add(an, text="解析")
+        nb.add(an, text="Analysis")
         self.analysis_form(an, v, self.s, auto=True)
 
         def collect():
@@ -1739,9 +1766,9 @@ class App:
                     s2[k] = float(v[k].get())
                 s2["nproc"] = int(float(v["nproc"].get() or 1))
             except ValueError as e:
-                raise ValueError(f"数値ではありません：{e}")
+                raise ValueError(f"Not a number: {e}")
             if s2["dump_ps"] <= 0 or s2["temp"] <= 0:
-                raise ValueError("温度と出力間隔は正の値にしてください")
+                raise ValueError("Temperature and output interval must be positive")
             for k in ("baro", "lmp", "mpirun", "library"):
                 s2[k] = v[k].get().strip()
             self.collect_analysis(v, s2)
@@ -1750,7 +1777,7 @@ class App:
             if s2["where"] != "local" and not any(c["name"] == s2["where"] for c in comps):
                 s2["where"] = "local"
             if s2["npt_ps"] > 0 and s2["boundary"] != "p p p":
-                raise ValueError("周期でない方向があるときは NPT を使えません")
+                raise ValueError("NPT cannot be used when a direction is non-periodic")
             return s2
 
         def ok(regen=False):
@@ -1767,20 +1794,20 @@ class App:
                 self.regenerate()
         bar = ttk.Frame(w)
         bar.pack(fill="x", padx=12, pady=(0, 12))
-        ttk.Button(bar, text="保存", style="Accent.TButton", command=ok).pack(side="right")
-        ttk.Button(bar, text="保存して入力を作り直す", style="Ghost.TButton", command=lambda: ok(True)).pack(side="right", padx=8)
-        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        ttk.Button(bar, text="Save", style="Accent.TButton", command=ok).pack(side="right")
+        ttk.Button(bar, text="Save and rebuild input", style="Ghost.TButton", command=lambda: ok(True)).pack(side="right", padx=8)
+        ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="left")
         w.update_idletasks()                      # the largest tab decides the size; not beyond the screen
         w.geometry(f"{min(w.winfo_reqwidth(), w.winfo_screenwidth() - 40)}x{min(w.winfo_reqheight(), w.winfo_screenheight() - 90)}")
         w.deiconify()
 
     def regenerate(self):
         if not self.structure or not os.path.isfile(self.structure):
-            messagebox.showinfo("soapff-GUI", "構造ファイルがわかりません。「新規計算」から選んでください")
+            messagebox.showinfo("soapff-GUI", "The structure file is unknown. Choose one with \"New calculation\"")
             return
         if self.busy():
             return
-        if self.lines and not messagebox.askyesno("soapff-GUI", "MD の条件から入力を作り直します。手で直した行は消えます。よろしいですか？"):
+        if self.lines and not messagebox.askyesno("soapff-GUI", "Rebuild the input from the MD conditions. Lines you edited by hand are lost. Continue?"):
             return
         self.make_input(self.structure, self.out or os.path.splitext(self.structure)[0] + "_soapff")
 
@@ -1788,10 +1815,10 @@ class App:
     def fetch_dialog(self):
         """copy a folder (with everything in it, like cp -r) from a registered computer to this one."""
         if not self.s["computers"]:
-            messagebox.showinfo("soapff-GUI", "計算設定の「実行先」で、先にコンピュータを登録してください")
+            messagebox.showinfo("soapff-GUI", "First register a computer under \"Run on\" in the Calculation settings")
             return
         w = tk.Toplevel(self.root)
-        w.title("別のコンピュータからフォルダを受け取る")
+        w.title("Fetch a folder from another computer")
         w.geometry("820x560")
         w.configure(bg=PANEL)
         f = ttk.Frame(w, padding=14)
@@ -1801,18 +1828,18 @@ class App:
         v_c = tk.StringVar(value=self.s["where"] if self.s["where"] in names else names[0])
         v_path = tk.StringVar(value=(self.computer(v_c.get()) or {}).get("root", "soapff_runs"))
         v_dest = tk.StringVar(value=os.path.dirname(self.out) if self.out else self.s["last_dir"])
-        ttk.Label(f, text="コンピュータ").grid(row=0, column=0, sticky="w", pady=4)
+        ttk.Label(f, text="Computer").grid(row=0, column=0, sticky="w", pady=4)
         ttk.Combobox(f, textvariable=v_c, values=names, state="readonly", width=30).grid(row=0, column=1, sticky="w")
-        ttk.Label(f, text="相手側のフォルダ").grid(row=1, column=0, sticky="w", pady=4)
+        ttk.Label(f, text="Remote folder").grid(row=1, column=0, sticky="w", pady=4)
         ttk.Entry(f, textvariable=v_path, style="Field.TEntry").grid(row=1, column=1, sticky="ew")
         lst = tk.Listbox(f, font=self.f_mono_s, height=14, activestyle="none", selectbackground=SEL_BG, selectforeground=TEXT)
         lst.grid(row=3, column=0, columnspan=3, sticky="nsew", pady=(6, 6))
         f.rowconfigure(3, weight=1)
-        ttk.Label(f, text="受け取り先（このコンピュータ）").grid(row=4, column=0, sticky="w", pady=4)
+        ttk.Label(f, text="Destination (this computer)").grid(row=4, column=0, sticky="w", pady=4)
         ttk.Entry(f, textvariable=v_dest, style="Field.TEntry").grid(row=4, column=1, sticky="ew")
-        ttk.Button(f, text="選ぶ…", style="Ghost.TButton",
+        ttk.Button(f, text="Browse…", style="Ghost.TButton",
                    command=lambda: v_dest.set(filedialog.askdirectory(parent=w) or v_dest.get())).grid(row=4, column=2, padx=6)
-        res = tk.StringVar(value="「一覧」で相手側のフォルダの中身を表示します。フォルダはダブルクリックで中に入ります。")
+        res = tk.StringVar(value="\"List\" shows the contents of the remote folder. Double-click a folder to enter it.")
         ttk.Label(f, textvariable=res, foreground=MUTED, wraplength=760, justify="left").grid(row=5, column=0, columnspan=3,
                                                                                             sticky="w", pady=(4, 8))
         st = {"r": None, "items": []}
@@ -1832,15 +1859,15 @@ class App:
             r = remote_()
             if not r:
                 return
-            res.set("一覧を取得しています…")
+            res.set("Fetching the list…")
             path = v_path.get().strip() or "."
 
             def go():
                 try:
                     items = r.list_dir(path)
-                    msg = f"{path}：フォルダ {sum(d for _, d in items)}、ファイル {sum(not d for _, d in items)}"
+                    msg = f"{path}: {sum(d for _, d in items)} folders, {sum(not d for _, d in items)} files"
                 except Exception as e:
-                    items, msg = [], f"一覧を取得できませんでした：{e}"
+                    items, msg = [], f"Could not get the list: {e}"
 
                 def show():
                     st["items"] = items
@@ -1870,23 +1897,23 @@ class App:
             src = v_path.get().rstrip("/") + ("/" + st["items"][k[0]][0] if k else "")
             dest = v_dest.get().strip()
             if not dest:
-                res.set("受け取り先を選んでください")
+                res.set("Choose a destination")
                 return
             target = os.path.join(dest, os.path.basename(src.rstrip("/")))
-            if os.path.exists(target) and not messagebox.askyesno("soapff-GUI", f"{target} はもうあります。上書きしますか？",
+            if os.path.exists(target) and not messagebox.askyesno("soapff-GUI", f"{target} already exists. Overwrite?",
                                                                   parent=w):
                 return
-            res.set(f"{src} を受け取っています（scp -r）…")
+            res.set(f"Fetching {src} (scp -r)…")
 
             def go():
                 try:
                     got = r.fetch(src, dest)
                     n = sum(len(fs) for _, _, fs in os.walk(got)) if os.path.isdir(got) else 1
-                    msg = f"受け取りました：{got}（{n} ファイル）"
+                    msg = f"Fetched: {got} ({n} files)"
                     if os.path.isfile(os.path.join(got, "in.lammps")):
-                        msg += "。このフォルダは「ファイル → 既存の出力フォルダを開く」で開けます"
+                        msg += ". Open this folder with \"File → Open existing output folder\""
                 except Exception as e:
-                    msg = f"受け取れませんでした：{e}"
+                    msg = f"Could not fetch: {e}"
                 self.q.put(("call", lambda: res.set(msg)))
             threading.Thread(target=go, daemon=True).start()
 
@@ -1896,14 +1923,14 @@ class App:
             w.destroy()
         bar = ttk.Frame(f)
         bar.grid(row=2, column=1, sticky="w")
-        ttk.Button(bar, text="一覧", style="Ghost.TButton", command=listing).pack(side="left")
-        ttk.Button(bar, text="上のフォルダへ", style="Ghost.TButton", command=up).pack(side="left", padx=6)
+        ttk.Button(bar, text="List", style="Ghost.TButton", command=listing).pack(side="left")
+        ttk.Button(bar, text="Up one folder", style="Ghost.TButton", command=up).pack(side="left", padx=6)
         lst.bind("<Double-1>", enter)
         b2 = ttk.Frame(f)
         b2.grid(row=6, column=0, columnspan=3, sticky="ew")
-        ttk.Button(b2, text="受け取る（選んだフォルダを丸ごと。選ばなければ上のフォルダ）", style="Accent.TButton",
+        ttk.Button(b2, text="Fetch (the whole selected folder, or the folder above if none is selected)", style="Accent.TButton",
                    command=fetch).pack(side="right")
-        ttk.Button(b2, text="閉じる", style="Ghost.TButton", command=close).pack(side="left")
+        ttk.Button(b2, text="Close", style="Ghost.TButton", command=close).pack(side="left")
         w.protocol("WM_DELETE_WINDOW", close)
 
     def computer(self, name=None):
@@ -1913,12 +1940,12 @@ class App:
     def where_label(self):
         c = self.computer() if self.s.get("where") != "local" else None
         if c:
-            return f"{c['name']}（{c['user'] + '@' if c['user'] else ''}{c['host']}）"
-        return "このコンピュータ"
+            return f"{c['name']} ({c['user'] + '@' if c['user'] else ''}{c['host']})"
+        return LOCAL_NAME
 
     def choose_where(self):
         v = self.v_where.get()
-        self.s["where"] = "local" if v == "このコンピュータ" else v
+        self.s["where"] = "local" if is_local_name(v) else v
         save_settings(self.s)
         self.update_status()
 
@@ -1934,34 +1961,34 @@ class App:
                 continue
             rest.append(w[k]); k += 1
         if len(rest) != 1:
-            raise ValueError("「ユーザー@ホスト」の形で入れてください（例：taro@192.168.0.10、ポートは :10022 か -p 10022）")
+            raise ValueError("Enter it as user@host (e.g. taro@192.168.0.10; port with :10022 or -p 10022)")
         t = rest[0]
         user, _, host = t.rpartition("@")
         if ":" in host and host.count(":") == 1:
             host, p_ = host.split(":"); port = int(p_)
         if not host:
-            raise ValueError("ホストがありません")
+            raise ValueError("The host is missing")
         return user, host, port
 
     def quick_add_computer(self, parent):
         """register a computer from 'user@host' only: asks the password, connects, and fills in the rest (physical cores as
-        the number of processes, the lmp and mpirun found there).  Details can be changed later (計算設定 › 実行先)."""
+        the number of processes, the lmp and mpirun found there).  Details can be changed later (Calculation settings › Run on)."""
         if self.busy():
-            messagebox.showinfo("soapff-GUI", "計算中は登録できません", parent=parent)
+            messagebox.showinfo("soapff-GUI", "Cannot register during a run", parent=parent)
             return None
         w = tk.Toplevel(parent)
-        w.title("コンピュータを登録（SSH）")
+        w.title("Register a computer (SSH)")
         w.transient(parent)
         f = ttk.Frame(w, padding=16)
         f.pack(fill="both", expand=True)
-        ttk.Label(f, text="ssh の接続先", font=self.f_bold).grid(row=0, column=0, sticky="w")
+        ttk.Label(f, text="ssh destination", font=self.f_bold).grid(row=0, column=0, sticky="w")
         v_t = tk.StringVar()
         e = ttk.Entry(f, textvariable=v_t, width=40, style="Field.TEntry")
         e.grid(row=1, column=0, sticky="w", pady=(4, 2))
         e.focus_set()
-        ttk.Label(f, text="例：taro@192.168.0.10　（ポートが 22 でなければ taro@192.168.0.10:10022）", foreground=MUTED).grid(
+        ttk.Label(f, text="Example: taro@192.168.0.10  (if the port is not 22: taro@192.168.0.10:10022)", foreground=MUTED).grid(
             row=2, column=0, sticky="w")
-        res = tk.StringVar(value="登録を押すとパスワードを聞き、接続して、相手の LAMMPS と CPU を調べます（パスワードは保存しません）。")
+        res = tk.StringVar(value="Pressing Register asks for the password, connects, and checks the remote LAMMPS and CPU (the password is not saved).")
         ttk.Label(f, textvariable=res, foreground=MUTED, wraplength=460, justify="left").grid(row=3, column=0, sticky="w",
                                                                                             pady=(10, 0))
         done = {}
@@ -1973,12 +2000,12 @@ class App:
                 res.set(str(ex)); return
             name = f"{user + '@' if user else ''}{host}" + (f":{port}" if port != 22 else "")
             if any(c["name"] == name for c in self.s["computers"]):
-                res.set(f"「{name}」はもう登録されています"); return
+                res.set(f"\"{name}\" is already registered"); return
             c = dict(COMPUTER, name=name, host=host, user=user, port=port)
             pw = self.ask_password(c, parent=w)
             if pw is None:
                 return
-            res.set(f"{name} に接続しています…")
+            res.set(f"Connecting to {name}…")
             b_ok.state(["disabled"])
 
             def go():
@@ -1990,16 +2017,16 @@ class App:
                     c["nproc"] = int(cores) if cores.isdigit() and int(cores) > 0 else 1
                     if info.get("mpirun_used") and info.get("mpirun_used") != "NOTFOUND":
                         c["mpirun"] = info["mpirun_used"]
-                    msg = (f"登録しました：{name}（{info.get('os')}、物理コア {info.get('cores') or '?'} → 並列数 {c['nproc']}）\n"
-                           f"lmp：{info.get('lmp')}　mpirun：{c['mpirun']}")
+                    msg = (f"Registered: {name} ({info.get('os')}, physical cores {info.get('cores') or '?'} → processes {c['nproc']})\n"
+                           f"lmp: {info.get('lmp')}  mpirun: {c['mpirun']}")
                     if "NOTFOUND" in (info.get("lmp", "") + info.get("mpirun", "")):
-                        msg += ("\n⚠ lmp か mpirun が見つかりません。計算設定 › 実行先 で「相手側の lmp / mpirun」か"
-                                "「最初に実行するコマンド」（例：module load lammps）を設定してください")
+                        msg += ("\n⚠ lmp or mpirun not found. In Calculation settings › Run on, set \"Remote lmp\" / \"Remote mpirun\" or "
+                                "\"Setup commands\" (e.g. module load lammps)")
                     if info.get("mpi_warning"):
                         msg += "\n⚠ " + info["mpi_warning"]
                     ok = True
                 except Exception as ex:
-                    msg, ok = f"接続できませんでした：{ex}", False
+                    msg, ok = f"Could not connect: {ex}", False
                 finally:
                     if r:
                         r.close()
@@ -2013,29 +2040,29 @@ class App:
                         save_settings(self.s)
                         self.update_status()
                         done["c"] = c
-                        b_ok.configure(text="閉じる", command=w.destroy)
+                        b_ok.configure(text="Close", command=w.destroy)
                 self.q.put(("call", finish))
             threading.Thread(target=go, daemon=True).start()
         bar = ttk.Frame(f)
         bar.grid(row=4, column=0, sticky="ew", pady=(14, 0))
-        b_ok = ttk.Button(bar, text="登録", style="Accent.TButton", command=register)
+        b_ok = ttk.Button(bar, text="Register", style="Accent.TButton", command=register)
         b_ok.pack(side="right")
-        ttk.Button(bar, text="取消", style="Ghost.TButton", command=w.destroy).pack(side="left")
-        w.bind("<Return>", lambda ev: register() if b_ok.cget("text") == "登録" else w.destroy())
+        ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        w.bind("<Return>", lambda ev: register() if b_ok.cget("text") == "Register" else w.destroy())
         w.grab_set()
         w.wait_window()
         return done.get("c")
 
     def remove_computer(self):
-        """remove the computer chosen as 実行先 from the registered ones."""
+        """remove the computer chosen as "Run on" from the registered ones."""
         name = self.v_where.get()
-        if name == "このコンピュータ" or not self.computer(name):
-            messagebox.showinfo("soapff-GUI", "消したいコンピュータを実行先で選んでから押してください")
+        if is_local_name(name) or not self.computer(name):
+            messagebox.showinfo("soapff-GUI", "Choose the computer to remove under \"Run on\" first, then press the button")
             return
         if self.busy():
-            messagebox.showinfo("soapff-GUI", "計算中は消せません")
+            messagebox.showinfo("soapff-GUI", "Cannot remove during a run")
             return
-        if not messagebox.askyesno("soapff-GUI", f"「{name}」の登録を消しますか？（相手側のファイルは消えません）"):
+        if not messagebox.askyesno("soapff-GUI", f"Remove the registration of \"{name}\"? (Files on the remote side are not deleted)"):
             return
         self.s["computers"] = [c for c in self.s["computers"] if c["name"] != name]
         self.s["where"] = "local"
@@ -2045,24 +2072,24 @@ class App:
     def edit_computer(self, parent, c, taken=()):
         """a dialog to register / edit a computer; returns the new dict or None."""
         w = tk.Toplevel(parent)
-        w.title("コンピュータの登録")
+        w.title("Register a computer")
         w.configure(bg=PANEL)
         w.transient(parent)
         f = ttk.Frame(w, padding=16)
         f.pack(fill="both", expand=True)
         v = {}
-        rows = (("name", "名前", "このアプリの中での呼び名（例：研究室のサーバー）"), ("host", "ホスト", "例：192.168.0.10 やホスト名"),
-                ("user", "ユーザー", ""), ("port", "ポート", "SSH のポート（既定 22）"),
-                ("root", "相手側のフォルダ", "計算を置くフォルダ（ホームからの相対パス可）"),
-                ("lmp", "相手側の lmp", "名前かフルパス"), ("mpirun", "相手側の mpirun", "名前かフルパス"),
-                ("setup", "最初に実行するコマンド", "例：module load lammps、source ~/.bashrc"), ("nproc", "並列数", "相手の物理コア数以下"))
+        rows = (("name", "Name", "Name used within this app (e.g. lab server)"), ("host", "Host", "e.g. 192.168.0.10 or a host name"),
+                ("user", "User", ""), ("port", "Port", "SSH port (default 22)"),
+                ("root", "Remote folder", "Folder for the runs (a path relative to home is OK)"),
+                ("lmp", "Remote lmp", "Name or full path"), ("mpirun", "Remote mpirun", "Name or full path"),
+                ("setup", "Setup commands", "e.g. module load lammps, source ~/.bashrc (run first)"), ("nproc", "Processes", "At most the remote physical cores"))
         for i, (k, lab, note) in enumerate(rows):
             ttk.Label(f, text=lab).grid(row=i, column=0, sticky="w", pady=4, padx=(0, 10))
             v[k] = tk.StringVar(value=str(c.get(k, "")))
             ttk.Entry(f, textvariable=v[k], width=36 if k not in ("port", "nproc") else 8, style="Field.TEntry").grid(
                 row=i, column=1, sticky="w", pady=4)
             ttk.Label(f, text=note, foreground=MUTED).grid(row=i, column=2, sticky="w", padx=8)
-        ttk.Label(f, text="パスワードは登録しません。接続するたびに聞きます。", foreground=MUTED).grid(
+        ttk.Label(f, text="The password is not stored. It is asked at each connection.", foreground=MUTED).grid(
             row=len(rows), column=0, columnspan=3, sticky="w", pady=(10, 0))
         out = {}
 
@@ -2072,34 +2099,34 @@ class App:
                 d["port"] = int(d["port"] or 22)
                 d["nproc"] = int(d["nproc"] or 1)
             except ValueError:
-                messagebox.showerror("soapff-GUI", "ポートと並列数は整数にしてください", parent=w)
+                messagebox.showerror("soapff-GUI", "Port and processes must be integers", parent=w)
                 return
             if not d["name"] or not d["host"]:
-                messagebox.showerror("soapff-GUI", "名前とホストを入れてください", parent=w)
+                messagebox.showerror("soapff-GUI", "Enter a name and a host", parent=w)
                 return
-            if d["name"] in taken or d["name"] == "このコンピュータ":
-                messagebox.showerror("soapff-GUI", f"「{d['name']}」はもう使われています", parent=w)
+            if d["name"] in taken or is_local_name(d["name"]):
+                messagebox.showerror("soapff-GUI", f"\"{d['name']}\" is already in use", parent=w)
                 return
             out.update(dict(COMPUTER, **d))
             w.destroy()
         bar = ttk.Frame(f)
         bar.grid(row=len(rows) + 1, column=0, columnspan=3, sticky="e", pady=(14, 0))
-        ttk.Button(bar, text="取消", style="Ghost.TButton", command=w.destroy).pack(side="left", padx=6)
-        ttk.Button(bar, text="登録", style="Accent.TButton", command=ok).pack(side="left")
+        ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left", padx=6)
+        ttk.Button(bar, text="Register", style="Accent.TButton", command=ok).pack(side="left")
         w.grab_set()
         w.wait_window()
         return out or None
 
     def update_status(self):
         r = self.report
-        st = f"構造: {os.path.basename(self.structure) if self.structure else '—'}"
+        st = f"Structure: {os.path.basename(self.structure) if self.structure else '—'}"
         if r:
             st += f"   |   {r['atoms']:,} atoms"
         self.l_status.config(text=st)
-        self.l_status_r.config(text=f"実行先: {self.where_label()}   ·   LAMMPS · SOAP")
-        names = ["このコンピュータ"] + [c["name"] for c in self.s["computers"]]
+        self.l_status_r.config(text=f"Run on: {self.where_label()}   ·   LAMMPS · SOAP")
+        names = [LOCAL_NAME] + [c["name"] for c in self.s["computers"]]
         self.cb_where.configure(values=names)
-        self.v_where.set(self.s["where"] if self.s.get("where") in names else "このコンピュータ")
+        self.v_where.set(self.s["where"] if self.s.get("where") in names else LOCAL_NAME)
 
     def busy(self):
         return bool(self.worker and self.worker.is_alive())
@@ -2112,8 +2139,8 @@ class App:
 
     def ask_password(self, c, parent=None):
         """the SSH password of a registered computer, asked every time (never stored).  None: cancelled."""
-        return simpledialog.askstring("SSH", f"{c['name']}（{c['user'] + '@' if c['user'] else ''}{c['host']}:{c['port']}）の"
-                                             "パスワード", show="*", parent=parent or self.root)
+        return simpledialog.askstring("SSH", f"Password for {c['name']} ({c['user'] + '@' if c['user'] else ''}{c['host']}:{c['port']})",
+                                             show="*", parent=parent or self.root)
 
     def make_remote(self, c, password=None):
         return remote.Remote(c["host"], c.get("user", ""), c.get("port", 22), "", c.get("root", "soapff_runs"),
@@ -2123,11 +2150,11 @@ class App:
         if self.busy():
             return
         if not self.docs["in.lammps"] or not self.out:
-            messagebox.showinfo("soapff-GUI", "先に「新規計算」で構造ファイルを選んで、入力を作ってください")
+            messagebox.showinfo("soapff-GUI", "First choose a structure file with \"New calculation\" and create the input")
             return
         if not L.run_steps(self.docs["in.lammps"]) and not messagebox.askyesno(
-                "soapff-GUI", "in.lammps に run がありません（エネルギー最小化だけです）。このまま回しますか？\n"
-                              "MD を回すには、＋ fix（nvt など）と ＋ その他 の run を追加してください。"):
+                "soapff-GUI", "in.lammps has no run (energy minimization only). Run it anyway?\n"
+                              "To run MD, add a \"+ fix\" (such as nvt) and a run from \"+ Other\"."):
             return
         if self._save_after:
             self.root.after_cancel(self._save_after)
@@ -2142,17 +2169,17 @@ class App:
         else:
             lmp = runner.which(s["lmp"])
             if not lmp:
-                messagebox.showerror("soapff-GUI", "LAMMPS (lmp) が見つかりません。計算設定で場所を指定してください")
+                messagebox.showerror("soapff-GUI", "LAMMPS (lmp) not found. Specify its location in the Calculation settings")
                 return
             mpirun = runner.which(s["mpirun"]) if int(s["nproc"]) > 1 else None
             if int(s["nproc"]) > 1 and not mpirun:
-                messagebox.showerror("soapff-GUI", "mpirun が見つかりません。並列数を 1 にするか、計算設定で場所を指定してください")
+                messagebox.showerror("soapff-GUI", "mpirun not found. Set the number of processes to 1 or specify its location in the Calculation settings")
                 return
         self.stopping = False
         self.log_clear()
-        self.set_state("開始", ACCENT, 0)
+        self.set_state("Starting", ACCENT, 0)
         self.set_running(True)
-        self.remember("計算中")
+        self.remember(STATUS_RUNNING)
         lines = list(self.docs["in.lammps"])
         if ssh:
             self.worker = threading.Thread(target=self.work_remote, args=(dict(s), dict(comp), pw, lines), daemon=True)
@@ -2165,9 +2192,9 @@ class App:
         for line in it:
             if not warned and nproc > 1 and "1 by 1 by 1 MPI processor grid" in line:
                 warned = True
-                put(("log", f"WARNING {nproc} 並列のはずが「1 by 1 by 1」です：1 並列の LAMMPS が {nproc} 個別々に動いています。"
-                            "lmp と同じ MPI の mpirun を使ってください（計算設定の実行先の「相手側の mpirun」をフルパスで、"
-                            "lmp と同じフォルダのものに）\n", "warn"))
+                put(("log", f"WARNING Expected {nproc} parallel processes but the grid is '1 by 1 by 1': {nproc} separate single-process LAMMPS runs are going. "
+                            "Use the mpirun of the same MPI as lmp (give the full path of \"Remote mpirun\" in the Run on settings, "
+                            "from the same folder as lmp)\n", "warn"))
             put(("log", line + "\n", "err" if line.startswith("ERROR") else ("warn" if line.startswith("WARNING") else None)))
             if tracker.feed(line):
                 put(("thermo", tracker.phase, dict(tracker.values), tracker.progress))
@@ -2182,7 +2209,7 @@ class App:
             self._finish(rc, s, put)
         except Exception as e:
             put(("log", f"ERROR {type(e).__name__}: {e}\n", "err"))
-            put(("done", f"エラー：{e}", 1))
+            put(("done", f"Error: {e}", 1))
         finally:
             self.job = None
 
@@ -2192,39 +2219,39 @@ class App:
         r = None
         try:
             r = self.make_remote(comp, password)
-            put(("phase", f"{comp['name']} に接続中"))
+            put(("phase", f"Connecting to {comp['name']}"))
             info = r.check()
-            put(("log", f"接続：{info.get('host')}（{info.get('os')}、CPU {info.get('cpus')}、物理コア {info.get('cores') or '?'}）\n", None))
-            put(("log", f"lmp：{info.get('lmp')}（{info.get('lmp_mpi') or 'MPI 不明'}）\nmpirun：{info.get('mpirun_used')}\n", None))
+            put(("log", f"Connected: {info.get('host')} ({info.get('os')}, CPU {info.get('cpus')}, physical cores {info.get('cores') or '?'})\n", None))
+            put(("log", f"lmp: {info.get('lmp')} ({info.get('lmp_mpi') or 'MPI unknown'})\nmpirun: {info.get('mpirun_used')}\n", None))
             if info.get("mpi_warning") and int(comp.get("nproc", 1)) > 1:
                 put(("log", "WARNING " + info["mpi_warning"] + "\n", "warn"))
             rdir = r.upload(self.out, name)
-            put(("log", f"入力を送りました：{r.target}:{rdir}\n", None))
+            put(("log", f"Input sent: {r.target}:{rdir}\n", None))
             nproc = int(comp.get("nproc", 1))
             cores = int(info.get("cores") or 0) if str(info.get("cores") or "").isdigit() else 0
             cpus = int(info.get("cpus") or 0) if str(info.get("cpus") or "").isdigit() else 0
             if cpus and nproc > cpus:
-                put(("log", f"WARNING 並列数 {nproc} が相手の CPU（スレッド）数 {cpus} より多いので、{cpus} 並列にします\n", "warn"))
+                put(("log", f"WARNING The number of processes {nproc} exceeds the remote CPU (thread) count {cpus}, so {cpus} processes are used\n", "warn"))
                 nproc = cpus
             elif cores and nproc > cores:
-                put(("log", f"並列数 {nproc} は物理コア数 {cores} より多いので、ハードウェアスレッドも使います"
-                            "（Open MPI では --use-hwthread-cpus。LAMMPS はコア数を超えるとあまり速くなりません）\n", None))
+                put(("log", f"The number of processes {nproc} exceeds the physical cores {cores}, so hardware threads are used too "
+                            "(--use-hwthread-cpus in Open MPI; LAMMPS does not get much faster beyond the core count)\n", None))
             comp = dict(comp, nproc=nproc)
             pid = r.start(name, nproc)
             self.rjob = (r, name, pid)
-            put(("log", f"LAMMPS を起動しました（{comp['name']}、pid {pid}、{comp.get('nproc')} 並列）。"
-                        "接続が切れても計算は続きます\n", None))
-            put(("phase", "MD（リモート）"))
+            put(("log", f"LAMMPS started ({comp['name']}, pid {pid}, {comp.get('nproc')} processes). "
+                        "The run continues even if the connection drops\n", None))
+            put(("phase", "MD (remote)"))
             self._follow(r.follow(name, pid), L.StepTracker(lines), put, int(comp.get("nproc", 1)))
             rc = r.exit_code(name)
-            put(("phase", "結果を受け取り中"))
+            put(("phase", "Fetching results"))
             got = r.download_all(name, self.out)
-            put(("log", f"相手側のフォルダを丸ごと受け取りました（{len(got)} ファイル）：{', '.join(got[:12])}"
+            put(("log", f"Fetched the whole remote folder ({len(got)} files): {', '.join(got[:12])}"
                         f"{' …' if len(got) > 12 else ''}\n", None))
             self._finish(rc if rc is not None else (0 if self.stopping else 1), s, put)
         except Exception as e:
             put(("log", f"ERROR {type(e).__name__}: {e}\n", "err"))
-            put(("done", f"エラー：{e}", 1))
+            put(("done", f"Error: {e}", 1))
         finally:
             self.rjob = None
             if r:
@@ -2232,19 +2259,19 @@ class App:
 
     def _finish(self, rc, s, put):
         if self.stopping:
-            put(("done", "停止しました", rc if rc else 1))
+            put(("done", "Stopped", rc if rc else 1))
         elif rc == 0:
             if s.get("auto_analyze") and runner.analyzable(self.out):
                 self._analyze(put, s)
-            put(("done", "完了", 0))
+            put(("done", "Done", 0))
         else:
-            put(("done", f"LAMMPS が異常終了しました（終了コード {rc}）。ログと log.lammps を確認してください", rc or 1))
+            put(("done", f"LAMMPS terminated abnormally (exit code {rc}). Check the log and log.lammps", rc or 1))
 
     def stop(self):
         if not self.busy():
             return
         self.stopping = True
-        self.l_phase.config(text="停止中…")
+        self.l_phase.config(text="Stopping…")
         if self.job:
             self.job.stop()
         if self.rjob:
@@ -2253,15 +2280,15 @@ class App:
 
     # ================================================================================================== analysis
     def analysis_form(self, f, v, s, auto=False):
-        """the analysis choices and their parameters (settings tab and the 解析 dialog); values in v."""
+        """the analysis choices and their parameters (settings tab and the Analyze dialog); values in v."""
         f.columnconfigure(1, weight=1)
         row = 0
         if auto:
             v["auto_analyze"] = tk.BooleanVar(value=bool(s.get("auto_analyze", True)))
-            ttk.Checkbutton(f, text="計算が終わったら解析する", variable=v["auto_analyze"]).grid(row=row, column=0, columnspan=4,
+            ttk.Checkbutton(f, text="Analyze when the calculation finishes", variable=v["auto_analyze"]).grid(row=row, column=0, columnspan=4,
                                                                                                sticky="w", pady=(0, 6))
             row += 1
-        ttk.Label(f, text="解析", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w")
+        ttk.Label(f, text="Analysis", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w")
         row += 1
         for k, lab in ANALYSES:
             v["an_" + k] = tk.BooleanVar(value=k in s.get("analyses", []))
@@ -2277,14 +2304,14 @@ class App:
             ttk.Entry(rf, textvariable=v[key], width=width, style="Field.TEntry").pack(side="left", fill="x",
                                                                                       expand=width >= 30)
             if browse:
-                ttk.Button(rf, text="選ぶ…", style="Ghost.TButton",
+                ttk.Button(rf, text="Browse…", style="Ghost.TButton",
                            command=lambda: v[key].set((filedialog.askdirectory() if browse == "dir" else
                                                        filedialog.askopenfilename()) or v[key].get())).pack(side="left", padx=6)
             if note:
                 ttk.Label(rf, text=note, foreground=MUTED).pack(side="left", padx=6)
             row += 1
-        ent("skip_ps", "平衡化として除く時間 (ps)", 8, note="空欄で最初の 20 %")
-        ttk.Label(f, text="SOVA（PDF・RDF・S(Q)）", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w",
+        ent("skip_ps", "Time to exclude as equilibration (ps)", 8, note="If empty, the first 20 %")
+        ttk.Label(f, text="SOVA (PDF, RDF, S(Q))", style="Section.TLabel").grid(row=row, column=0, columnspan=4, sticky="w",
                                                                               pady=(10, 0))
         row += 1
         sv = s.get("sova") or DEFAULTS["sova"]
@@ -2299,34 +2326,34 @@ class App:
             if note:
                 ttk.Label(rf, text=note, foreground=MUTED).pack(side="left", padx=6)
             row += 1
-        sent("dr", "g(r) の刻み dr (Å)", note="小さいほど細かいが，ばらつく")
-        sent("rmax", "r の最大 (Å)", note="箱の幅の半分までに制限される")
-        ttk.Label(f, text="Q の範囲 (Å⁻¹)").grid(row=row, column=0, sticky="w", pady=3)
+        sent("dr", "g(r) bin width dr (Å)", note="Smaller is finer but noisier")
+        sent("rmax", "Maximum r (Å)", note="Limited to half the box width")
+        ttk.Label(f, text="Q range (Å⁻¹)").grid(row=row, column=0, sticky="w", pady=3)
         rq = ttk.Frame(f)
         rq.grid(row=row, column=1, columnspan=3, sticky="w")
-        for k, lab in (("qmin", "から"), ("qmax", "まで"), ("dq", "刻み")):
+        for k, lab in (("qmin", "from"), ("qmax", "to"), ("dq", "step")):
             v["sova_" + k] = tk.StringVar(value=str(sv.get(k, "")))
             ttk.Entry(rq, textvariable=v["sova_" + k], width=6, style="Field.TEntry").pack(side="left")
             ttk.Label(rq, text=lab, foreground=MUTED).pack(side="left", padx=(3, 10))
         row += 1
-        ttk.Label(f, text="S(Q) の放射線").grid(row=row, column=0, sticky="w", pady=3)
+        ttk.Label(f, text="S(Q) radiation").grid(row=row, column=0, sticky="w", pady=3)
         v["sova_radiation"] = tk.StringVar(value=sv.get("radiation", "xray"))
         rr = ttk.Frame(f)
         rr.grid(row=row, column=1, columnspan=3, sticky="w")
-        for k, lab in (("xray", "X 線"), ("neutron", "中性子")):
+        for k, lab in (("xray", "X-ray"), ("neutron", "Neutron")):
             ttk.Radiobutton(rr, text=lab, value=k, variable=v["sova_radiation"]).pack(side="left", padx=(0, 12))
         row += 1
-        sent("max_frames", "平均するフレーム数", 6, note="平衡化のあとから等間隔に選ぶ")
-        sent("type_pairs", "型の組（任意）", 30, note="例：K-ob K-obts（ClayFF の型で分けた g(r)。空欄でなし）")
-        ttk.Label(f, text="求める組").grid(row=row, column=0, sticky="w", pady=3)
+        sent("max_frames", "Frames to average", 6, note="Chosen at equal intervals after equilibration")
+        sent("type_pairs", "Type pairs (optional)", 30, note="e.g. K-ob K-obts (g(r) split by ClayFF type; empty = none)")
+        ttk.Label(f, text="Pairs to compute").grid(row=row, column=0, sticky="w", pady=3)
         v["sova_pairs"] = tk.StringVar(value=sv.get("pairs", "water_ion"))
         v["sova_all"] = tk.BooleanVar(value=bool(sv.get("all_elements", True)))
         rp = ttk.Frame(f)
         rp.grid(row=row, column=1, columnspan=3, sticky="w")
-        ttk.Radiobutton(rp, text="水の O・イオンの組（Ow–Ow，イオン–Ow，イオン–鉱物 O）", value="water_ion",
+        ttk.Radiobutton(rp, text="Water O and ion pairs (Ow–Ow, ion–Ow, ion–mineral O)", value="water_ion",
                         variable=v["sova_pairs"]).pack(anchor="w")
-        ttk.Radiobutton(rp, text="しない", value="none", variable=v["sova_pairs"]).pack(anchor="w")
-        ttk.Checkbutton(rp, text="全原子の元素の組（S(Q) もここから）", variable=v["sova_all"]).pack(anchor="w")
+        ttk.Radiobutton(rp, text="None", value="none", variable=v["sova_pairs"]).pack(anchor="w")
+        ttk.Checkbutton(rp, text="Element pairs of all atoms (S(Q) is also computed from these)", variable=v["sova_all"]).pack(anchor="w")
         row += 1
 
     @staticmethod
@@ -2346,18 +2373,18 @@ class App:
                               type_pairs=v["sova_type_pairs"].get().strip())
             sv_ = s2["sova"]
             if not (sv_["dr"] > 0 and sv_["rmax"] > 0 and 0 < sv_["qmin"] < sv_["qmax"] and sv_["dq"] > 0):
-                raise ValueError("SOVA の dr，r の最大，Q の範囲が正しくありません")
+                raise ValueError("SOVA dr, maximum r or Q range is invalid")
             if sv_["pairs"] == "none" and not sv_["all_elements"] and not sv_["type_pairs"]:
-                raise ValueError("SOVA で求める組を 1 つ以上選んでください")
+                raise ValueError("Select at least one pair type for SOVA")
         except ValueError as e:
-            raise ValueError(f"数値ではありません：{e}")
+            raise ValueError(f"Not a number: {e}")
 
     def _analyze(self, put, s):
         what = [k for k, _ in ANALYSES if k in s.get("analyses", [])]
-        put(("phase", "解析中"))
-        put(("log", "\n解析：" + "、".join(lab.split("（")[0] for k, lab in ANALYSES if k in what) + "\n", None))
+        put(("phase", "Analyzing"))
+        put(("log", "\nAnalysis: " + ", ".join(lab.split(" (")[0] for k, lab in ANALYSES if k in what) + "\n", None))
         if not what:
-            put(("log", "解析が 1 つも選ばれていません（計算設定 › 解析）\n", "warn"))
+            put(("log", "No analysis is selected (Calculation settings › Analysis)\n", "warn"))
             return
         try:
             skip = s.get("skip_ps")
@@ -2371,18 +2398,18 @@ class App:
                                          size_A=float(s.get("xrd_size", 50))))
             put(("analysis", self.out))
         except Exception as e:
-            put(("log", f"解析できませんでした：{e}\n", "warn"))
+            put(("log", f"Analysis failed: {e}\n", "warn"))
 
     def analyze_now(self):
         if not runner.analyzable(self.out):
-            messagebox.showinfo("soapff-GUI", "解析できる出力（軌道 *.lammpstrj か MSD のファイル）が"
-                                              "まだありません。先に計算してください")
+            messagebox.showinfo("soapff-GUI", "There is no output to analyze yet (a trajectory *.lammpstrj or an MSD file). "
+                                              "Run the calculation first")
             return
         if self.busy():
-            messagebox.showinfo("soapff-GUI", "計算中です。終わってから解析してください")
+            messagebox.showinfo("soapff-GUI", "A run is in progress. Analyze after it finishes")
             return
         w = tk.Toplevel(self.root)
-        w.title(f"解析 – {os.path.basename(self.out)}")
+        w.title(f"Analysis – {os.path.basename(self.out)}")
         w.configure(bg=PANEL)
         w.transient(self.root)
         from soapff_cui import analysis as AN
@@ -2391,10 +2418,10 @@ class App:
         if trajs:
             tf = ttk.Frame(w, padding=(16, 14, 16, 0))
             tf.pack(fill="x")
-            ttk.Label(tf, text="SOVA と XRD に使う軌道").pack(side="left", padx=(0, 10))
+            ttk.Label(tf, text="Trajectory for SOVA and XRD").pack(side="left", padx=(0, 10))
             v["traj"] = tk.StringVar(value=trajs[0])
             ttk.Combobox(tf, textvariable=v["traj"], values=trajs, state="readonly", width=34).pack(side="left")
-            ttk.Label(tf, text="（引張・せん断の軌道は変形の途中の構造）", foreground=MUTED).pack(side="left", padx=8)
+            ttk.Label(tf, text="(tensile / shear trajectories are structures in the middle of the deformation)", foreground=MUTED).pack(side="left", padx=8)
         f = ttk.Frame(w, padding=16)
         f.pack(fill="both", expand=True)
         self.analysis_form(f, v, self.s)
@@ -2415,11 +2442,11 @@ class App:
             self.worker.start()
         bar = ttk.Frame(w)
         bar.pack(fill="x", padx=16, pady=(0, 14))
-        ttk.Button(bar, text="解析する", style="Accent.TButton", command=go).pack(side="right")
+        ttk.Button(bar, text="Analyze", style="Accent.TButton", command=go).pack(side="right")
         if os.path.isfile(os.path.join(self.out, "analysis", "summary.txt")):
-            ttk.Button(bar, text="前回の結果を見る", style="Ghost.TButton",
+            ttk.Button(bar, text="View previous results", style="Ghost.TButton",
                        command=lambda: (w.destroy(), self.show_analysis(self.out))).pack(side="right", padx=8)
-        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="left")
+        ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="left")
 
     def show_results(self):
         if self.out and os.path.isfile(os.path.join(self.out, "analysis", "summary.txt")):
@@ -2427,7 +2454,7 @@ class App:
         elif runner.analyzable(self.out):
             self.analyze_now()
         else:
-            messagebox.showinfo("soapff-GUI", "まだ結果がありません。「計算を開始」で計算してください")
+            messagebox.showinfo("soapff-GUI", "There are no results yet. Run the calculation with \"Start calculation\"")
 
     def show_analysis(self, out):
         """the summary and every figure of out/analysis in tabs."""
@@ -2437,14 +2464,14 @@ class App:
         except (OSError, ValueError):
             figs = []
         if not figs and os.path.isfile(os.path.join(dest, "analysis.png")):     # analysis of an earlier version
-            figs = [("MSD・PDF・RDF", "analysis.png")]
+            figs = [("MSD, PDF, RDF", "analysis.png")]
         w = tk.Toplevel(self.root)
-        w.title(f"解析結果 – {os.path.basename(out)}")
+        w.title(f"Analysis results – {os.path.basename(out)}")
         w.configure(bg=PANEL)
         nb = ttk.Notebook(w)
         nb.pack(fill="both", expand=True, padx=8, pady=(8, 4))
         tab = ttk.Frame(nb, padding=4)
-        nb.add(tab, text="まとめ")
+        nb.add(tab, text="Summary")
         txt = scrolledtext.ScrolledText(tab, height=26, width=118, font=self.f_mono_s, wrap="none")
         txt.insert("end", open(os.path.join(dest, "summary.txt")).read())
         txt.config(state="disabled")
@@ -2463,36 +2490,36 @@ class App:
                 lab.image = img
                 lab.pack()
             except tk.TclError as e:
-                ttk.Label(tab, text=f"図を表示できません：{e}").pack()
+                ttk.Label(tab, text=f"Cannot display the figure: {e}").pack()
 
         def current():
             return pngs[nb.index(nb.select())] or os.path.join(dest, "summary.txt")
         bar = ttk.Frame(w)
         bar.pack(fill="x", padx=8, pady=8)
-        ttk.Button(bar, text="この図を開く", style="Ghost.TButton", command=lambda: open_folder(current())).pack(side="left")
-        ttk.Button(bar, text="解析フォルダを開く（CSV）", style="Ghost.TButton", command=lambda: open_folder(dest)).pack(side="left", padx=6)
-        ttk.Button(bar, text="もう一度解析…", style="Ghost.TButton", command=lambda: (w.destroy(), self.analyze_now())).pack(side="left")
-        ttk.Button(bar, text="閉じる", style="Ghost.TButton", command=w.destroy).pack(side="right")
+        ttk.Button(bar, text="Open this figure", style="Ghost.TButton", command=lambda: open_folder(current())).pack(side="left")
+        ttk.Button(bar, text="Open analysis folder (CSV)", style="Ghost.TButton", command=lambda: open_folder(dest)).pack(side="left", padx=6)
+        ttk.Button(bar, text="Analyze again…", style="Ghost.TButton", command=lambda: (w.destroy(), self.analyze_now())).pack(side="left")
+        ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="right")
 
     def open_plotter(self):
-        """グラフ: columns of the output files (thermo of log.lammps, fix ave/time files, csv) as curves of one figure."""
+        """Plot: columns of the output files (thermo of log.lammps, fix ave/time files, csv) as curves of one figure."""
         if not self.out or not os.path.isdir(self.out):
-            messagebox.showinfo("soapff-GUI", "先に構造ファイルを選んで，計算してください（または「既存の出力フォルダを開く」）")
+            messagebox.showinfo("soapff-GUI", "First choose a structure file and run the calculation (or use \"Open existing output folder\")")
             return
         from . import plotter
         plotter.PlotDialog(self, self.out)
 
     def open_ovito(self):
         if not self.out or not os.path.isdir(self.out):
-            messagebox.showinfo("soapff-GUI", "出力フォルダがまだありません")
+            messagebox.showinfo("soapff-GUI", "There is no output folder yet")
             return
 
         def go():
             try:
                 p = runner.open_in_ovito(self.out)
-                self.q.put(("log", f"OVITO で開きました：{p}\n", None))
+                self.q.put(("log", f"Opened in OVITO: {p}\n", None))
             except Exception as e:
-                self.q.put(("error", f"OVITO で開けませんでした：{e}"))
+                self.q.put(("error", f"Could not open in OVITO: {e}"))
         threading.Thread(target=go, daemon=True).start()
 
     def open_out(self):
@@ -2505,8 +2532,8 @@ class App:
             open_folder(p)
 
     def about(self):
-        messagebox.showinfo("soapff-GUI", f"soapff-GUI v{__version__}\n構造ファイルから ClayFF（SOAP で電荷と型）の LAMMPS 入力を作り、"
-                                          "このコンピュータか SSH の先で計算して、拡散係数と PDF・RDF を解析します。")
+        messagebox.showinfo("soapff-GUI", f"soapff-GUI v{__version__}\nBuilds a LAMMPS input with ClayFF (charges and types from SOAP) from a structure file, "
+                                          "runs it on this computer or over SSH, and analyzes diffusion coefficients and PDF / RDF.")
 
     # ================================================================================================== queue
     def poll(self):
@@ -2523,7 +2550,7 @@ class App:
                 elif kind == "error":
                     messagebox.showerror("soapff-GUI", msg[1])
                 elif kind == "made":
-                    self.set_state("入力を作成しました（最小化まで）", OK, 0)
+                    self.set_state("Input created (up to minimization)", OK, 0)
                     p = os.path.join(msg[2], "in.lammps")
                     try:
                         basic = L.basic_part(open(p).read().splitlines())
@@ -2535,14 +2562,14 @@ class App:
                     self.sel = len(self.lines) - 1
                     self.render()
                     self.build_form()
-                    self.log_add("入力は最小化までです。＋ fix、＋ compute、＋ その他（run など）から MD を追加してください。\n", None)
-                    self.remember("入力作成")
+                    self.log_add("The input ends at minimization. Add MD with \"+ fix\", \"+ compute\" and \"+ Other\" (run etc.).\n", None)
+                    self.remember(STATUS_INPUT)
                     self.warn_assignment(msg[3])
                 elif kind == "make_failed":
-                    self.set_state("力場を作れませんでした", ERR, 0)
+                    self.set_state("Could not build the force field", ERR, 0)
                     if "(fallback)" in msg[1]:
-                        messagebox.showerror("soapff-GUI", "ライブラリにない環境の原子があるので、力場を作らずに止めました。\n\n"
-                                                           "その鉱物・環境の参照構造をライブラリに加えてください。\n\n" + msg[1])
+                        messagebox.showerror("soapff-GUI", "Atoms with environments missing from the library were found, so the force field was not built.\n\n"
+                                                           "Add reference structures of that mineral / environment to the library.\n\n" + msg[1])
                     else:
                         messagebox.showerror("soapff-GUI", msg[1])
                 elif kind == "thermo":
@@ -2561,10 +2588,10 @@ class App:
                 elif kind == "done":
                     self.set_running(False)
                     ok = msg[2] == 0
-                    self.set_state(msg[1] if len(msg[1]) < 40 else ("完了" if ok else "終了（エラー）"), OK if ok else ERR,
+                    self.set_state(msg[1] if len(msg[1]) < 40 else ("Done" if ok else "Finished (error)"), OK if ok else ERR,
                                    1.0 if ok else None)
                     self.log_add(f"\n== {msg[1]}\n", None if ok else "err")
-                    self.remember("完了" if ok else ("停止" if self.stopping else "エラー"))
+                    self.remember(STATUS_DONE if ok else (STATUS_STOPPED if self.stopping else STATUS_ERROR))
                     if not ok and not self.stopping:
                         messagebox.showerror("soapff-GUI", msg[1])
         except queue.Empty:
@@ -2579,7 +2606,7 @@ class App:
             self.l_pct.config(text=f"{100 * progress:.0f}%")
 
     def set_running(self, on):
-        txt = "停止" if on else "計算を開始"
+        txt = "Stop" if on else "Start calculation"
         self.b_start.config(text=txt)
         self.b_start_top.config(text=txt)
         if on:
@@ -2587,7 +2614,7 @@ class App:
 
     def log_add(self, text, tag):
         self.log.config(state="normal")
-        if self.log.get("1.0", "1.end").startswith("実行ログはここに"):
+        if self.log.get("1.0", "1.end").startswith(LOG_PLACEHOLDER):
             self.log.delete("1.0", "end")
         self.log.insert("end", text, tag or ())
         if int(self.log.index("end-1c").split(".")[0]) > 20000:
@@ -2602,7 +2629,7 @@ class App:
 
     def on_close(self):
         if self.busy():
-            if not messagebox.askyesno("soapff-GUI", "計算中です。止めて終了しますか？\n（SSH の計算は相手側で続きます）"):
+            if not messagebox.askyesno("soapff-GUI", "A run is in progress. Stop it and quit?\n(An SSH run continues on the remote side)"):
                 return
             if self.job:
                 self.job.stop()

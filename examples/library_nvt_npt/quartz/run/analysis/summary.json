@@ -5,9 +5,7 @@
  "timestep_fs": 0.5,
  "what": [
   "msd",
-  "compute",
-  "xrd",
-  "props"
+  "sova"
  ],
  "traj": "traj.lammpstrj",
  "has_mineral": true,
@@ -16,99 +14,37 @@
   "pdf_rdf": "SOVA (sovapy) pair_dist_func, radial_dist_fun",
   "sq": "SOVA (sovapy) partial_structure_factor, structure_factor_xray",
   "compute": "LAMMPS fix ave/time, ave/chunk, ave/correlate, ave/histo output files",
-  "xrd": "Debyer (Debye scattering equation)"
+  "xrd": "Debyer (Debye scattering equation)",
+  "swelling": "LAMMPS fix npt; d001 = lz of the cell (swelling.dat of the soapff swelling block)"
  },
  "figures": [
   [
-   "MSD・PDF・RDF",
+   "MSD, PDF, RDF",
    "analysis.png"
   ],
   [
-   "XRD",
-   "xrd.png"
+   "S(Q)",
+   "sova_sq.png"
   ]
  ],
  "diffusion_1e-9_m2_s": {},
  "diffusion_note": "no LAMMPS msd_*.dat in this folder: add the MSD of soapff (catalog) before run",
- "ionic_conductivity": null,
- "computes": [],
- "xrd": {
-  "debyer": "/Users/harutokono/NEMD/debyer/debyer/debyer",
-  "wavelength_A": 1.5406,
-  "two_theta": [
-   3.0,
-   80.0,
-   0.02
+ "sova": {
+  "sovapy_version": "0.8.3",
+  "frames": 40,
+  "rmax": 5.404,
+  "dr": 0.02,
+  "pairs": [
+   "all:O-O",
+   "all:Si-O",
+   "all:Si-Si"
   ],
-  "frames": 3,
-  "steps": [
-   196000,
-   198000,
-   200000
-  ],
-  "mode": "cluster",
-  "periodic": false,
-  "repeat": [
-   4,
-   4,
-   5
-  ],
-  "size_A": [
-   59.398446340078124,
-   59.68593974201608,
-   55.27742517756497
-  ],
-  "atoms": 12960,
-  "d_limit_A": 19.895313247338695,
-  "peaks": [
-   {
-    "two_theta": 5.73,
-    "d_A": 15.411286768846074,
-    "relative": 43.80072796200885
-   },
-   {
-    "two_theta": 7.39,
-    "d_A": 11.952786550593855,
-    "relative": 15.817805723613239
-   },
-   {
-    "two_theta": 20.57,
-    "d_A": 4.314327496207983,
-    "relative": 23.51362925517887
-   },
-   {
-    "two_theta": 26.19,
-    "d_A": 3.399887636143385,
-    "relative": 100.0
-   },
-   {
-    "two_theta": 49.29,
-    "d_A": 1.847265347261718,
-    "relative": 22.22305948879216
-   },
-   {
-    "two_theta": 59.07,
-    "d_A": 1.5626168392501232,
-    "relative": 8.29808234705395
-   },
-   {
-    "two_theta": 66.77,
-    "d_A": 1.3998781998951104,
-    "relative": 19.70809349626069
-   },
-   {
-    "two_theta": 78.95,
-    "d_A": 1.2116560430498047,
-    "relative": 9.971901451837923
-   }
-  ],
-  "size_oscillations": [
-   {
-    "two_theta": 4.01,
-    "d_A": 22.01693165273559,
-    "relative": 172.5818665395909
-   }
-  ]
- },
- "properties": []
+  "first_peaks": {},
+  "coordination": {},
+  "sq_xray": true,
+  "radiation": "xray",
+  "sq_rmax": 5.4,
+  "sq_qmax": 12.0,
+  "note": "PDF g(r) by SOVA pair_dist_func (normalised by the density over the whole box: in a slab or interlayer it does not tend to 1); RDF N(r) = 4 pi r^2 rho_B g(r) by SOVA radial_dist_fun"
+ }
 }
