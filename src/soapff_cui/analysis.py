@@ -3,6 +3,7 @@
   msd       LAMMPS `compute msd` (in in.lammps, written every 0.1 ps to msd_<group>.dat) of water O and each ion type;
             self-diffusion coefficient from the Einstein relation, D = slope / (2 d), slope of a least-squares line
             over the production part: total (d = 3), in plane (xy, d = 2), normal (z, d = 1).  No finite-size correction.
+            Ionic conductivity (Nernst-Einstein, sigma = e^2 / (V kB T) sum_i N_i z_i^2 D_i, ion-ion correlations neglected).
   PDF, RDF  SOVA (sovapy, soapff_cui/sova_structure.py): pair distribution functions g(r) (atom_pair_hist,
             pair_dist_func) and radial distribution functions N(r) = 4 pi r^2 rho g(r) (radial_dist_fun) of water O -
             water O, ion - water O, ion - mineral O and every element pair of the whole system; coordination numbers
@@ -11,16 +12,13 @@
   compute   the output files of the averaging fixes in in.lammps (fix ave/time, ave/chunk, ave/correlate, ave/histo with
             `file`, i.e. the computes added from the catalog): scalar columns against time and their mean over the
             production part, vector / chunk / histogram blocks averaged over the production part
-  props     the properties of in.lammps ('# soapff-property:' blocks of soapff_cui.properties): Green-Kubo viscosity and
-            thermal conductivity, elastic constants (0 K and at T), tension / compression and shear; with msd the ionic
-            conductivity (Nernst-Einstein)
   XRD       Debyer (Debye scattering equation; https://github.com/wojdyr/debyer): X-ray powder pattern I(2 theta) averaged
             over the last frames of traj.lammpstrj.  cluster mode (default; crystals, minerals): the cell repeated to a
             crystallite with edges >= 50 A, without periodicity; periodic mode (liquids, glasses; orthorhombic box only,
             as Debyer's periodic boundaries are orthorhombic): cut-off half the shortest box length with sinc damping and
             the number density of the box
 
-  python -m soapff_cui analyze OUTDIR [--skip-ps X] [--sova-python PY] [--sova-home DIR] [--what msd,sova,compute,xrd,props]
+  python -m soapff_cui analyze OUTDIR [--skip-ps X] [--sova-python PY] [--sova-home DIR] [--what msd,sova,compute,xrd]
                                       [--debyer PATH] [--wavelength 1.5406] [--two-theta 3,80,0.02] [--xrd-frames 3]
                                       [--xrd-mode cluster|periodic] [--xrd-size 50]
       -> OUTDIR/analysis/{summary.txt, summary.json, analysis.png, msd_fit.csv, sova_pdf.csv, sova_rdf.csv, sova_sq.csv,
@@ -41,10 +39,9 @@ import tempfile
 
 import numpy as np
 
-from . import properties
 
 A2PS_TO_1E9M2S = 10.0          # 1 A^2/ps = 1e-8 m^2/s = 10 x 1e-9 m^2/s
-WHAT = ("msd", "sova", "compute", "xrd", "props")
+WHAT = ("msd", "sova", "compute", "xrd")
 AVE_FIXES = ("ave/time", "ave/chunk", "ave/correlate", "ave/histo")
 
 
@@ -96,10 +93,60 @@ def sova(out_dir, dest, skip_ps, dt_fs, sova_python=None, sova_home=None, log=pr
     return json.load(open(os.path.join(dest, "sova_summary.json")))
 
 
+
+# --------------------------------------------------------------------------------------------- ionic conductivity
+E, KB, A2M = 1.602176634e-19, 1.380649e-23, 1.0e-10          # C, J/K, m per A
+
+
+def ionic_conductivity(out_dir, D, temp=None):
+    """Nernst-Einstein conductivity (S/m) of the ions with MSD results D {group: dict(D_total, D_xy, D_z)} (1e-9 m2/s);
+    charges and numbers from charges.csv, T the given temperature, V the box of system.data."""
+    rows = list(csv.DictReader(open(os.path.join(out_dir, "charges.csv"))))
+    ions = {}
+    for r in rows:
+        if r.get("role") == "ion":
+            ions.setdefault(r["element"], []).append(float(r.get("charge", r.get("q", 0.0)) or 0.0))
+    T, V = temp, _data_volume(out_dir)
+    if not ions or not T or not V:
+        return None
+    pref = E ** 2 / (V * A2M ** 3 * KB * T)
+    res = dict(T=T, V=V, ions={}, sigma_total=0.0, sigma_xy=0.0, sigma_z=0.0)
+    for el, qs in ions.items():
+        if el not in D:
+            continue
+        z2 = float(np.mean(np.square(qs)))                                    # e^2 (the SOAP charge of the ion)
+        n = len(qs)
+        part = {k: pref * n * z2 * D[el][f"D_{k}"] * 1e-9 for k in ("total", "xy", "z")}
+        res["ions"][el] = dict(N=n, q=float(np.mean(qs)), **{f"sigma_{k}": v for k, v in part.items()})
+        res["sigma_total"] += part["total"]
+        res["sigma_xy"] += part["xy"]
+        res["sigma_z"] += part["z"]
+    return res if res["ions"] else None
+
+
+def _data_volume(out_dir):
+    try:
+        L = open(os.path.join(out_dir, "system.data")).read().splitlines()
+        b = {}
+        for l in L[:40]:
+            w = l.split()
+            if len(w) >= 4 and w[2].endswith("lo") and w[3].endswith("hi"):
+                b[w[2][0]] = float(w[1]) - float(w[0])
+        return b["x"] * b["y"] * b["z"]
+    except (OSError, KeyError, ValueError):
+        return None
+
+
+def ionic_lines(ionic):
+    L = [f"イオン伝導度（ネルンスト–アインシュタイン：σ = e²/(V k_B T) Σ N z² D、イオン間の相関は含まない；T = {ionic['T']:.1f} K、"
+         f"V = {ionic['V']:.0f} Å³）：全体 {ionic['sigma_total']:.4g} S/m（面内 xy {ionic['sigma_xy']:.4g}、垂直 z {ionic['sigma_z']:.4g}）"]
+    for el, d in ionic["ions"].items():
+        L.append(f"  {el}（{d['N']} 個、電荷 {d['q']:+.3f} e）：{d['sigma_total']:.4g} S/m（xy {d['sigma_xy']:.4g}）")
+    return L
+
 # --------------------------------------------------------------------------------------------- compute (fix ave/*)
 def ave_files(out_dir):
-    """[(fix ID, style, file)] of the averaging fixes with `file` in in.lammps whose file exists (msd_*.dat and the
-    files of the soapff properties, analysed by soapff_cui.properties, excluded)."""
+    """[(fix ID, style, file)] of the averaging fixes with `file` in in.lammps whose file exists (msd_*.dat excluded)."""
     out = []
     try:
         lines = open(os.path.join(out_dir, "in.lammps")).read().splitlines()
@@ -109,8 +156,7 @@ def ave_files(out_dir):
         w = line.split("#")[0].split()
         if len(w) > 4 and w[0] == "fix" and w[3] in AVE_FIXES and "file" in w[:-1]:
             f = w[w.index("file") + 1]
-            own = w[1].startswith("soapff_") and w[1] != "soapff_state"    # analysed with the properties
-            if not os.path.basename(f).startswith("msd_") and not own and os.path.isfile(os.path.join(out_dir, f)):
+            if not os.path.basename(f).startswith("msd_") and os.path.isfile(os.path.join(out_dir, f)):
                 out.append((w[1], w[3], f))
     return out
 
@@ -313,7 +359,7 @@ def _time_step_fs(out_dir, default):
 
 
 def trajectories(out_dir):
-    """the LAMMPS dumps of an output folder (traj.lammpstrj first, then traj_<test>.lammpstrj of the properties ...)."""
+    """the LAMMPS dumps of an output folder (traj.lammpstrj first, then the others)."""
     fs = sorted(os.path.basename(f) for f in glob.glob(os.path.join(out_dir, "*.lammpstrj")))
     return sorted(fs, key=lambda f: f != "traj.lammpstrj")
 
@@ -363,7 +409,7 @@ def analyze(out_dir, skip_ps=None, sova_python=None, sova_home=None, log=print, 
             for g, d in dres.items():
                 w.writerow([g, d["D_total"], d["D_xy"], d["D_z"], d["fit_from_ps"], d["fit_to_ps"]])
         try:
-            summary["ionic_conductivity"] = properties.ionic_conductivity(out_dir, dres, rep.get("md", {}).get("temp"))
+            summary["ionic_conductivity"] = ionic_conductivity(out_dir, dres, rep.get("md", {}).get("temp"))
         except Exception as e:
             log(f"WARNING ionic conductivity: {e}")
     if "sova" in what:
@@ -393,20 +439,11 @@ def analyze(out_dir, skip_ps=None, sova_python=None, sova_home=None, log=print, 
         except Exception as e:
             summary["xrd"] = dict(error=str(e))
             log(f"WARNING {e}")
-    if "props" in what:
-        summary["properties"] = properties.analyze(out_dir, dest, dt_fs, log)
-        summary["figures"] += [[_prop_title(it), it["png"]] for it in summary["properties"] if it.get("png")]
     json.dump(summary, open(os.path.join(dest, "summary.json"), "w"), indent=1, ensure_ascii=False)
     txt = summary_text(summary)
     open(os.path.join(dest, "summary.txt"), "w").write(txt)
     log(txt)
     return summary
-
-
-def _prop_title(it):
-    n = it["property"]
-    return {"viscosity": "粘度", "thermal": "熱伝導率", "elastic0": "弾性定数 0 K", "elasticT": "弾性定数 有限温度"}.get(
-        n, it.get("label", n))
 
 
 def summary_text(s):
@@ -425,7 +462,7 @@ def summary_text(s):
             if s.get("has_mineral"):
                 L.append("  層間や表面の近くでは z 方向の動きが制限されるので、拡散係数は面内 xy の値を使う")
             if s.get("ionic_conductivity"):
-                L += properties.summary_lines([], s["ionic_conductivity"])
+                L += ionic_lines(s["ionic_conductivity"])
         elif s.get("diffusion_note"):
             L.append("拡散係数：msd_*.dat がありません。カタログの「拡散係数の MSD」（soapff）を run の前に入れてください")
     if "sova" in what:
@@ -480,10 +517,6 @@ def summary_text(s):
                 L.append("  結晶子が小さいほどピークは広がり、低角のピーク（001 など）は低角側へずれる。--xrd-size（GUI では結晶子の大きさ）で大きくできる（計算時間は原子数の 2 乗）")
         elif x.get("error"):
             L.append("XRD（debyer）：実行できませんでした。" + x["error"].splitlines()[0])
-    if "props" in what:
-        items = s.get("properties") or []
-        L.append("物性（in.lammps の soapff-property の計算）" + ("" if items else "：in.lammps に物性の計算がありません（＋ 物性 で追加）"))
-        L += ["  " + l for l in properties.summary_lines(items)]
     return "\n".join(L) + "\n"
 
 
