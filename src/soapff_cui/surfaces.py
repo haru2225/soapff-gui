@@ -248,8 +248,8 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     ion_idx = np.nonzero(is_ion)[0]
     moved = {}
     if basal:
-        zf = z[np.nonzero(keep & ~is_ion)[0]]
-        gap = (zf[zf < z0].max() if (zf < z0).any() else z0 - d, zf[zf >= z0].min() if (zf >= z0).any() else z0)
+        zf = z[~is_ion]                       # the framework of the whole crystal: the interlayer gap around z0
+        gap = (zf[zf < z0].max(), zf[zf >= z0].min())
         band = [i for i in ion_idx if gap[0] < z[i] < gap[1]]
         keep[[i for i in ion_idx if gap[1] <= z[i] <= gap[0] + T]] = True
         rng = np.random.default_rng(seed)
