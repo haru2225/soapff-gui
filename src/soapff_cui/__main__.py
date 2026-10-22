@@ -14,6 +14,9 @@ def main():
     b.add_argument("--every", type=int, default=1, help="use every n-th dump frame")
     b.add_argument("--prune", type=float, default=None, help="drop entries at least this similar (e.g. 0.999) to a kept "
                                                              "entry of the same element, charge and type (smaller library)")
+    b.add_argument("--water-in-soap", action="store_true", help="keep the water in the SOAP of the references (old libraries); "
+                                                                "default: water left out, typed by rule in make")
+    b.add_argument("--protect", type=int, default=0, help="with --prune: the first N reference files are kept whole")
     b.add_argument("--r-cut", type=float, default=5.0)
     b.add_argument("--l-max", type=int, default=3)
     b.add_argument("--weight-r0", type=float, default=None, help="radial weighting of SOAP, w(r) = 1/(1 + (r/r0)^m) "
@@ -21,6 +24,13 @@ def main():
     b.add_argument("--weight-m", type=float, default=4, help="exponent m of the radial weighting")
     b.add_argument("--species-weight", nargs="*", default=[], metavar="EL=W",
                    help="scale the SOAP components of every species pair (Z1, Z2) by w(Z1) w(Z2), e.g. Al=2 Si=2 Mg=2")
+    sf = sub.add_parser("make-surfaces", help="bulk reference data file -> slabs in vacuum of every face (h k l) of its unit "
+                                              "cell (surface references for build-library)")
+    sf.add_argument("data", help="LAMMPS data file with charges and type names (water is left out)")
+    sf.add_argument("-o", "--out", default="surfaces")
+    sf.add_argument("--max-index", type=int, default=1, help="faces with |h|, |k|, |l| <= this")
+    sf.add_argument("--thickness", type=float, default=16.0, help="minimum slab thickness (A)")
+    sf.add_argument("--vacuum", type=float, default=16.0, help="vacuum along the normal (A)")
     c = sub.add_parser("check-library", help="developer check: nearest other entry has the same charge (one to one)")
     c.add_argument("library")
     m = sub.add_parser("make", help="structure -> system.data, system.settings, in.lammps, charges.csv, report.json")
@@ -90,8 +100,12 @@ def main():
         import json
         r = check_library(a.library)
         json.dump(r, open(a.library.replace(".npz", "_check.json"), "w"), indent=1)
+    elif a.cmd == "make-surfaces":
+        from .surfaces import write_surfaces
+        write_surfaces(a.data, a.out, max_index=a.max_index, min_thickness=a.thickness, vacuum=a.vacuum)
     elif a.cmd == "build-library":
-        build_library(a.data, a.frames, a.out, every=a.every, soap=dict(r_cut=a.r_cut, l_max=a.l_max, species_weights={x.split('=')[0]: float(x.split('=')[1]) for x in a.species_weight} or None, weighting=dict(function='pow', r0=a.weight_r0, m=a.weight_m, c=1, d=1) if a.weight_r0 else None), prune=a.prune)
+        build_library(a.data, a.frames, a.out, every=a.every, soap=dict(r_cut=a.r_cut, l_max=a.l_max, species_weights={x.split('=')[0]: float(x.split('=')[1]) for x in a.species_weight} or None, weighting=dict(function='pow', r0=a.weight_r0, m=a.weight_m, c=1, d=1) if a.weight_r0 else None), prune=a.prune,
+                      water_in_soap=a.water_in_soap, protect=a.protect)
     else:
         make(a.structure, a.out, a.library, threshold=a.threshold, cutoff=a.cutoff, kspace=a.kspace, temp=a.temp,
              nvt_ps=a.nvt_ps, npt_ps=a.npt_ps, press=a.press, baro=a.baro, boundary=a.boundary, dump_ps=a.dump_ps, fallback=not a.no_fallback, check=not a.no_check, water_rule=a.water_rule, relax_ps=a.relax_ps, timestep_fs=a.timestep, md=not a.minimize_only,

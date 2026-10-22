@@ -19,18 +19,7 @@ TABLE1 = {
     "feo": (1.5750, 9.0298e-6, 5.5070), "lio": (0.5250, 9.0298e-6, 4.7257),
     "Na": (1.0, 0.1301, 2.6378), "K": (1.0, 0.1000, 3.7423), "Cs": (1.0, 0.1000, 4.3002),
     "Ca": (2.0, 0.1000, 3.2237), "Ba": (2.0, 0.0470, 4.2840), "Cl": (-1.0, 0.1001, 4.9388),
-    # particle-edge types of the JAEA montmorillonite particle (clay_montmorillonite.data); not in ClayFF Table 1.  LJ terms of the
-    # parent type (EDGE_PARENT).  Charges from the bond-valence rule of the edge procedure of Lammers et al.,
-    # q_O = -2 + sum_i (Z_i - q_i)/CN_i over the bonded neighbours (H 1/0.425/1, Si 4/2.1/4, Al 3/1.575/6, Mg 2/1.36/6) with the
-    # ClayFF charges: oed Si-OH, oaa Si-O-Al, oab Al-OH, omb Mg-OH, oma Si-O-Mg; the edge metal takes the share of the removed OH2
-    # (Al 1.575 + 0.2375, Mg 1.36 + 0.1067).  (The JAEA file itself uses Mg 1.361, O next to it -1.081 / -1.181 and Mg edge 1.4675,
-    # which makes that particle exactly neutral; here the ClayFF values are kept and the small residual is removed by make().)
-    "oed": (-0.9500, 0.1554, 3.5532), "oab": (-1.1875, 0.1554, 3.5532), "omb": (-1.3183, 0.1554, 3.5532),
-    "oaa": (-1.2875, 0.1554, 3.5532), "oma": (-1.4183, 0.1554, 3.5532),
-    "alb": (1.8125, 1.3298e-6, 4.7943), "ala": (1.8125, 1.3298e-6, 4.7943),
-    "mgb": (1.4667, 9.0298e-7, 5.9090), "mga": (1.4667, 9.0298e-7, 5.9090),
 }
-EDGE_PARENT = {"oed": "ob", "oab": "ob", "omb": "ob", "oaa": "ob", "oma": "ob", "alb": "ao", "ala": "ao", "mgb": "mgo", "mga": "mgo"}
 SIGMA_FACTOR = 2.0 ** (1.0 / 6.0)
 Q = {t: v[0] for t, v in TABLE1.items()}
 LJ = {t: (v[1], v[2] / SIGMA_FACTOR) for t, v in TABLE1.items()}          # (epsilon kcal/mol, sigma A) for LAMMPS
@@ -38,8 +27,88 @@ BOND_OH = (554.1349, 1.0000)                    # o*-h*, oh-ho, ohs-ho (k1 kcal/
 ANGLE_HOH = (45.7696, 109.47)                   # h*-o*-h* (k2 kcal/mol/rad^2, theta0 deg)
 ANGLE_MOH = (30.0, 109.47)                      # Metal-oh-ho and Metal-ohs-ho
 ANGLE_MOM = (800.0, 100.0)                      # M-O-M harmonic restraint (k kcal/mol/rad^2, theta0 deg) of the particle edges
-                                                # (JAEA file, "analogous to Ho et al."); only for triples with an edge metal
+                                                # (JAEA file, "analogous to Ho et al."); only for triples with an edge metal (_e)
 WATER_Q = (Q["ow"], Q["hw"])                    # flexible SPC
+
+# ------------------------------------------------------------------------------------------ surface and edge types
+# Bond-valence rule of the edge procedure of Lammers et al. (used by Underwood & Bourg):  q_O = -2 + sum_i (Z_i - q_i) / CN_i  over
+# the cations (and H) bonded to the O.  With the ClayFF charges it gives every O type of Table 1 (ob, obos, obts, obss, oh, ohs, and
+# the O of talc, brucite, kaolinite ...), so it extends ClayFF to O that lost cations at a surface or an edge:
+#   oe_<codes>   an O that lost bonded cations; codes = the cations (and H) it keeps, in the order below, e.g. oe_sh = Si-OH,
+#                oe_sa = Si-O-Al(oct), oe_ah = Al(oct)-OH, oe_th = Al(tet)-OH, oe_ta = Al(tet)-O-Al(oct), oe_ggh = Mg2-OH (brucite)
+#   <metal>_e<n> an octahedral metal whose n singly coordinated OH2 were removed (Underwood & Bourg); it takes their charge,
+#                n (Z - q) / CN, e.g. ao_e1 = 1.575 + 0.2375
+# LJ terms: those of the parent type (all O are alike in ClayFF; the metal's own).
+BV_CODE = {"s": "st", "t": "at", "a": "ao", "m": "mgo", "g": "mgh", "c": "cao", "k": "cah", "f": "feo", "l": "lio", "h": "ho"}
+BV_ZCN = {"st": (4, 4), "at": (3, 4), "ao": (3, 6), "mgo": (2, 6), "mgh": (2, 6), "cao": (2, 6), "cah": (2, 6), "feo": (3, 6),
+          "lio": (1, 6), "ho": (1, 1)}
+CODE_OF = {t: c for c, t in BV_CODE.items()}
+# type names of the JAEA particle file (clay_montmorillonite.data) -> the names above
+EDGE_ALIAS = {"oed": "oe_sh", "oaa": "oe_sa", "oab": "oe_ah", "omb": "oe_mh", "oma": "oe_sm", "alb": "ao_e1", "ala": "ao_e1",
+              "mgb": "mgo_e1", "mga": "mgo_e1"}
+
+
+def edge_type(name):
+    """("O", [cation types kept]) for oe_<codes>, ("M", base, n) for <base>_e<n>, None otherwise"""
+    if name.startswith("oe_") and len(name) > 3 and all(c in BV_CODE for c in name[3:]):
+        return ("O", [BV_CODE[c] for c in name[3:]])
+    base, sep, n = name.rpartition("_e")
+    if sep and base in BV_ZCN and base != "ho" and n.isdigit():
+        return ("M", base, int(n))
+    return None
+
+
+# the bonding of the O types of Table 1 (the same charge by the bond-valence rule): an O at a surface that keeps one of these
+# sets of cations is that type
+BULK_O = {"oe_ss": "ob", "oe_saa": "ob", "oe_sggg": "ob", "oe_sam": "obos", "oe_st": "obts", "oe_taa": "obts",
+          "oe_tggg": "obts", "oe_tam": "obss", "oe_aah": "oh", "oe_gggh": "oh", "oe_amh": "ohs"}
+
+
+def o_type_name(cations):
+    """type of an O bonded to these cation (and ho) types: the Table 1 type of that bonding (BULK_O) or oe_<codes>"""
+    order = list(BV_CODE.values())
+    name = "oe_" + "".join(CODE_OF[t] for t in sorted(cations, key=order.index))
+    return BULK_O.get(name, name)
+
+
+def bv_charge(name, cation_q):
+    """charge of an oe_/_e type from the cation charges cation_q (type -> charge) by the bond-valence rule"""
+    e = edge_type(name)
+    share = lambda t: (BV_ZCN[t][0] - cation_q[t]) / BV_ZCN[t][1]
+    if e[0] == "O":
+        return round(-2.0 + sum(share(t) for t in e[1]), 4)
+    return round(cation_q[e[1]] + e[2] * share(e[1]), 4)
+
+
+def edge_parent(name):
+    e = edge_type(EDGE_ALIAS.get(name, name))
+    return None if e is None else ("ob" if e[0] == "O" else e[1])
+
+
+def is_edge_type(name):
+    return edge_parent(name) is not None
+
+
+def is_edge_metal(name):
+    e = edge_type(EDGE_ALIAS.get(name, name))
+    return e is not None and e[0] == "M"
+
+
+def is_edge_hydroxyl(name):
+    e = edge_type(EDGE_ALIAS.get(name, name))
+    return e is not None and e[0] == "O" and "ho" in e[1]
+
+
+def register_types(names):
+    """add the oe_/_e types among names to Q, LJ and the element table (ClayFF charges); unknown names are left alone"""
+    from ._clayff.ff import ELEMENT
+    for n in set(map(str, names)):
+        par = edge_parent(n)
+        if par is None or n in LJ:
+            continue
+        LJ[n] = LJ[par]
+        ELEMENT[n] = ELEMENT[par]
+        Q[n] = bv_charge(EDGE_ALIAS.get(n, n), Q)
 
 # charge schemes: the charge of every atom is the charge of its type (the type comes from SOAP).  "library": the charges stored in
 # the library (for a library whose charges are not one value per type).
@@ -49,20 +118,26 @@ CHARGE_SCHEMES = {
                        "(hydroxyl) / -1.181 (bridging), so that each Mg substitution carries exactly -1 e; edges with these values",
     "library": "the charges stored in the SOAP library",
 }
-SCHEME_Q = {
-    "clayff2004": {},
-    "underwood-bourg": {"mgo": 1.361, "ohs": -1.081, "obos": -1.181, "omb": -1.3185, "oma": -1.4185, "mgb": 1.4675, "mga": 1.4675},
-}
+# cation charges that differ from Table 1 (the O and edge types follow from them by the bond-valence rule)
+SCHEME_CATION_Q = {"clayff2004": {}, "underwood-bourg": {"mgo": 1.361}}
+# Table 1 types whose charge the scheme changes (Underwood & Bourg: the bond-valence values with Mg 1.361)
+SCHEME_Q = {"clayff2004": {}, "underwood-bourg": {"mgo": 1.361, "ohs": -1.081, "obos": -1.181}}
 # water models (O, H charges); both flexible with the ClayFF O-H bond and H-O-H angle (r0 1.0 A, 109.47 deg, as SPC and SPC/E)
 WATER_MODELS = {"spc": (-0.82, 0.41), "spce": (-0.8476, 0.4238)}
 WATER_LABELS = {"spc": "flexible SPC (ClayFF)", "spce": "flexible SPC/E"}
 
 
-def type_charges(scheme="clayff2004", water="spc"):
-    """type -> charge of a charge scheme and a water model (None for the scheme "library": only the water types then)"""
+def type_charges(scheme="clayff2004", water="spc", types=()):
+    """type -> charge of a charge scheme and a water model, for the Table 1 types and the oe_/_e types among `types`
+    (the scheme "library": only the water types)"""
     qO, qH = WATER_MODELS[water]
     if scheme == "library":
         return {"ow": qO, "hw": qH}
     if scheme not in SCHEME_Q:
         raise ValueError(f"charge scheme must be one of {list(CHARGE_SCHEMES)}")
-    return dict(Q, **SCHEME_Q[scheme], ow=qO, hw=qH)
+    out = dict({t: v[0] for t, v in TABLE1.items()}, **SCHEME_Q[scheme], ow=qO, hw=qH)
+    cq = dict(out, **SCHEME_CATION_Q[scheme])
+    for t in set(map(str, types)):
+        if is_edge_type(t):
+            out[t] = bv_charge(EDGE_ALIAS.get(t, t), cq)
+    return out
