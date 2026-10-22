@@ -461,7 +461,7 @@ def kspace_setup(kspace, boundary, periodic, tilted):
 
 
 # ------------------------------------------------------------------------------------------------- topology and writer
-def topology_from_types(at, types):
+def topology_from_types(at, types, mom=False):
     """bonds and angles from the types (not from distances alone, so that overlapping atoms do not create false bonds):
     each water O takes its two nearest water H, each hydroxyl H its nearest hydroxyl O; M-O-H angles for the framework
     cations within 2.5 A (Al) / 2.6 A (Mg) of a hydroxyl O; H-O-H for water."""
@@ -499,9 +499,10 @@ def topology_from_types(at, types):
         site = "bulk" if len(cat) >= 2 else "surface"
         for m in cat:
             angles.append((m, o, h, ("MOH", ELEMENT[t[m]], site)))
-    # M-O-M restraint of the particle edges: every Al/Mg-O-Al/Mg triple (M-O < 2.5 A) that contains an edge metal
+    # M-O-M restraint of the particle edges (mom: the Underwood & Bourg charges): every Al/Mg-O-Al/Mg triple (M-O < 2.5 A)
+    # that contains an edge metal
     em = np.array([is_edge_metal(x) for x in t], bool)
-    if em.any():
+    if mom and em.any():
         mets = np.nonzero(framework_cation(t, si=False))[0]
         for o in np.nonzero([ELEMENT.get(x) == "O" and x not in ("ow", "oaq") for x in t])[0]:
             nb = mets[d(o, mets) < 2.5]
@@ -566,7 +567,7 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     """reserve_water: the water types (ow, hw), the water O-H bond and H-O-H angle types and room for their bonds are
     written even when the structure has no water, so that water can be added in LAMMPS (swelling curve)."""
     bnd, periodic = parse_boundary(boundary)
-    bonds, angles, unbonded = topology_from_types(at, types)
+    bonds, angles, unbonded = topology_from_types(at, types, mom=charges == "underwood-bourg")
     tnames = sorted(set(types) | ({"ow", "hw"} if reserve_water else set()), key=lambda x: (ELEMENT[x], x))
     tid = {x: k + 1 for k, x in enumerate(tnames)}
     bkeys = sorted(set(b[2] for b in bonds) | ({"OHw"} if reserve_water else set())); bid = {k: n + 1 for n, k in enumerate(bkeys)}

@@ -27,7 +27,8 @@ BOND_OH = (554.1349, 1.0000)                    # o*-h*, oh-ho, ohs-ho (k1 kcal/
 ANGLE_HOH = (45.7696, 109.47)                   # h*-o*-h* (k2 kcal/mol/rad^2, theta0 deg)
 ANGLE_MOH = (30.0, 109.47)                      # Metal-oh-ho and Metal-ohs-ho
 ANGLE_MOM = (800.0, 100.0)                      # M-O-M harmonic restraint (k kcal/mol/rad^2, theta0 deg) of the particle edges
-                                                # (JAEA file, "analogous to Ho et al."); only for triples with an edge metal (_e)
+                                                # (JAEA file, "analogous to Ho et al."); only with the Underwood & Bourg charges,
+                                                # for the triples with an edge metal (_e)
 WATER_Q = (Q["ow"], Q["hw"])                    # flexible SPC
 
 # ------------------------------------------------------------------------------------------ surface and edge types
