@@ -20,15 +20,15 @@ TABLE1 = {
     "Na": (1.0, 0.1301, 2.6378), "K": (1.0, 0.1000, 3.7423), "Cs": (1.0, 0.1000, 4.3002),
     "Ca": (2.0, 0.1000, 3.2237), "Ba": (2.0, 0.0470, 4.2840), "Cl": (-1.0, 0.1001, 4.9388),
     # particle-edge types of the JAEA montmorillonite particle (clay_montmorillonite.data); not in ClayFF Table 1.  LJ terms of the
-    # parent type (EDGE_PARENT).  Charges: bond-valence model of the edge procedure of Lammers et al., q_O = -2 + sum_i (Z_i - q_i)/CN_i
-    # over the bonded neighbours (H 1/0.425/1, Si 4/2.1/4, Al 3/1.575/6, Mg 2/1.361/6): oed Si-OH, oaa Si-O-Al, oab Al-OH, omb Mg-OH,
-    # oma Si-O-Mg; the edge metal takes the share of the removed OH2: Al 1.575 + 0.2375, Mg 1.361 + 0.1065.  In that model the
-    # octahedral Mg is 1.361 and the O next to it -1.081 (hydroxyl) and -1.181 (bridging), the library entries of this particle
-    # (ClayFF has 1.36, -1.0808, -1.1808), which makes the particle exactly neutral.
-    "oed": (-0.9500, 0.1554, 3.5532), "oab": (-1.1875, 0.1554, 3.5532), "omb": (-1.3185, 0.1554, 3.5532),
-    "oaa": (-1.2875, 0.1554, 3.5532), "oma": (-1.4185, 0.1554, 3.5532),
+    # parent type (EDGE_PARENT).  Charges from the bond-valence rule of the edge procedure of Lammers et al.,
+    # q_O = -2 + sum_i (Z_i - q_i)/CN_i over the bonded neighbours (H 1/0.425/1, Si 4/2.1/4, Al 3/1.575/6, Mg 2/1.36/6) with the
+    # ClayFF charges: oed Si-OH, oaa Si-O-Al, oab Al-OH, omb Mg-OH, oma Si-O-Mg; the edge metal takes the share of the removed OH2
+    # (Al 1.575 + 0.2375, Mg 1.36 + 0.1067).  (The JAEA file itself uses Mg 1.361, O next to it -1.081 / -1.181 and Mg edge 1.4675,
+    # which makes that particle exactly neutral; here the ClayFF values are kept and the small residual is removed by make().)
+    "oed": (-0.9500, 0.1554, 3.5532), "oab": (-1.1875, 0.1554, 3.5532), "omb": (-1.3183, 0.1554, 3.5532),
+    "oaa": (-1.2875, 0.1554, 3.5532), "oma": (-1.4183, 0.1554, 3.5532),
     "alb": (1.8125, 1.3298e-6, 4.7943), "ala": (1.8125, 1.3298e-6, 4.7943),
-    "mgb": (1.4675, 9.0298e-7, 5.9090), "mga": (1.4675, 9.0298e-7, 5.9090),
+    "mgb": (1.4667, 9.0298e-7, 5.9090), "mga": (1.4667, 9.0298e-7, 5.9090),
 }
 EDGE_PARENT = {"oed": "ob", "oab": "ob", "omb": "ob", "oaa": "ob", "oma": "ob", "alb": "ao", "ala": "ao", "mgb": "mgo", "mga": "mgo"}
 SIGMA_FACTOR = 2.0 ** (1.0 / 6.0)

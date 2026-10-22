@@ -300,6 +300,24 @@ EDGE_METAL = ("alb", "ala", "mgb", "mga")
 EDGE_OH_O = ("oed", "oab", "omb")             # particle-edge O that carry one H (silanol / Al-OH / Mg-OH at an edge)
 
 
+def neutralize(q, mineral, digits=8):
+    """charges summing to exactly zero as written with `digits` decimals: a common shift of the mineral atoms, rounding, and the
+    rounding remainder (units of 10^-digits) taken off evenly spaced mineral atoms"""
+    q = np.array(q, float)
+    q[mineral] -= q.sum() / mineral.sum()
+    q = np.round(q, digits)
+    unit = 10.0 ** -digits
+    n = int(round(q.sum() / unit))
+    idx = np.nonzero(mineral)[0]
+    if n:
+        pick = idx[np.linspace(0, len(idx) - 1, min(abs(n), len(idx))).astype(int)]
+        q[pick] -= np.sign(n) * unit * (abs(n) // len(pick))
+        rest = abs(n) - (abs(n) // len(pick)) * len(pick)
+        if rest:
+            q[pick[:rest]] -= np.sign(n) * unit
+    return q
+
+
 def assign(at, lib, threshold=THRESHOLD, block=4000, exclude_types=(), only=None):
     """charge of every atom = charge of the most similar library entry of the same element.
     exclude_types: library entries of these types are not candidates for the atoms in `only` (a boolean mask over the
@@ -799,10 +817,16 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
         log("WARNING " + warn[-1])
     role = np.where(np.isin(tarr, ["ow", "hw"]), "water", np.where(np.isin(tarr, list(FORMAL_ION) + ["Na", "K", "Ca", "Cs", "Cl"]), "ion", "mineral"))
     total = float(q.sum())
-    # neutrality: a residual (only from fallback atoms or a library of another composition) goes to mineral atoms
+    # neutrality: the residual (fallback atoms, a library of another composition, or the small mismatch of a particle with edges
+    # whose edge charges were not tuned) is removed from the mineral atoms: equal shift, then the 1e-8 e left by the rounding
+    # to the 8 digits of system.data is taken off single atoms, so that the written charges sum to zero
     mineral = role == "mineral"
-    if abs(total) > 1e-6 and mineral.any():
-        q[mineral] -= total / mineral.sum()
+    if mineral.any():
+        if abs(total) > 0.05:
+            warn.append(f"net charge of the assigned atoms {total:+.3f} e before neutralisation (shift {total / mineral.sum():+.1e} e per "
+                        f"mineral atom): the library may lack environments of this structure")
+            log("WARNING " + warn[-1])
+        q = neutralize(q, mineral)
     problems = check_consistency(at, q, types)
     for p_ in problems:
         log("CHECK " + p_)
