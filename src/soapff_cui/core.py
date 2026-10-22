@@ -368,24 +368,6 @@ def framework_cation(t, si=True):
     return np.array([x in base or is_edge_metal(x) for x in t], bool)
 
 
-def neutralize(q, mineral, digits=8):
-    """charges summing to exactly zero as written with `digits` decimals: a common shift of the mineral atoms, rounding, and the
-    rounding remainder (units of 10^-digits) taken off evenly spaced mineral atoms"""
-    q = np.array(q, float)
-    q[mineral] -= q.sum() / mineral.sum()
-    q = np.round(q, digits)
-    unit = 10.0 ** -digits
-    n = int(round(q.sum() / unit))
-    idx = np.nonzero(mineral)[0]
-    if n:
-        pick = idx[np.linspace(0, len(idx) - 1, min(abs(n), len(idx))).astype(int)]
-        q[pick] -= np.sign(n) * unit * (abs(n) // len(pick))
-        rest = abs(n) - (abs(n) // len(pick)) * len(pick)
-        if rest:
-            q[pick[:rest]] -= np.sign(n) * unit
-    return q
-
-
 def assign(at, lib, threshold=THRESHOLD, block=4000, exclude_types=(), only=None):
     """charge of every atom = charge of the most similar library entry of the same element.
     exclude_types: library entries of these types are not candidates for the atoms in `only` (a boolean mask over the
@@ -702,7 +684,6 @@ def reserve_water_types(out_dir, log=print):
         raise ValueError(f"charges.csv has {len(rows)} atoms, the structure {len(at)}")
     q = np.array([float(r["charge"]) for r in rows])
     types = [r["clayff_type"] for r in rows]
-    q = neutralize(q, np.array([r["role"] == "mineral" for r in rows]))   # the 6 digits of charges.csv leave ~1e-5 e
     register_types(types)
     kspace = " ".join(rep.get("kspace", [""])[0].split()[1:]) if rep.get("kspace") else "pppm 1.0e-5"
     info = write_system(at, q, types, out_dir, kspace=kspace or "pppm 1.0e-5", boundary=rep.get("boundary", "p p p"),
@@ -925,17 +906,14 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
         log("WARNING " + warn[-1])
     role = np.where(np.isin(tarr, ["ow", "hw"]), "water", np.where(np.isin(tarr, list(FORMAL_ION) + ["Na", "K", "Ca", "Cs", "Cl"]), "ion", "mineral"))
     total = float(q.sum())
-    # neutrality: the residual (fallback atoms, a library of another composition, or the small mismatch of a particle with edges
-    # whose edge charges were not tuned) is removed from the mineral atoms: equal shift, then the 1e-8 e left by the rounding
-    # to the 8 digits of system.data is taken off single atoms, so that the written charges sum to zero
-    mineral = role == "mineral"
-    if mineral.any():
-        if abs(total) > 0.05:
-            warn.append(f"net charge of the assigned atoms {total:+.3f} e before neutralisation (shift {total / mineral.sum():+.1e} e per "
-                        f"mineral atom): edges whose ClayFF charges do not balance (e.g. at tetrahedral Al), or environments the "
-                        f"library lacks")
-            log("WARNING " + warn[-1])
-        q = neutralize(q, mineral)
+    # the charges are not changed to make the system neutral: the net charge is reported (ClayFF itself leaves +0.0002 e per
+    # octahedral Mg and -0.0002 e per tetrahedral Al substitution; a larger one comes from fallback atoms, a charged
+    # surface or a structure whose formal charge is not zero)
+    if abs(total) > 1e-6:
+        warn.append(f"net charge {total:+.4f} e (not neutralised; LAMMPS adds a uniform neutralising background for the "
+                    f"long-range Coulomb)" + ("" if abs(total) < 0.01 else ": check the structure (counter-ions, protonation) "
+                                              "and the fallback atoms"))
+        log("WARNING " + warn[-1])
     problems = check_consistency(at, q, types)
     for p_ in problems:
         log("CHECK " + p_)
@@ -1022,7 +1000,7 @@ write_data final.data
                consistency=problems, md=dict(temp=temp, relax_ps=relax_ps, nvt_ps=nvt_ps, npt_ps=npt_ps, press=press, baro=baro, dump_ps=dump_ps, timestep_fs=timestep_fs))
     json.dump(rep, open(os.path.join(out_dir, "report.json"), "w"), indent=1)
     log(f"{len(at)} atoms ({rep['roles']}); charges from SOAP {rep['from_soap']}, fallback {rep['fallback']}; "
-        f"sum {total:+.4f} -> {q.sum():+.2e} e; wrote {out_dir}/system.data, system.settings, in.lammps, charges.csv, report.json")
+        f"net charge {total:+.4f} e; wrote {out_dir}/system.data, system.settings, in.lammps, charges.csv, report.json")
     return rep
 
 

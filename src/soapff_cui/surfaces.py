@@ -4,23 +4,25 @@ A face (h k l) is given in the unit cell of the bulk reference (the reference it
   1. orientation: the crystal in a cell with two lattice vectors in the plane and a lattice vector out of it (oriented);
   2. termination: a window of a whole number of periods (>= min_thickness) along the normal; every framework cation in the
      window keeps all its O (no undercoordinated Si or tetrahedral Al), small fragments are dropped.  Of all window
-     positions, the one with the smallest net formal charge after the healing, then the fewest OH removed to neutralise
-     it, then the fewest cut cation-O bonds, then the middle of such a range (a cleavage in the middle of a gap) is taken;
+     positions, the one with the smallest net formal charge after the healing, then the fewest protons adjusted, then the
+     fewest cut cation-O bonds, then the fewest OH2 removed (metals left undercoordinated), then the middle of such a range
+     (a cleavage in the middle of a gap) is taken;
   3. healing (White & Zelazny at near-neutral pH, as in the edge procedure of Lammers et al. used by Underwood & Bourg),
      by the bond valence BVc = sum Z/CN of the cations an O keeps:  BVc > 1: as it is (e.g. Si-O-Al(oct),
-     Al(tet)-O-Al(oct)); 0.5 < BVc <= 1: one H in all (Si-OH, Al(tet)-OH, Al2-OH, Mg2-OH), an added H points towards the
-     lost cations and is turned away from the other atoms when needed; BVc <= 0.5 (an O left on a single octahedral Al
-     or Mg, whatever H it had): a metal with one such O has an OH2 there, a metal with several has one OH (e.g. Al-OH)
-     and OH2 on the others (=Al(OH)(OH2) of White & Zelazny); every OH2 is removed and its charge given to the metal
-     (Underwood & Bourg): <metal>_e<n>.  When the slab is still negative, OH of such metals become OH2 (removed) as well,
-     one per missing charge, alternating between the faces (a protonation towards the point of zero charge);
+     Al(tet)-O-Al(oct)); 0.5 < BVc <= 1: one H in all (Si-OH, Al(tet)-OH, Al2-OH, Mg2-OH); BVc <= 0.5 (an O left on a
+     single octahedral Al or Mg): a metal with one such O has an OH2 there, a metal with several has one OH and OH2 on the
+     others (=Al(OH)(OH2) of White & Zelazny); every OH2 is removed and its charge given to the metal (Underwood &
+     Bourg): <metal>_e<n>.  Then the surface proton charge is brought to zero (Lammers et al.): while the slab is
+     charged, an H is added to the most undersaturated O (lowest bond valence with its H; an OH on a single metal becomes
+     an OH2, removed) or taken from the most oversaturated one, alternating between the faces, the bond valence of an O
+     staying within 1.0-2.5.  Added H point towards the lost cations, turned away from the other atoms when needed;
   4. types: an O that lost cations is oe_<codes> (clayff.py), its charge by the bond-valence rule; other atoms keep the
      type of the bulk reference;
   5. ions (K, Na, Cs ...): a basal cleavage (no bond cut) gets half of the ions of the cleaved interlayer on each face;
      otherwise the ions inside the window.  Water of the reference is not used (the library leaves water out of the SOAP).
 The slab is periodic in the plane with `vacuum` A of vacuum along the normal (more than twice the SOAP cut-off, so that
-the two faces do not see each other).  Its net formal charge is reported: a slab that these rules cannot neutralise stays
-charged (its protonation, i.e. pH, is not changed further)."""
+the two faces do not see each other).  Its net formal charge is reported (zero unless no O can take or give an H within
+the bond-valence limits)."""
 import itertools
 import math
 
@@ -173,10 +175,16 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     o_nh = np.array([len(h_of_o.get(o, [])) for o in o_list])
     T = nper * d
 
-    def classify(inside):
-        """per O touched by the window: kept as it is, "terminal" (BV of the kept cations <= 0.5: on a single octahedral
-        metal) or healed to its number of H; returns (cut bonds, formal charge without the terminal O, metal -> terminal O)"""
-        cut, formal, terminal = 0, int(zcat[inside].sum()), {}
+    def protonate(inside, ion_charge, exposure):
+        """protonation of the O touched by the window `inside` (cations kept).  First White & Zelazny at near-neutral pH:
+        an O that lost cations has the bond valence BVc of the cations it keeps; BVc > 1: its own H only; 0.5 < BVc <= 1:
+        one H in all; BVc <= 0.5 (on a single octahedral metal, "terminal"): OH2 (removed), one OH on a metal with several.
+        Then, while the slab is charged, one H is added to the most undersaturated O (lowest BV with its H; an OH on a
+        single metal becomes OH2, removed) or taken from the most oversaturated one, alternating between the faces, the
+        BV of an O staying within 1.0-2.5 (the surface proton charge brought to zero, as in Lammers et al.).
+        Returns (cut bonds, residual formal charge, number of H added or removed, {O: H count, -1 = removed},
+        {metal: OH2 removed})."""
+        cut, formal, terminal, plan, bvo = 0, int(zcat[inside].sum()) + ion_charge, {}, {}, {}
         for o, cs, nh in zip(o_list, o_cats, o_nh):
             k = inside[cs]
             if not k.any():
@@ -185,21 +193,56 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
                 formal += nh - 2
                 continue
             cut += int((~k).sum())
-            bvcat = bvc[cs[k]].sum()
-            if bvcat <= 0.5 + 1e-9 and k.sum() == 1:
+            bvo[o] = bvc[cs[k]].sum()
+            if bvo[o] <= 0.5 + 1e-9 and k.sum() == 1:
                 terminal.setdefault(int(cs[k][0]), []).append(o)
                 continue
-            formal += max(nh, 1 if bvcat <= 1.0 + 1e-9 else 0) - 2
-        return cut, formal, terminal
+            plan[o] = max(int(nh), 1 if bvo[o] <= 1.0 + 1e-9 else 0)
+            formal += plan[o] - 2
+        metal_n = {}
+        for m_, os_ in terminal.items():
+            oh = max(os_, key=lambda o: exposure[o]) if len(os_) >= 2 else None
+            for o in os_:
+                if o == oh:
+                    plan[o] = 1
+                    formal -= 1
+                else:
+                    plan[o] = -1
+                    metal_n[m_] = metal_n.get(m_, 0) + 1
+        single = {o for os_ in terminal.values() for o in os_}
+        done = {+1: 0, -1: 0}                                          # adjustments per face (top +1, bottom -1)
+        n_adj = 0
+        while formal != 0:
+            sign = 1 if formal < 0 else -1                             # add H (negative slab) or take one
+            cand = [o for o, n in plan.items() if n >= 0 and (
+                (sign > 0 and bvo[o] + n + 1 <= 2.5 + 1e-9) or (sign < 0 and n >= 1 and bvo[o] + n - 1 >= 1.0 - 1e-9))]
+            if not cand:
+                break
+            key = lambda o: (sign * (bvo[o] + plan[o]), done[1 if exposure_side[o] > 0 else -1], -exposure[o])
+            o = min(cand, key=key)
+            done[1 if exposure_side[o] > 0 else -1] += 1
+            if sign > 0 and o in single and plan[o] == 1:              # OH on a single metal -> OH2, removed
+                plan[o] = -1
+                m_ = next(c for c in o_cats[o_index[o]] if inside[c])
+                metal_n[m_] = metal_n.get(m_, 0) + 1
+            else:
+                plan[o] += sign
+            formal += sign
+            n_adj += 1
+        return cut, formal, n_adj, plan, metal_n
+
+    o_index = {o: k for k, o in enumerate(o_list)}
 
     def evaluate(z0):
-        """(net formal charge left after the neutralisation, OH removed for it, cut bonds) of the window at z0"""
+        """(|residual formal charge|, H added or removed, cut bonds, OH2 removed) of the window at z0"""
         inside = is_cat & (z >= z0) & (z < z0 + T)
-        cut, formal, terminal = classify(inside)
-        n_oh = sum(1 for os_ in terminal.values() if len(os_) >= 2)   # one OH (formal -1) per metal with several terminal O
-        formal += -n_oh + sum(ION_Z[el[i]] for i in np.nonzero(is_ion & (z >= z0) & (z < z0 + T))[0])
-        used = min(n_oh, max(0, -formal))                              # OH turned into OH2 (removed): +1 each
-        return abs(formal + used), used, cut
+        zc = 0.5 * (2 * z0 + T)
+        exposure.update({o: abs(z[o] - zc) for o in o_list})
+        exposure_side.update({o: z[o] - zc for o in o_list})
+        ion_q = sum(ION_Z[el[i]] for i in np.nonzero(is_ion & (z >= z0) & (z < z0 + T))[0])
+        cut, res, n_adj, _, metal_n = protonate(inside, ion_q, exposure)
+        return abs(res), n_adj, cut, sum(metal_n.values())
+    exposure, exposure_side = {}, {}
     z0s = np.arange(d, 2 * d, step)
     score = [evaluate(z0) for z0 in z0s]
     best = min(score)
@@ -260,44 +303,29 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
                 moved[i] = nper * a3                                   # the same interlayer site on the other face
     else:
         keep[[i for i in ion_idx if z0 <= z[i] < z0 + T]] = True
-    # healing
+    # healing: the protonation of the chosen window
     new_t = {i: tb[i] for i in np.nonzero(keep)[0]}
-    add_h, remove, metal_n = [], set(), {}
+    add_h, remove = [], set()
     n_oe = 0
-    zmid = z[keep].mean()
-    _, formal0, terminal = classify(inside)
-    formal0 += sum(ION_Z[el[i]] for i in np.nonzero(keep & is_ion)[0])
-    # one OH (the most exposed O) on a metal with several terminal O; when the slab is negative, as many of these OH as
-    # needed become OH2 (removed) too, alternating between the two faces
-    as_oh = {max(os_, key=lambda o: abs(z[o] - zmid)) for os_ in terminal.values() if len(os_) >= 2}
-    formal0 -= len(as_oh)
-    neutralised = 0
-    if formal0 < 0 and as_oh:
-        top = sorted((o for o in as_oh if z[o] >= zmid), key=lambda o: -z[o])
-        bot = sorted((o for o in as_oh if z[o] < zmid), key=lambda o: z[o])
-        order = [o for pair in itertools.zip_longest(top, bot) for o in pair if o is not None]
-        for o in order[:-formal0]:
-            as_oh.discard(o); neutralised += 1
-    term_o = {o for os_ in terminal.values() for o in os_}
+    zmid = z[keep & ~is_ion].mean()
+    exposure.update({o: abs(z[o] - zmid) for o in o_list})
+    exposure_side.update({o: z[o] - zmid for o in o_list})
+    _, residual, n_adj, plan, metal_n = protonate(inside, sum(ION_Z[el[i]] for i in np.nonzero(keep & is_ion)[0]), exposure)
     for o, cs in zip(o_list, o_cats):
-        if not keep[o]:
+        if not keep[o] or o not in plan:
             continue
         kept = [c for c in cs if inside[c]]
         lost = [(c, v) for c, v in cat_of_o[o] if not inside[c]]
-        if not lost:
-            continue
         hs = [h for h, _ in h_of_o.get(o, []) if keep[h]]
-        if o in term_o and o not in as_oh:                         # OH2: removed, its charge goes to the metal
+        if plan[o] < 0:                                            # OH2: removed, its charge goes to the metal
             remove.add(o); remove.update(hs)
-            for c in kept:
-                metal_n[c] = metal_n.get(c, 0) + 1
             continue
-        bvcat = sum(bvc[c] for c in kept)
-        n_add = max(0, (1 if (o in as_oh or bvcat <= 1.0 + 1e-9) else 0) - len(hs))
-        if n_add:
-            u = -sum(v / np.linalg.norm(v) for _, v in lost)               # v: cation -> O; the H points to the lost cations
+        for h in hs[plan[o]:]:                                     # an H taken away
+            remove.add(h)
+        for _ in range(plan[o] - len(hs)):                         # H added, towards the lost cations
+            u = -sum(v / np.linalg.norm(v) for _, v in lost)               # v: cation -> O
             add_h.append((o, u if np.linalg.norm(u) > 1e-6 else -lost[0][1]))
-        new_t[o] = o_type_name([tb[c] for c in kept] + ["ho"] * (len(hs) + n_add))
+        new_t[o] = o_type_name([tb[c] for c in kept] + ["ho"] * plan[o])
         n_oe += 1
     for c, n in metal_n.items():
         new_t[c] = f"{tb[c]}_e{n}"
@@ -324,7 +352,7 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
               + sum(ION_Z[s] for s, x in zip(sym, typ) if x == s and s in ION_Z) - 2 * sym.count("O"))
     info = dict(miller=tuple(miller_unit), miller_cell=m, repeats=reps, period=round(d, 3), periods=nper, area=round(area, 2),
                 cut_bonds=int(cut_best), basal=bool(basal), atoms=len(slab), oe=n_oe, h_added=len(add_h),
-                oh2_removed=len([o for o in remove if el[o] == "O"]), oh_neutralised=neutralised, fragments_dropped=dropped,
+                oh2_removed=len([o for o in remove if el[o] == "O"]), protons_adjusted=n_adj, fragments_dropped=dropped,
                 ions=int(sum(1 for s, x in zip(sym, typ) if x == s and s in ION_Z)), formal_charge=int(round(formal)),
                 close_contacts=len(close), min_contact=round(min(close, default=9.9), 2), h_clearance=round(h_min, 2))
     return slab, typ, info
