@@ -932,7 +932,8 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     if mineral.any():
         if abs(total) > 0.05:
             warn.append(f"net charge of the assigned atoms {total:+.3f} e before neutralisation (shift {total / mineral.sum():+.1e} e per "
-                        f"mineral atom): the library may lack environments of this structure")
+                        f"mineral atom): edges whose ClayFF charges do not balance (e.g. at tetrahedral Al), or environments the "
+                        f"library lacks")
             log("WARNING " + warn[-1])
         q = neutralize(q, mineral)
     problems = check_consistency(at, q, types)

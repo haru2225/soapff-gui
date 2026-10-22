@@ -114,9 +114,10 @@ def register_types(names):
 # charge schemes: the charge of every atom is the charge of its type (the type comes from SOAP).  "library": the charges stored in
 # the library (for a library whose charges are not one value per type).
 CHARGE_SCHEMES = {
-    "clayff2004": "ClayFF (Cygan et al. 2004, Table 1); particle edges by the bond-valence rule with these charges",
+    "clayff2004": "ClayFF (Cygan et al. 2004, Table 1) for every atom, also at surfaces and edges (no edge charges)",
     "underwood-bourg": "Underwood & Bourg (smectite nanoparticles, SI Table 1): octahedral Mg 1.361, O next to it -1.081 "
-                       "(hydroxyl) / -1.181 (bridging), so that each Mg substitution carries exactly -1 e; edges with these values",
+                       "(hydroxyl) / -1.181 (bridging), so that each Mg substitution carries exactly -1 e; edge O and metals by the "
+                       "bond-valence rule of their montmorillonite edges, and the M-O-M restraint",
     "library": "the charges stored in the SOAP library",
 }
 # cation charges that differ from Table 1 (the O and edge types follow from them by the bond-valence rule)
@@ -135,9 +136,25 @@ def shake_line(bond_type, angle_type, fix_id="shake1"):
     return f"fix {fix_id} all shake 0.0001 20 0 b {bond_type} a {angle_type}"
 
 
+def clayff_type(name):
+    """the Table 1 type whose charge an oe_/_e type takes in the scheme clayff2004 (ClayFF has no edge charges): an O with H
+    oh (ohs next to octahedral Mg), an O without H ob (obts next to tetrahedral Al, obos next to octahedral Mg, obss both);
+    an edge metal its own type"""
+    e = edge_type(EDGE_ALIAS.get(name, name))
+    if e is None:
+        return name
+    if e[0] == "M":
+        return e[1]
+    c = set(e[1])
+    if "ho" in c:
+        return "ohs" if "mgo" in c else "oh"
+    return "obss" if {"at", "mgo"} <= c else "obts" if "at" in c else "obos" if "mgo" in c else "ob"
+
+
 def type_charges(scheme="clayff2004", water="spc", types=()):
     """type -> charge of a charge scheme and a water model, for the Table 1 types and the oe_/_e types among `types`
-    (the scheme "library": only the water types)"""
+    (clayff2004: the charge of their Table 1 type, clayff_type; underwood-bourg: the bond-valence rule; "library": only the
+    water types)"""
     qO, qH = WATER_MODELS[water]
     if scheme == "library":
         return {"ow": qO, "hw": qH}
@@ -147,5 +164,5 @@ def type_charges(scheme="clayff2004", water="spc", types=()):
     cq = dict(out, **SCHEME_CATION_Q[scheme])
     for t in set(map(str, types)):
         if is_edge_type(t):
-            out[t] = bv_charge(EDGE_ALIAS.get(t, t), cq)
+            out[t] = out[clayff_type(t)] if scheme == "clayff2004" else bv_charge(EDGE_ALIAS.get(t, t), cq)
     return out
