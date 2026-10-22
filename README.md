@@ -52,7 +52,7 @@ Passwords are not saved (you are asked each time you register, run, or press "Te
 ## Supported structures and limits
 
 - Library: Na montmorillonite (2-layer hydrate, dry), quartz, brucite, pyrophyllite, muscovite (2M1, 1M), phlogopite, nanpingite, kaolinite, lizardite, and talc. For these crystals, the types and charges of all atoms matched the correct answer, both for supercells of different sizes and for structures after MD at 300 K.
-- Surfaces, interfaces, and other minerals cannot be handled because the library has no such environments (add a reference for them to the library). Edges are covered only for the environments of the bundled montmorillonite particle (edge types `oed oab omb oaa oma alb ala mgb mga`, charges from the ClayFF edge-site table and its data file); the extra Al-O-Al angle restraints of that particle model are not written.
+- Surfaces, interfaces, and other minerals cannot be handled because the library has no such environments (add a reference for them to the library). Edges are covered only for the environments of the bundled montmorillonite particle (edge types `oed oab omb oaa oma alb ala mgb mga`; charges by the bond-valence edge model, and the M-O-M harmonic restraint 800 kcal/mol/rad², 100° around the edge Al/Mg is written for them).
 - The force field is fixed to ClayFF and flexible SPC water.
 
 ## Layout

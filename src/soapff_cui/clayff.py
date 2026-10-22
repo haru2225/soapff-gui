@@ -20,11 +20,13 @@ TABLE1 = {
     "Na": (1.0, 0.1301, 2.6378), "K": (1.0, 0.1000, 3.7423), "Cs": (1.0, 0.1000, 4.3002),
     "Ca": (2.0, 0.1000, 3.2237), "Ba": (2.0, 0.0470, 4.2840), "Cl": (-1.0, 0.1001, 4.9388),
     # particle-edge types of the JAEA montmorillonite particle (clay_montmorillonite.data); not in ClayFF Table 1.  LJ terms of the
-    # parent type (EDGE_PARENT).  oed, oaa, alb, ala: charges of the edge-site table (hanging/indented Si-OH 0.95, bridging
-    # Si-O-AlO 1.2875, octahedral edge Al 1.8125).  oab (Al-OH, 1 H) follows the same rule (0.5 + 0.2625 + 0.425 = 1.1875);
-    # omb, oma = oab, oaa plus the ClayFF Mg-substitution offset obos - ob = -0.1308; mgb, mga: value of the JAEA file (source unknown)
-    "oed": (-0.9500, 0.1554, 3.5532), "oab": (-1.1875, 0.1554, 3.5532), "omb": (-1.3183, 0.1554, 3.5532),
-    "oaa": (-1.2875, 0.1554, 3.5532), "oma": (-1.4183, 0.1554, 3.5532),
+    # parent type (EDGE_PARENT).  Charges: bond-valence model of the edge procedure of Lammers et al., q_O = -2 + sum_i (Z_i - q_i)/CN_i
+    # over the bonded neighbours (H 1/0.425/1, Si 4/2.1/4, Al 3/1.575/6, Mg 2/1.361/6): oed Si-OH, oaa Si-O-Al, oab Al-OH, omb Mg-OH,
+    # oma Si-O-Mg; the edge metal takes the share of the removed OH2: Al 1.575 + 0.2375, Mg 1.361 + 0.1065.  In that model the
+    # octahedral Mg is 1.361 and the O next to it -1.081 (hydroxyl) and -1.181 (bridging), the library entries of this particle
+    # (ClayFF has 1.36, -1.0808, -1.1808), which makes the particle exactly neutral.
+    "oed": (-0.9500, 0.1554, 3.5532), "oab": (-1.1875, 0.1554, 3.5532), "omb": (-1.3185, 0.1554, 3.5532),
+    "oaa": (-1.2875, 0.1554, 3.5532), "oma": (-1.4185, 0.1554, 3.5532),
     "alb": (1.8125, 1.3298e-6, 4.7943), "ala": (1.8125, 1.3298e-6, 4.7943),
     "mgb": (1.4675, 9.0298e-7, 5.9090), "mga": (1.4675, 9.0298e-7, 5.9090),
 }
@@ -35,4 +37,6 @@ LJ = {t: (v[1], v[2] / SIGMA_FACTOR) for t, v in TABLE1.items()}          # (eps
 BOND_OH = (554.1349, 1.0000)                    # o*-h*, oh-ho, ohs-ho (k1 kcal/mol/A^2, r0 A)
 ANGLE_HOH = (45.7696, 109.47)                   # h*-o*-h* (k2 kcal/mol/rad^2, theta0 deg)
 ANGLE_MOH = (30.0, 109.47)                      # Metal-oh-ho and Metal-ohs-ho
+ANGLE_MOM = (800.0, 100.0)                      # M-O-M harmonic restraint (k kcal/mol/rad^2, theta0 deg) of the particle edges
+                                                # (JAEA file, "analogous to Ho et al."); only for triples with an edge metal
 WATER_Q = (Q["ow"], Q["hw"])                    # flexible SPC

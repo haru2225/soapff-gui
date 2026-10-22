@@ -11,7 +11,7 @@ from ase.neighborlist import neighbor_list
 from ._clayff.chem import MASS
 from ._clayff.ff import ELEMENT, ff_types, lammps_frame
 
-from .clayff import ANGLE_HOH, ANGLE_MOH, BOND_OH, EDGE_PARENT, LJ, WATER_Q
+from .clayff import ANGLE_HOH, ANGLE_MOH, ANGLE_MOM, BOND_OH, EDGE_PARENT, LJ, WATER_Q
 from .clayff import Q as CLAYFF_Q
 
 SOAP_DEFAULT = dict(r_cut=5.0, n_max=4, l_max=3, sigma=0.4)
@@ -296,6 +296,7 @@ def load_library(path):
 
 
 WATER_TYPES = ("ow", "hw", "OW", "HW")
+EDGE_METAL = ("alb", "ala", "mgb", "mga")
 EDGE_OH_O = ("oed", "oab", "omb")             # particle-edge O that carry one H (silanol / Al-OH / Mg-OH at an edge)
 
 
@@ -404,7 +405,7 @@ def topology_from_types(at, types):
         if len(hs) == 2:
             angles.append((hs[0], o, hs[1], ("HOHw",)))
     ohO = np.nonzero(np.isin(t, ["oh", "ohs", "oaq", *EDGE_OH_O]))[0]
-    fw = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", "st", "alb", "ala", "mgb", "mga"]))[0]
+    fw = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", "st", *EDGE_METAL]))[0]
     for h in np.nonzero(t == "ho")[0]:
         if not len(ohO):
             continue
@@ -415,6 +416,15 @@ def topology_from_types(at, types):
         site = "bulk" if len(cat) >= 2 else "surface"
         for m in cat:
             angles.append((m, o, h, ("MOH", ELEMENT[t[m]], site)))
+    # M-O-M restraint of the particle edges: every Al/Mg-O-Al/Mg triple (M-O < 2.5 A) that contains an edge metal
+    em = np.isin(t, EDGE_METAL)
+    if em.any():
+        mets = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", *EDGE_METAL]))[0]
+        for o in np.nonzero([ELEMENT.get(x) == "O" and x not in ("ow", "oaq") for x in t])[0]:
+            nb = mets[d(o, mets) < 2.5]
+            for a_, c_ in zip(*np.triu_indices(len(nb), 1)):
+                if em[nb[a_]] or em[nb[c_]]:
+                    angles.append((int(nb[a_]), int(o), int(nb[c_]), ("MOM",)))
     unbonded = [int(h) for h in free] + [int(o) for o, hs in nh.items() if len(hs) != 2]
     return bonds, angles, unbonded
 
@@ -447,7 +457,7 @@ def check_consistency(at, q, types):
     bad = [o + 1 for o, hs in mol.items() if len(hs) == 2 and abs(q[o] + q[hs[0]] + q[hs[1]]) > 1e-6]
     if bad:
         out.append(f"{len(bad)} water molecules not neutral (O atoms {bad[:10]})")
-    fw = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", "st", "alb", "ala", "mgb", "mga"]))[0]
+    fw = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", "st", *EDGE_METAL]))[0]
     ohO = np.nonzero(np.isin(t, ["oh", "ohs", *EDGE_OH_O]))[0]
     nho = {int(o): 0 for o in ohO}
     far = []
@@ -525,7 +535,7 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     for k in bkeys:
         S.append(f"bond_coeff {bid[k]} {BOND_OH[0]} {BOND_OH[1]}  # {'O-H (water)' if k == 'OHw' else 'O-H'}")
     for k in akeys:
-        K, th = ANGLE_HOH if k[0] in ("HOH", "HOHw") else ANGLE_MOH
+        K, th = ANGLE_HOH if k[0] in ("HOH", "HOHw") else ANGLE_MOM if k[0] == "MOM" else ANGLE_MOH
         S.append(f"angle_coeff {aid[k]} {K} {th}  # {'-'.join(map(str, k))}")
     S += kspace_lines
     open(os.path.join(out_dir, "system.settings"), "w").write("\n".join(S) + "\n")
