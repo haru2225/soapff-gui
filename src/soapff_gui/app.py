@@ -29,6 +29,7 @@ BARO = {"z": "z: only the direction normal to the surface (interlayer / interfac
         "tri": "tri: everything, including the box tilt (bulk crystal)", "iso": "iso: isotropic"}
 DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p",
                 nproc=max(1, min(3, (os.cpu_count() or 2) // 2)), threshold=0.95, cutoff=10.0, library="", lmp="", mpirun="",
+                charges="clayff2004", water="spc",
                 last_dir=os.path.expanduser("~"), dump_ps=1.0, auto_analyze=True, skip_ps="",
                 analyses=["msd", "sova"], debyer="", xrd_wavelength=1.5406, xrd_from=3.0, xrd_to=80.0,
                 xrd_step=0.02, xrd_frames=3, xrd_mode="cluster", xrd_size=50.0,
@@ -36,6 +37,10 @@ DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, b
                 sova=dict(dr=0.02, rmax=8.0, qmin=0.05, qmax=12.0, dq=0.05, radiation="xray", max_frames=40, pairs="water_ion",
                           all_elements=True),
                 swelling=dict(one_to=23, two_to=99, down=True, eq_ps=30.0, avg_ps=20.0))
+# charge schemes and water models (soapff_cui.clayff CHARGE_SCHEMES / WATER_MODELS): key -> label
+CHARGES = {"clayff2004": "ClayFF 2004 (Cygan et al.)", "underwood-bourg": "Underwood & Bourg (Mg 1.361)",
+           "library": "As stored in the library"}
+WATERS = {"spc": "Flexible SPC (ClayFF)", "spce": "Flexible SPC/E"}
 # the analyses (soapff_cui.analysis): key, label
 ANALYSES = (("msd", "Diffusion coefficient (when LAMMPS has a compute msd)"), ("sova", "SOVA: PDF g(r), RDF N(r), coordination numbers, S(Q)"))
 XRD_MODES = {"cluster": "Crystallite: a finite crystal of tiled cells (crystals, clay minerals)",
@@ -1158,7 +1163,11 @@ class App:
         S = open(os.path.join(self.out, "system.settings")).read().splitlines()
         bond = int(next(l for l in S if l.startswith("bond_coeff") and "water" in l).split()[1])
         angle = int(next(l for l in S if l.startswith("angle_coeff") and "HOHw" in l).split()[1])
-        open(os.path.join(self.out, "water.mol"), "w").write(core.water_molecule(tid, bond, angle))
+        try:
+            water = json.load(open(os.path.join(self.out, "report.json"))).get("water_model", "spc")
+        except (OSError, ValueError):
+            water = "spc"
+        open(os.path.join(self.out, "water.mol"), "w").write(core.water_molecule(tid, bond, angle, water=water))
         if p.get("waters"):
             up, down = list(p["waters"]), []                    # the listed water counts, in increasing order; no deswelling
         else:
@@ -1407,7 +1416,7 @@ class App:
     def make_input(self, structure, out):
         """soapff make in a worker thread (writes system.data, system.settings, in.lammps ...)."""
         md = {k: self.s[k] for k in ("temp", "relax_ps", "nvt_ps", "npt_ps", "press", "baro", "boundary", "threshold",
-                                     "cutoff", "dump_ps")}
+                                     "cutoff", "dump_ps", "charges", "water")}
         if not os.path.isfile(self.s["library"]):
             messagebox.showerror("soapff-GUI", f"SOAP library not found: {self.s['library']}\nChoose one in the Calculation settings")
             return
@@ -1753,6 +1762,12 @@ class App:
                    command=lambda: v["library"].set(runner.default_library())).grid(row=0, column=3, padx=(0, 6))
         entry(de, 1, "threshold", "Similarity threshold", width=8)
         entry(de, 2, "cutoff", "Cutoff (Å)", width=8)
+        for row, key, lab, names, note in ((3, "charges", "Charges", CHARGES, "the type of each atom comes from SOAP, its charge from this scheme"),
+                                           (4, "water", "Water model", WATERS, "charges of the water O and H (time step 0.5 fs)")):
+            ttk.Label(de, text=lab).grid(row=row, column=0, sticky="w", pady=4, padx=(0, 10))
+            v[key] = tk.StringVar(value=names.get(self.s.get(key), next(iter(names.values()))))
+            ttk.Combobox(de, textvariable=v[key], values=list(names.values()), width=30, state="readonly").grid(row=row, column=1, sticky="w")
+            ttk.Label(de, text=note, foreground=MUTED).grid(row=row, column=2, columnspan=2, sticky="w", padx=6)
 
         # --- analysis
         an = ttk.Frame(nb, padding=16)
@@ -1771,6 +1786,8 @@ class App:
                 raise ValueError("Temperature and output interval must be positive")
             for k in ("baro", "lmp", "mpirun", "library"):
                 s2[k] = v[k].get().strip()
+            for k, names in (("charges", CHARGES), ("water", WATERS)):
+                s2[k] = next(key for key, lab in names.items() if lab == v[k].get())
             self.collect_analysis(v, s2)
             s2["boundary"] = " ".join(x.get() for x in vb)
             s2["computers"] = [dict(c) for c in comps]

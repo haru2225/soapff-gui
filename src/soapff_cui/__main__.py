@@ -48,6 +48,10 @@ def main():
     m.add_argument("--press", type=float, default=1.0, help="NPT pressure (atm)")
     m.add_argument("--baro", default="aniso", choices=["iso", "aniso", "tri", "z"],
                    help="NPT coupling: aniso/tri for bulk crystals, z for slabs and interfaces")
+    m.add_argument("--charges", default="clayff2004", choices=["clayff2004", "underwood-bourg", "library"],
+                   help="charge scheme: clayff2004 (Cygan et al. 2004), underwood-bourg (Mg 1.361 and neighbour O, smectite "
+                        "edges), library (the charges stored in the library)")
+    m.add_argument("--water", default="spc", choices=["spc", "spce"], help="water model: flexible SPC (ClayFF) or flexible SPC/E")
     m.add_argument("--boundary", default="p p p",
                    help="LAMMPS boundary, e.g. 'p p p' (default) or 'p p f' (slab with vacuum along z; NVT only)")
     o = sub.add_parser("open", help="open an output directory or file (traj.lammpstrj, data file) in OVITO")
@@ -90,7 +94,8 @@ def main():
         build_library(a.data, a.frames, a.out, every=a.every, soap=dict(r_cut=a.r_cut, l_max=a.l_max, species_weights={x.split('=')[0]: float(x.split('=')[1]) for x in a.species_weight} or None, weighting=dict(function='pow', r0=a.weight_r0, m=a.weight_m, c=1, d=1) if a.weight_r0 else None), prune=a.prune)
     else:
         make(a.structure, a.out, a.library, threshold=a.threshold, cutoff=a.cutoff, kspace=a.kspace, temp=a.temp,
-             nvt_ps=a.nvt_ps, npt_ps=a.npt_ps, press=a.press, baro=a.baro, boundary=a.boundary, dump_ps=a.dump_ps, fallback=not a.no_fallback, check=not a.no_check, water_rule=a.water_rule, relax_ps=a.relax_ps, timestep_fs=a.timestep, md=not a.minimize_only)
+             nvt_ps=a.nvt_ps, npt_ps=a.npt_ps, press=a.press, baro=a.baro, boundary=a.boundary, dump_ps=a.dump_ps, fallback=not a.no_fallback, check=not a.no_check, water_rule=a.water_rule, relax_ps=a.relax_ps, timestep_fs=a.timestep, md=not a.minimize_only,
+             charges=a.charges, water=a.water)
 
 
 if __name__ == "__main__":

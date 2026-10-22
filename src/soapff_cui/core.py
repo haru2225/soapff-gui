@@ -11,7 +11,8 @@ from ase.neighborlist import neighbor_list
 from ._clayff.chem import MASS
 from ._clayff.ff import ELEMENT, ff_types, lammps_frame
 
-from .clayff import ANGLE_HOH, ANGLE_MOH, ANGLE_MOM, BOND_OH, EDGE_PARENT, LJ, WATER_Q
+from .clayff import (ANGLE_HOH, ANGLE_MOH, ANGLE_MOM, BOND_OH, CHARGE_SCHEMES, EDGE_PARENT, LJ, WATER_LABELS, WATER_MODELS,
+                     WATER_Q, type_charges)
 from .clayff import Q as CLAYFF_Q
 
 SOAP_DEFAULT = dict(r_cut=5.0, n_max=4, l_max=3, sigma=0.4)
@@ -496,7 +497,8 @@ def check_consistency(at, q, types):
     return out
 
 
-def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", boundary="p p p", reserve_water=False):
+def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", boundary="p p p", reserve_water=False,
+                 charges="clayff2004", water="spc"):
     """reserve_water: the water types (ow, hw), the water O-H bond and H-O-H angle types and room for their bonds are
     written even when the structure has no water, so that water can be added in LAMMPS (swelling curve)."""
     bnd, periodic = parse_boundary(boundary)
@@ -543,7 +545,8 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     if angles:
         L += ["", "Angles", ""] + [f"{k + 1} {aid[a[3]]} {a[0] + 1} {a[1] + 1} {a[2] + 1}" for k, a in enumerate(angles)]
     open(os.path.join(out_dir, "system.data"), "w").write("\n".join(L) + "\n")
-    S = ["# soapff-cui settings: ClayFF (Cygan et al. 2004, Tables 1 and 2) with flexible SPC water; charges in system.data come from SOAP",
+    S = [f"# soapff-cui settings: ClayFF (Cygan et al. 2004, Tables 1 and 2) with {WATER_LABELS[water]} water; types in system.data "
+         f"from SOAP, charges: {charges}",
          "units real", "atom_style full", f"boundary {' '.join(bnd)}",
          "bond_style harmonic", "angle_style harmonic", f"pair_style lj/cut/coul/{coul} {cutoff}", "pair_modify mix arithmetic tail no",
          "special_bonds lj/coul 0.0 0.0 0.0", "read_data system.data"]
@@ -633,19 +636,19 @@ def reserve_water_types(out_dir, log=print):
     types = [r["clayff_type"] for r in rows]
     kspace = " ".join(rep.get("kspace", [""])[0].split()[1:]) if rep.get("kspace") else "pppm 1.0e-5"
     info = write_system(at, q, types, out_dir, kspace=kspace or "pppm 1.0e-5", boundary=rep.get("boundary", "p p p"),
-                        reserve_water=True)
+                        reserve_water=True, charges=rep.get("charges", "clayff2004"), water=rep.get("water_model", "spc"))
     log(f"system.data / system.settings rewritten with the water types reserved (ow {info['type_ids']['ow']}, "
         f"hw {info['type_ids']['hw']}, O-H bond {info['water_bond']}, H-O-H angle {info['water_angle']})")
     return info
 
 
-def water_molecule(type_ids, bond_type, angle_type):
-    """LAMMPS molecule file of one flexible SPC water (ClayFF charges) for create_atoms ... mol."""
+def water_molecule(type_ids, bond_type, angle_type, water="spc"):
+    """LAMMPS molecule file of one flexible water (charges of the water model `water`, spc or spce) for create_atoms ... mol."""
     h = np.radians(SPC_HOH / 2)
     xs = [(0.0, 0.0, 0.0), (SPC_OH * np.sin(h), SPC_OH * np.cos(h), 0.0), (-SPC_OH * np.sin(h), SPC_OH * np.cos(h), 0.0)]
     t = [type_ids["ow"], type_ids["hw"], type_ids["hw"]]
-    qq = [WATER_Q[0], WATER_Q[1], WATER_Q[1]]
-    L = ["# flexible SPC water (ClayFF), written by soapff-cui", "", "3 atoms", "2 bonds", "1 angles", "", "Coords", ""]
+    qq = [WATER_MODELS[water][0], WATER_MODELS[water][1], WATER_MODELS[water][1]]
+    L = [f"# {WATER_LABELS[water]} water, written by soapff-cui", "", "3 atoms", "2 bonds", "1 angles", "", "Coords", ""]
     L += [f"{k + 1} {x:.6f} {y:.6f} {z:.6f}" for k, (x, y, z) in enumerate(xs)]
     L += ["", "Types", ""] + [f"{k + 1} {v}" for k, v in enumerate(t)]
     L += ["", "Charges", ""] + [f"{k + 1} {v:.4f}" for k, v in enumerate(qq)]
@@ -745,8 +748,11 @@ def swelling_lines(type_ids, n_nonwater, n_water0, mol_max, temp, press, timeste
 
 def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="pppm 1.0e-5", temp=300.0, nvt_ps=50.0,
          npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p", dump_ps=1.0, fallback=True, check=True, water_rule=False,
-         relax_ps=10.0, timestep_fs=TIMESTEP_FS, md=True, reserve_water=False, stop_on_fallback=False, log=print):
-    """md=False: in.lammps stops after the energy minimisation (force field, neighbour list, thermo output, minimisation and
+         relax_ps=10.0, timestep_fs=TIMESTEP_FS, md=True, reserve_water=False, stop_on_fallback=False, charges="clayff2004",
+         water="spc", log=print):
+    """charges: charge scheme (clayff.CHARGE_SCHEMES): SOAP gives the type of every atom, the scheme its charge ("library": the
+    charge stored in the library entry).  water: water model of the ow/hw charges ("spc" flexible SPC, "spce" flexible SPC/E).
+    md=False: in.lammps stops after the energy minimisation (force field, neighbour list, thermo output, minimisation and
     the walls of fixed faces); the MD (velocities, time step, fixes, computes, runs) is then written by the user (soapff-gui).
     fallback=True: atoms whose best similarity is below `threshold` get the geometric ClayFF type and charge.
     fallback=False: they keep the type and charge of the most similar library entry (same element) and are only
@@ -754,8 +760,10 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     stop_on_fallback: any atom that the library cannot describe (fallback) stops make with an error before anything is
     written (soapff-gui): the library lacks that environment and should be extended.
     water_rule: water molecules (an O with exactly two H within 1.2 A and no framework cation within 2.4 A, and those H)
-    are typed by that rule (ow/hw, SPC/E charges) instead of by SOAP; the SOAP assignment is used for everything else."""
+    are typed by that rule (ow/hw, charges of the water model) instead of by SOAP; the SOAP assignment is used for everything else."""
     bnd, periodic = parse_boundary(boundary)
+    if charges not in CHARGE_SCHEMES or water not in WATER_MODELS:
+        raise ValueError(f"charges must be one of {list(CHARGE_SCHEMES)}, water one of {list(WATER_MODELS)}")
     if npt_ps > 0 and not all(periodic):
         raise ValueError(f"NPT needs a periodic box (boundary {boundary}): the pressure of a box with vacuum or open faces "
                          f"is not defined; use NVT only (npt_ps 0)")
@@ -795,6 +803,10 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
         m = TYPE_ALIAS.get(str(match[i]), str(match[i]))
         types.append(m if (not unknown[i] and m in LJ) else types_geo[i])
     tarr = np.array(types)
+    # charge of every atom from its type: the charge scheme and the water model (atoms of a type the scheme does not list keep
+    # the library / fallback charge)
+    tq = type_charges(charges, water)
+    q = np.array([tq.get(t, q[i]) for i, t in enumerate(types)], float)
     # cross-check: the type found by SOAP against the bond-graph ClayFF type of the same atom (the rule used for
     # fallback).  A library without the environment can give a similar but wrong type (e.g. obts -> ob) at a
     # similarity above the threshold; such atoms are reported (not changed).
@@ -846,7 +858,8 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
                 warn.append(f"the empty gap along the non-periodic {ax} axis is only {g:.2f} A (< cutoff {cutoff} A): atoms on "
                             f"the two faces interacted through the periodic boundary of the given structure, now they do not")
                 log("WARNING " + warn[-1])
-    info = write_system(at, q, types, out_dir, cutoff=cutoff, kspace=kspace, boundary=" ".join(bnd), reserve_water=reserve_water)
+    info = write_system(at, q, types, out_dir, cutoff=cutoff, kspace=kspace, boundary=" ".join(bnd), reserve_water=reserve_water,
+                        charges=charges, water=water)
     if info["kspace_note"]:
         log(f"boundary {' '.join(bnd)}: long-range Coulomb by {info['kspace_note']}")
     # atoms reaching a fixed ('f') face would be lost: reflect them there
@@ -903,7 +916,7 @@ write_data final.data
                       from_soap=int((m & ~unknown).sum()), fallback=int((m & unknown).sum()), min_similarity=float(sim[m].min()))
     rep = dict(structure=structure if isinstance(structure, str) else "Atoms", atoms=len(at), library=os.path.abspath(library),
                soap=lib["soap"], threshold=threshold, boundary=" ".join(bnd), kspace=info["kspace"], vacuum_gap=gaps,
-               charge_sum_before=total, charge_sum=float(q.sum()),
+               charges=charges, water_model=water, charge_sum_before=total, charge_sum=float(q.sum()),
                from_soap=int((~unknown).sum()), fallback=int(unknown.sum()), type_check=type_check, warnings=warn,
                roles={r: int((role == r).sum()) for r in ("mineral", "water", "ion")}, per_type=per,
                consistency=problems, md=dict(temp=temp, relax_ps=relax_ps, nvt_ps=nvt_ps, npt_ps=npt_ps, press=press, baro=baro, dump_ps=dump_ps, timestep_fs=timestep_fs))

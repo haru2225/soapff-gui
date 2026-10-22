@@ -40,3 +40,29 @@ ANGLE_MOH = (30.0, 109.47)                      # Metal-oh-ho and Metal-ohs-ho
 ANGLE_MOM = (800.0, 100.0)                      # M-O-M harmonic restraint (k kcal/mol/rad^2, theta0 deg) of the particle edges
                                                 # (JAEA file, "analogous to Ho et al."); only for triples with an edge metal
 WATER_Q = (Q["ow"], Q["hw"])                    # flexible SPC
+
+# charge schemes: the charge of every atom is the charge of its type (the type comes from SOAP).  "library": the charges stored in
+# the library (for a library whose charges are not one value per type).
+CHARGE_SCHEMES = {
+    "clayff2004": "ClayFF (Cygan et al. 2004, Table 1); particle edges by the bond-valence rule with these charges",
+    "underwood-bourg": "Underwood & Bourg (smectite nanoparticles, SI Table 1): octahedral Mg 1.361, O next to it -1.081 "
+                       "(hydroxyl) / -1.181 (bridging), so that each Mg substitution carries exactly -1 e; edges with these values",
+    "library": "the charges stored in the SOAP library",
+}
+SCHEME_Q = {
+    "clayff2004": {},
+    "underwood-bourg": {"mgo": 1.361, "ohs": -1.081, "obos": -1.181, "omb": -1.3185, "oma": -1.4185, "mgb": 1.4675, "mga": 1.4675},
+}
+# water models (O, H charges); both flexible with the ClayFF O-H bond and H-O-H angle (r0 1.0 A, 109.47 deg, as SPC and SPC/E)
+WATER_MODELS = {"spc": (-0.82, 0.41), "spce": (-0.8476, 0.4238)}
+WATER_LABELS = {"spc": "flexible SPC (ClayFF)", "spce": "flexible SPC/E"}
+
+
+def type_charges(scheme="clayff2004", water="spc"):
+    """type -> charge of a charge scheme and a water model (None for the scheme "library": only the water types then)"""
+    qO, qH = WATER_MODELS[water]
+    if scheme == "library":
+        return {"ow": qO, "hw": qH}
+    if scheme not in SCHEME_Q:
+        raise ValueError(f"charge scheme must be one of {list(CHARGE_SCHEMES)}")
+    return dict(Q, **SCHEME_Q[scheme], ow=qO, hw=qH)
