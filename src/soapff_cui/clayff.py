@@ -19,7 +19,14 @@ TABLE1 = {
     "feo": (1.5750, 9.0298e-6, 5.5070), "lio": (0.5250, 9.0298e-6, 4.7257),
     "Na": (1.0, 0.1301, 2.6378), "K": (1.0, 0.1000, 3.7423), "Cs": (1.0, 0.1000, 4.3002),
     "Ca": (2.0, 0.1000, 3.2237), "Ba": (2.0, 0.0470, 4.2840), "Cl": (-1.0, 0.1001, 4.9388),
+    # particle-edge types of the JAEA montmorillonite particle (clay_montmorillonite.data): not in ClayFF Table 1; the charges are
+    # those of that file, the LJ terms those of the parent type (EDGE_PARENT), as in its settings file
+    "oed": (-0.9500, 0.1554, 3.5532), "oab": (-1.1875, 0.1554, 3.5532), "omb": (-1.3185, 0.1554, 3.5532),
+    "oaa": (-1.2875, 0.1554, 3.5532), "oma": (-1.4185, 0.1554, 3.5532),
+    "alb": (1.8125, 1.3298e-6, 4.7943), "ala": (1.8125, 1.3298e-6, 4.7943),
+    "mgb": (1.4675, 9.0298e-7, 5.9090), "mga": (1.4675, 9.0298e-7, 5.9090),
 }
+EDGE_PARENT = {"oed": "ob", "oab": "ob", "omb": "ob", "oaa": "ob", "oma": "ob", "alb": "ao", "ala": "ao", "mgb": "mgo", "mga": "mgo"}
 SIGMA_FACTOR = 2.0 ** (1.0 / 6.0)
 Q = {t: v[0] for t, v in TABLE1.items()}
 LJ = {t: (v[1], v[2] / SIGMA_FACTOR) for t, v in TABLE1.items()}          # (epsilon kcal/mol, sigma A) for LAMMPS

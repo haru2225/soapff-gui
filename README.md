@@ -4,7 +4,7 @@ A GUI for clay minerals. You pick a structure file (elements, coordinates, and b
 
 ## Features
 
-- **Automatic force-field generation**: each atom gets the type and charge of the most similar atom in the bundled library (13 structures, 5,833 atoms). The GUI writes `system.data`, `system.settings` (bonds, angles, and LJ parameters), and an `in.lammps` that goes up to the minimization. If any atom has an environment that is not in the library (similarity below 0.95), it stops without building a force field.
+- **Automatic force-field generation**: each atom gets the type and charge of the most similar atom in the bundled library (14 structures, 8,125 atoms, including the edges of a montmorillonite particle). The GUI writes `system.data`, `system.settings` (bonds, angles, and LJ parameters), and an `in.lammps` that goes up to the minimization. If any atom has an environment that is not in the library (similarity below 0.95), it stops without building a force field.
 - **Adding MD steps**: after the minimization, choose from the lists of LAMMPS fix, compute, and other commands to add them (temperature, pressure, time step, and IDs are filled in automatically). Commands can also be entered by **copy and paste** (select a line and press Cmd+V, or use "Open as text (large, paste)" in the editor to edit the whole input in a large window and press "Apply"). The editor can be enlarged by dragging the border at the bottom or with "Expand".
 - **Supercell**: replicates the structure along a, b, and c with OVITO's Replicate, then builds the force field.
 - **Swelling curve**: runs NPT while adding water molecules to the interlayer, and records the box of each state in `swelling.dat` (same procedure as Cygan et al. 2004; the plot is made by `examples/montmorillonite_swelling/analyze_swelling.py`).
@@ -52,7 +52,7 @@ Passwords are not saved (you are asked each time you register, run, or press "Te
 ## Supported structures and limits
 
 - Library: Na montmorillonite (2-layer hydrate, dry), quartz, brucite, pyrophyllite, muscovite (2M1, 1M), phlogopite, nanpingite, kaolinite, lizardite, and talc. For these crystals, the types and charges of all atoms matched the correct answer, both for supercells of different sizes and for structures after MD at 300 K.
-- Surfaces, interfaces, edges, and other minerals cannot be handled because the library has no such environments (add a reference for them to the library).
+- Surfaces, interfaces, and other minerals cannot be handled because the library has no such environments (add a reference for them to the library). Edges are covered only for the environments of the bundled montmorillonite particle (edge types `oed oab omb oaa oma alb ala mgb mga`, charges from its data file); the extra Al-O-Al angle restraints of that particle model are not written.
 - The force field is fixed to ClayFF and flexible SPC water.
 
 ## Layout

@@ -11,7 +11,7 @@ from ase.neighborlist import neighbor_list
 from ._clayff.chem import MASS
 from ._clayff.ff import ELEMENT, ff_types, lammps_frame
 
-from .clayff import ANGLE_HOH, ANGLE_MOH, BOND_OH, LJ, WATER_Q
+from .clayff import ANGLE_HOH, ANGLE_MOH, BOND_OH, EDGE_PARENT, LJ, WATER_Q
 from .clayff import Q as CLAYFF_Q
 
 SOAP_DEFAULT = dict(r_cut=5.0, n_max=4, l_max=3, sigma=0.4)
@@ -44,6 +44,9 @@ def read_lammps_data(path):
         i += 1
     el_of = {}
     for t, m in mass.items():
+        if name[t] in ELEMENT:            # a known type name fixes the element (the particle-edge Al/Mg carry dummy masses 13 and 12)
+            el_of[t] = ELEMENT[name[t]]
+            continue
         el_of[t] = min(MASS, key=lambda e: abs(MASS[e] - m)) if min(abs(MASS[e] - m) for e in MASS) < 0.1 else _mass_to_el(m)
     i = [k for k, l in enumerate(L) if l.strip().startswith("Atoms")][0] + 2
     rows = []
@@ -293,6 +296,7 @@ def load_library(path):
 
 
 WATER_TYPES = ("ow", "hw", "OW", "HW")
+EDGE_OH_O = ("oed", "oab", "omb")             # particle-edge O that carry one H (silanol / Al-OH / Mg-OH at an edge)
 
 
 def assign(at, lib, threshold=THRESHOLD, block=4000, exclude_types=(), only=None):
@@ -399,8 +403,8 @@ def topology_from_types(at, types):
             bonds.append((o, h, "OHw"))
         if len(hs) == 2:
             angles.append((hs[0], o, hs[1], ("HOHw",)))
-    ohO = np.nonzero(np.isin(t, ["oh", "ohs", "oaq"]))[0]
-    fw = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", "st"]))[0]
+    ohO = np.nonzero(np.isin(t, ["oh", "ohs", "oaq", *EDGE_OH_O]))[0]
+    fw = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", "st", "alb", "ala", "mgb", "mga"]))[0]
     for h in np.nonzero(t == "ho")[0]:
         if not len(ohO):
             continue
@@ -443,8 +447,8 @@ def check_consistency(at, q, types):
     bad = [o + 1 for o, hs in mol.items() if len(hs) == 2 and abs(q[o] + q[hs[0]] + q[hs[1]]) > 1e-6]
     if bad:
         out.append(f"{len(bad)} water molecules not neutral (O atoms {bad[:10]})")
-    fw = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", "st"]))[0]
-    ohO = np.nonzero(np.isin(t, ["oh", "ohs"]))[0]
+    fw = np.nonzero(np.isin(t, ["ao", "at", "mgo", "mgh", "st", "alb", "ala", "mgb", "mga"]))[0]
+    ohO = np.nonzero(np.isin(t, ["oh", "ohs", *EDGE_OH_O]))[0]
     nho = {int(o): 0 for o in ohO}
     far = []
     for o, h, k in bonds:
@@ -772,7 +776,9 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     geo = np.array([TYPE_ALIAS.get(str(t), str(t)) for t in types_geo])
     cls = lambda t: ("bridge" if t in ("ob", "obts", "obos", "obss") else "oh" if t in ("oh", "ohs") else
                      "water" if t in ("ow", "oaq", "hw") else "h" if t == "ho" else "cation")
-    same_class = np.array([cls(a) == cls(b) and cls(a) in ("bridge", "oh", "cation") for a, b in zip(tarr, geo)])
+    # the particle-edge types (EDGE_PARENT) are not ClayFF types: the bond graph cannot predict them, so they are not compared
+    same_class = np.array([a not in EDGE_PARENT and cls(a) == cls(b) and cls(a) in ("bridge", "oh", "cation")
+                           for a, b in zip(tarr, geo)])
     differ = (~unknown) & same_class & (tarr != geo)
     type_check = dict(compared=int(((~unknown) & same_class).sum()), differ=int(differ.sum()),
                       kinds=dict(collections.Counter(f"{g}->{t}" for g, t in zip(geo[differ], tarr[differ]))))

@@ -33,7 +33,8 @@ ION_SETS = {
 }
 ELEMENT = {"st": "Si", "at": "Al", "ao": "Al", "mgo": "Mg", "mgh": "Mg", "cao": "Ca", "Na": "Na", "K": "K", "Ca": "Ca",
            "Cs": "Cs", "Cl": "Cl",
-           "ho": "H", "hw": "H", "ob": "O", "obos": "O", "obts": "O", "obss": "O", "oh": "O", "ohs": "O", "ow": "O", "oaq": "O"}
+           "ho": "H", "hw": "H", "ob": "O", "obos": "O", "obts": "O", "obss": "O", "oh": "O", "ohs": "O", "ow": "O", "oaq": "O",
+           "oed": "O", "oab": "O", "omb": "O", "oaa": "O", "oma": "O", "alb": "Al", "ala": "Al", "mgb": "Mg", "mga": "Mg"}
 CLAYFF_Q = {"st": 2.1, "at": 1.575, "ao": 1.575, "mgo": 1.36, "mgh": 1.05, "cao": 1.36, "Na": 1.0, "K": 1.0, "Ca": 2.0,
             "Cs": 1.0, "Cl": -1.0,
             "ob": -1.05, "obos": -1.1808, "obts": -1.1688, "obss": -1.2996, "oh": -0.95, "ohs": -1.0808,
