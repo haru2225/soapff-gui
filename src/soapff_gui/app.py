@@ -40,7 +40,7 @@ DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, b
 # charge schemes and water models (soapff_cui.clayff CHARGE_SCHEMES / WATER_MODELS): key -> label
 CHARGES = {"clayff2004": "ClayFF 2004 (Cygan et al.)", "underwood-bourg": "Underwood & Bourg (Mg 1.361)",
            "library": "As stored in the library"}
-WATERS = {"spc": "Flexible SPC (ClayFF)", "spce": "Flexible SPC/E"}
+WATERS = {"spc": "Flexible SPC (ClayFF)", "spce": "Rigid SPC/E (SHAKE)"}
 # the analyses (soapff_cui.analysis): key, label
 ANALYSES = (("msd", "Diffusion coefficient (when LAMMPS has a compute msd)"), ("sova", "SOVA: PDF g(r), RDF N(r), coordination numbers, S(Q)"))
 XRD_MODES = {"cluster": "Crystallite: a finite crystal of tiled cells (crystals, clay minerals)",
@@ -278,7 +278,9 @@ class App:
         tb = tk.Frame(r, bg=BG, height=56)
         tb.pack(fill="x")
         ttk.Button(tb, text="New calculation", style="Ghost.TButton", command=self.new_calc).pack(side="left", padx=(18, 4), pady=10)
-        ttk.Button(tb, text="Supercell", style="Ghost.TButton", command=self.new_supercell).pack(side="left", padx=(0, 14), pady=10)
+        ttk.Button(tb, text="Supercell", style="Ghost.TButton", command=self.new_supercell).pack(side="left", padx=(0, 4), pady=10)
+        ttk.Button(tb, text="Surface", style="Ghost.TButton", command=self.new_surface).pack(side="left", padx=(0, 4), pady=10)
+        ttk.Button(tb, text="Add water", style="Ghost.TButton", command=self.new_water).pack(side="left", padx=(0, 14), pady=10)
         tk.Frame(tb, bg=LINE, width=1).pack(side="left", fill="y", pady=12)
         self.crumb_settings = tk.Label(tb, text="Calculation settings", bg=BG, fg=MUTED, font=self.f_small, cursor="hand2")
         self.crumb_settings.pack(side="left", padx=(16, 8))
@@ -310,6 +312,8 @@ class App:
     def _menu_spec(self):
         return [
             ("File", [("New calculation…", self.new_calc, "⌘N"), ("New calculation from a supercell (OVITO Replicate)…", self.new_supercell),
+                          ("New calculation from a surface (slab in vacuum)…", self.new_surface),
+                          ("New calculation with water added (packmol)…", self.new_water),
                           ("Change structure…", self.new_calc),
                           ("Open existing output folder…", self.open_project), None,
                           ("Fetch a folder from another computer…", self.fetch_dialog), None,
@@ -1168,6 +1172,7 @@ class App:
         except (OSError, ValueError):
             water = "spc"
         open(os.path.join(self.out, "water.mol"), "w").write(core.water_molecule(tid, bond, angle, water=water))
+        shake = (bond, angle) if water in core.RIGID_WATER else None
         if p.get("waters"):
             up, down = list(p["waters"]), []                    # the listed water counts, in increasing order; no deswelling
         else:
@@ -1175,7 +1180,7 @@ class App:
         self.log_add(f"Swelling curve: adding water in {len(up)} states ({up[0]} to {up[-1]} molecules)" + (f", removing it in {len(down)} states" if down else "")
                      + f" (NPT {p['eq_ps']:g} + {p['avg_ps']:g} ps each). Wrote water.mol\n", None)
         return core.swelling_lines(tid, n_nonwater, n_water0, mol_max, self.s["temp"], self.s["press"], dt, tilted, up, down,
-                                   eq_ps=p["eq_ps"], avg_ps=p["avg_ps"])
+                                   eq_ps=p["eq_ps"], avg_ps=p["avg_ps"], shake=shake)
 
     def insert_lines(self, new):
         if self.tab in READONLY:
@@ -1402,6 +1407,233 @@ class App:
         bar = ttk.Frame(f)
         bar.grid(row=5, column=0, columnspan=6, sticky="ew", pady=(14, 0))
         ttk.Button(bar, text="Build force field from this structure", style="Accent.TButton", command=go).pack(side="right")
+        ttk.Button(bar, text="Check in OVITO", style="Ghost.TButton", command=preview).pack(side="right", padx=8)
+        ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left")
+
+    def _derived_dialog(self, title, header):
+        """the common frame of the Surface / Add water dialogs: (window, body frame, button bar)"""
+        w = tk.Toplevel(self.root)
+        w.title(title)
+        w.transient(self.root)
+        f = ttk.Frame(w, padding=16)
+        f.pack(fill="both", expand=True)
+        ttk.Label(f, text=header, font=self.f_bold).pack(anchor="w")
+        body = ttk.Frame(f)
+        body.pack(fill="both", expand=True, pady=(8, 0))
+        bar = ttk.Frame(f)
+        bar.pack(fill="x", pady=(14, 0))
+        return w, body, bar
+
+    def _build_from(self, path, w):
+        w.destroy()
+        stem = os.path.splitext(os.path.basename(path))[0]
+        self.make_input(path, os.path.join(os.path.dirname(path), f"{stem}_soapff"))
+
+    def new_surface(self):
+        """the current calculation (its structure and the ClayFF types of charges.csv) -> a slab in vacuum of a face (h k l)
+        (soapff_cui.surfaces: every Si and tetrahedral Al kept whole, broken O healed by bond valence, OH2 on a single
+        octahedral metal removed), written next to the structure; then the force field and input are made from it."""
+        if self.busy():
+            messagebox.showinfo("soapff-GUI", "A run is in progress. Choose after it finishes or is stopped")
+            return
+        csvf = os.path.join(self.out, "charges.csv") if self.out else ""
+        if not (self.structure and os.path.isfile(self.structure) and os.path.isfile(csvf)):
+            messagebox.showinfo("soapff-GUI", "Build the force field of the bulk crystal first (New calculation): the surface is cut "
+                                              "from the current calculation, using its ClayFF types")
+            return
+        core = runner.import_soapff()
+        import csv as _csv
+        from soapff_cui import surfaces
+        at = core.read_structure(self.structure)
+        types = [r["clayff_type"] for r in _csv.DictReader(open(csvf))]
+        if len(types) != len(at):
+            messagebox.showerror("soapff-GUI", f"charges.csv has {len(types)} atoms, the structure {len(at)}")
+            return
+        keep = [t not in ("ow", "hw") for t in types]
+        at = at[keep]; types = [t for t, k in zip(types, keep) if k]
+        w, f, bar = self._derived_dialog("Surface (slab in vacuum)", f"{os.path.basename(self.structure)}: {len(at)} atoms"
+                                         + (" (its water is left out)" if not all(keep) else ""))
+        ttk.Label(f, text="Face (h k l) of the unit cell. |h|, |k|, |l| ≤ 1 of the bundled minerals are in the library; (0 0 1) is the "
+                          "basal plane of a layered mineral", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
+        hkl = []
+        for k, (ax, v0) in enumerate(zip("hkl", (0, 0, 1))):
+            ttk.Label(f, text=ax).grid(row=1, column=2 * k, sticky="e", pady=8)
+            sv = tk.StringVar(value=str(v0))
+            ttk.Spinbox(f, from_=-3, to=3, width=4, textvariable=sv).grid(row=1, column=2 * k + 1, sticky="w", padx=(4, 14))
+            hkl.append(sv)
+        num = {}
+        for r, (key, lab, v0) in enumerate((("thick", "Slab thickness at least (Å)", "16"), ("vac", "Vacuum (Å; room for water)", "30")), start=2):
+            ttk.Label(f, text=lab).grid(row=r, column=0, columnspan=3, sticky="w", pady=2)
+            num[key] = tk.StringVar(value=v0)
+            ttk.Entry(f, textvariable=num[key], width=8, style="Field.TEntry").grid(row=r, column=3, sticky="w")
+        info = tk.StringVar(value="")
+        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=4, column=0, columnspan=6, sticky="w", pady=(10, 0))
+        made = {}
+
+        def make_file():
+            try:
+                m = tuple(int(x.get()) for x in hkl)
+                th, vac = float(num["thick"].get()), float(num["vac"].get())
+            except ValueError:
+                info.set("Enter integers for h k l and numbers for the thickness and vacuum")
+                return None
+            if m == (0, 0, 0):
+                info.set("(0 0 0) is not a face")
+                return None
+            key = (m, th, vac)
+            if key in made:
+                return made[key]
+            w.config(cursor="watch"); w.update()
+            try:
+                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=th, vacuum=vac)
+            except Exception as e:
+                messagebox.showerror("soapff-GUI", f"Could not cut the surface: {e}", parent=w)
+                return None
+            finally:
+                w.config(cursor="")
+            stem = os.path.splitext(os.path.basename(self.structure))[0]
+            path = os.path.join(os.path.dirname(self.structure), f"{stem}_{surfaces.hkl_name(m)}.extxyz")
+            import ase.io
+            ase.io.write(path, slab, format="extxyz")
+            txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, {inf['cut_bonds']} cation-O bonds cut"
+                   + (" (basal cleavage: no bond cut, the interlayer ions shared by the two faces)" if inf["basal"] else
+                      f", {inf['h_added']} H added, {inf['oh2_removed']} OH2 removed") + f"; net formal charge {inf['formal_charge']:+d}")
+            if inf["formal_charge"]:
+                txt += "\nThis face stays charged at this protonation: the force field neutralises it by spreading the charge (a warning)"
+            info.set(txt)
+            self.log_add(f"Surface {m}: {path} ({inf['atoms']} atoms, formal charge {inf['formal_charge']:+d})\n", None)
+            made[key] = path
+            return path
+
+        def preview():
+            p = make_file()
+            if p:
+                try:
+                    runner.open_in_ovito(p)
+                except Exception as e:
+                    messagebox.showerror("soapff-GUI", str(e), parent=w)
+
+        def go():
+            p = make_file()
+            if p:
+                self._build_from(p, w)
+        ttk.Button(bar, text="Build force field from this structure", style="Accent.TButton", command=go).pack(side="right")
+        ttk.Button(bar, text="Check in OVITO", style="Ghost.TButton", command=preview).pack(side="right", padx=8)
+        ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left")
+
+    def new_water(self):
+        """a structure (the current one, or one chosen) -> the empty slices along z (vacuum, interlayer) listed; the chosen
+        ones are filled with water by packmol at a density or a number of molecules (soapff_cui.water); the result is written
+        next to the structure and the force field and input are made from it (the water is typed by rule, with the water
+        model of the Calculation settings)."""
+        if self.busy():
+            messagebox.showinfo("soapff-GUI", "A run is in progress. Choose after it finishes or is stopped")
+            return
+        from soapff_cui import water as W
+        try:
+            exe = W.find_packmol()
+        except FileNotFoundError as e:
+            messagebox.showerror("soapff-GUI", str(e))
+            return
+        p = self.structure if self.structure and os.path.isfile(self.structure) else filedialog.askopenfilename(
+            title="Choose the structure to add water to", initialdir=self.s["last_dir"], filetypes=STRUCTURE_TYPES)
+        if not p:
+            return
+        try:
+            at = runner.import_soapff().read_structure(p)
+        except Exception as e:
+            messagebox.showerror("soapff-GUI", f"Cannot read the structure: {e}")
+            return
+        dens = tk.StringVar(value="1.0")
+        gl = W.gaps(at, density=1.0)
+        w, f, bar = self._derived_dialog("Add water (packmol)", f"{os.path.basename(p)}: {len(at)} atoms; empty regions along z (normal to the a-b plane)")
+        if not gl:
+            ttk.Label(f, text="No empty region thicker than 2.5 Å: make room first (Surface: vacuum; a larger c)").grid(row=0, column=0, sticky="w")
+            ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="left")
+            return
+        top = ttk.Frame(f)
+        top.grid(row=0, column=0, columnspan=6, sticky="w")
+        ttk.Label(top, text="Density (g/cm³)").pack(side="left")
+        ttk.Entry(top, textvariable=dens, width=6, style="Field.TEntry").pack(side="left", padx=6)
+        ttk.Label(top, text="sets the numbers below (area × thickness between the atom planes); a number can be edited",
+                  foreground=MUTED).pack(side="left", padx=6)
+        for k, h in enumerate(("Fill", "z from (Å)", "to (Å)", "Thickness (Å)", "Area (Å²)", "Molecules")):
+            ttk.Label(f, text=h, font=self.f_bold).grid(row=1, column=k, sticky="w", padx=6, pady=(10, 2))
+        rows = []
+        for i, g in enumerate(gl):
+            use = tk.BooleanVar(value=g["thickness"] >= 6.0)
+            nv = tk.StringVar(value=str(g["n_water"]))
+            ttk.Checkbutton(f, variable=use).grid(row=2 + i, column=0, padx=6)
+            for k, x in enumerate((g["lo"], g["hi"], g["thickness"], g["area"]), start=1):
+                ttk.Label(f, text=f"{x:.2f}" if k < 4 else f"{x:.1f}").grid(row=2 + i, column=k, sticky="w", padx=6)
+            ttk.Entry(f, textvariable=nv, width=7, style="Field.TEntry").grid(row=2 + i, column=5, sticky="w", padx=6)
+            rows.append((g, use, nv))
+
+        def redo(*_):
+            try:
+                d = float(dens.get())
+            except ValueError:
+                return
+            for g, use, nv in rows:
+                nv.set(str(W.n_water(g["area"] * g["thickness"], d)))
+        dens.trace_add("write", redo)
+        status = tk.StringVar(value=f"packmol: {exe}; water at least 2.0 Å from every atom")
+        ttk.Label(f, textvariable=status, foreground=MUTED, wraplength=620, justify="left").grid(row=3 + len(gl), column=0, columnspan=6, sticky="w", pady=(10, 0))
+        made = {}
+
+        def make_file(then):
+            try:
+                chosen = [(g, int(nv.get())) for g, use, nv in rows if use.get() and int(nv.get()) > 0]
+            except ValueError:
+                status.set("The numbers of molecules must be integers")
+                return
+            if not chosen:
+                status.set("Choose at least one region with molecules")
+                return
+            key = tuple((g["lo"], n) for g, n in chosen)
+            if key in made:
+                then(made[key])
+                return
+            status.set(f"packmol: placing {sum(n for _, n in chosen)} water molecules…")
+            w.config(cursor="watch")
+
+            def work():
+                try:
+                    new, rep = W.add_water(at, chosen, log=lambda m: self.q.put(("log", m + "\n", None)))
+                    stem = os.path.splitext(os.path.basename(p))[0]
+                    out = os.path.join(os.path.dirname(p), f"{stem}_water.extxyz")
+                    import ase.io
+                    ase.io.write(out, new, format="extxyz")
+                    res = (out, rep, None)
+                except Exception as e:
+                    res = (None, None, e)
+
+                def done():
+                    if not w.winfo_exists():
+                        return
+                    w.config(cursor="")
+                    out, rep, err = res
+                    if err:
+                        status.set(f"packmol failed: {err}")
+                        return
+                    bad = [r for r in rep if not r["converged"]]
+                    status.set(f"→ {os.path.basename(out)}: " + ", ".join(f"{r['n']} molecules in z {r['lo']:.1f}-{r['hi']:.1f} Å" for r in rep)
+                               + (" (packmol did not converge in a region: fewer molecules or a lower density)" if bad else ""))
+                    self.log_add(f"Water added: {out}\n", None)
+                    made[key] = out
+                    then(out)
+                self.q.put(("call", done))                       # back on the Tk thread (the queue is polled there)
+            threading.Thread(target=work, daemon=True).start()
+
+        def preview():
+            def show(out):
+                try:
+                    runner.open_in_ovito(out)
+                except Exception as e:
+                    messagebox.showerror("soapff-GUI", str(e), parent=w)
+            make_file(show)
+        ttk.Button(bar, text="Build force field from this structure", style="Accent.TButton",
+                   command=lambda: make_file(lambda out: self._build_from(out, w))).pack(side="right")
         ttk.Button(bar, text="Check in OVITO", style="Ghost.TButton", command=preview).pack(side="right", padx=8)
         ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left")
 
@@ -1763,7 +1995,7 @@ class App:
         entry(de, 1, "threshold", "Similarity threshold", width=8)
         entry(de, 2, "cutoff", "Cutoff (Å)", width=8)
         for row, key, lab, names, note in ((3, "charges", "Charges", CHARGES, "the type of each atom comes from SOAP, its charge from this scheme"),
-                                           (4, "water", "Water model", WATERS, "charges of the water O and H (time step 0.5 fs)")):
+                                           (4, "water", "Water model", WATERS, "SPC/E: fix shake1 keeps the water rigid after the minimization")):
             ttk.Label(de, text=lab).grid(row=row, column=0, sticky="w", pady=4, padx=(0, 10))
             v[key] = tk.StringVar(value=names.get(self.s.get(key), next(iter(names.values()))))
             ttk.Combobox(de, textvariable=v[key], values=list(names.values()), width=30, state="readonly").grid(row=row, column=1, sticky="w")
@@ -2566,6 +2798,8 @@ class App:
                     self.l_phase.config(text=msg[1])
                 elif kind == "error":
                     messagebox.showerror("soapff-GUI", msg[1])
+                elif kind == "call":
+                    msg[1]()
                 elif kind == "made":
                     self.set_state("Input created (up to minimization)", OK, 0)
                     p = os.path.join(msg[2], "in.lammps")
@@ -2584,7 +2818,10 @@ class App:
                     self.warn_assignment(msg[3])
                 elif kind == "make_failed":
                     self.set_state("Could not build the force field", ERR, 0)
-                    if "(fallback)" in msg[1]:
+                    if "overlapping atoms" in msg[1]:
+                        messagebox.showerror("soapff-GUI", "The structure has overlapping atoms, so the force field was not built.\n\n"
+                                                           "Correct the structure (or minimise it first).\n\n" + msg[1])
+                    elif "(fallback)" in msg[1]:
                         messagebox.showerror("soapff-GUI", "Atoms with environments missing from the library were found, so the force field was not built.\n\n"
                                                            "Add reference structures of that mineral / environment to the library.\n\n" + msg[1])
                     else:

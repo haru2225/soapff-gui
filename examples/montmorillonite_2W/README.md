@@ -2,6 +2,8 @@
 
 `initial.xyz` is the JAEA initial structure of Na montmorillonite with a 2-layer hydrate (two 2:1 layers with Mg substitution, 30 interlayer Na⁺ ions and 344 water molecules, 30.96 x 26.90 x 25.55 Å), reduced to elements, coordinates, and box only. Some of the water overlaps the clay (water H and clay O are as close as 0.5 Å). It contains neither charges nor types.
 
+Note: `initial.xyz` has two Si-O pairs only 0.83 Å apart (and 24 water molecules inside the clay layer). The calculations here were made with an earlier library that contained this structure itself; the current library leaves it out, and soapff-gui stops on it ("overlapping atoms"). Correct the structure, or start from a dry montmorillonite and use "Add water".
+
 ## Procedure (soapff-gui)
 
 1. Start soapff-gui and choose `initial.xyz` with "New calculation". The force field is created, and `in.lammps` goes up to the minimization.

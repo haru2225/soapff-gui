@@ -5,7 +5,7 @@
 #   PYTHON=/path/to/python sh install.sh --here   into that Python's own environment (e.g. one that already has LAMMPS)
 # Python: $PYTHON, else the first of python3, python3.13 ... python3.9 (PATH, Homebrew, python.org) that has tkinter with
 # Tk 8.6 or newer; when there is none, uv (if installed) makes the environment with a Python of its own (with tkinter).
-# LAMMPS + Open MPI and OVITO (conda-forge / conda.ovito.org, no sudo) and SOVA (pip) are installed too: see the steps below; SOAPFF_NO_LAMMPS=1 / SOAPFF_NO_OVITO=1 skip LAMMPS / OVITO.
+# LAMMPS + Open MPI, packmol and OVITO (conda-forge / conda.ovito.org, no sudo) and SOVA (pip) are installed too: see the steps below; SOAPFF_NO_LAMMPS=1 / SOAPFF_NO_OVITO=1 skip LAMMPS and packmol / OVITO.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
 ok() { "$1" -c "import sys, tkinter; assert sys.version_info >= (3, 9) and tkinter.TkVersion >= 8.6" 2>/dev/null; }
@@ -78,6 +78,20 @@ elif get_mm; then
 else
   echo "WARNING: LAMMPS was not installed (micromamba could not be fetched); install it by hand:"
   echo "         conda install -c conda-forge lammps openmpi   |   brew install lammps open-mpi   |   sudo apt install lammps openmpi-bin"
+fi
+
+# --- packmol (Add water: water molecules placed in the empty regions) from conda-forge ---
+if command -v packmol >/dev/null 2>&1 || [ -x "$SH/lammps/bin/packmol" ] || [ -x "$SH/packmol/bin/packmol" ]; then
+  echo "packmol found"
+elif [ "${SOAPFF_NO_LAMMPS:-}" = "1" ]; then
+  echo "packmol: skipped (SOAPFF_NO_LAMMPS=1)"
+elif get_mm; then
+  echo "packmol: installing from conda-forge into $SH/packmol"
+  "$MM" create -y -q -p "$SH/packmol" -c conda-forge packmol >/dev/null 2>&1 \
+    && echo "packmol installed: $SH/packmol/bin/packmol" \
+    || echo "WARNING: the packmol install failed; install it by hand (conda install -c conda-forge packmol, brew install packmol)"
+else
+  echo "WARNING: packmol was not installed; install it by hand (conda install -c conda-forge packmol, brew install packmol)"
 fi
 
 # --- OVITO (the application, for 'Open in OVITO'): macOS Homebrew cask; elsewhere conda.ovito.org into ~/.soapff-gui/ovito ---

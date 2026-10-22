@@ -61,7 +61,7 @@ def main():
     m.add_argument("--charges", default="clayff2004", choices=["clayff2004", "underwood-bourg", "library"],
                    help="charge scheme: clayff2004 (Cygan et al. 2004), underwood-bourg (Mg 1.361 and neighbour O, smectite "
                         "edges), library (the charges stored in the library)")
-    m.add_argument("--water", default="spc", choices=["spc", "spce"], help="water model: flexible SPC (ClayFF) or flexible SPC/E")
+    m.add_argument("--water", default="spc", choices=["spc", "spce"], help="water model: flexible SPC (ClayFF) or rigid SPC/E (fix shake1 after the minimisation)")
     m.add_argument("--boundary", default="p p p",
                    help="LAMMPS boundary, e.g. 'p p p' (default) or 'p p f' (slab with vacuum along z; NVT only)")
     o = sub.add_parser("open", help="open an output directory or file (traj.lammpstrj, data file) in OVITO")

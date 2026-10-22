@@ -123,9 +123,16 @@ CHARGE_SCHEMES = {
 SCHEME_CATION_Q = {"clayff2004": {}, "underwood-bourg": {"mgo": 1.361}}
 # Table 1 types whose charge the scheme changes (Underwood & Bourg: the bond-valence values with Mg 1.361)
 SCHEME_Q = {"clayff2004": {}, "underwood-bourg": {"mgo": 1.361, "ohs": -1.081, "obos": -1.181}}
-# water models (O, H charges); both flexible with the ClayFF O-H bond and H-O-H angle (r0 1.0 A, 109.47 deg, as SPC and SPC/E)
+# water models (O, H charges); the O-H bond and H-O-H angle of ClayFF (r0 1.0 A, 109.47 deg, the geometry of SPC and SPC/E):
+# SPC flexible (ClayFF), SPC/E rigid (SHAKE on the water bond and angle, shake_line)
 WATER_MODELS = {"spc": (-0.82, 0.41), "spce": (-0.8476, 0.4238)}
-WATER_LABELS = {"spc": "flexible SPC (ClayFF)", "spce": "flexible SPC/E"}
+WATER_LABELS = {"spc": "flexible SPC (ClayFF)", "spce": "rigid SPC/E (SHAKE)"}
+RIGID_WATER = ("spce",)
+
+
+def shake_line(bond_type, angle_type, fix_id="shake1"):
+    """the LAMMPS fix that keeps the water molecules rigid (water O-H bond type and H-O-H angle type)"""
+    return f"fix {fix_id} all shake 0.0001 20 0 b {bond_type} a {angle_type}"
 
 
 def type_charges(scheme="clayff2004", water="spc", types=()):
