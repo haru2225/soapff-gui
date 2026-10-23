@@ -896,6 +896,13 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     # the surface/edge types (oe_, _e) are not ClayFF types: the bond graph cannot predict them, so they are not compared
     same_class = np.array([not is_edge_type(a) and cls(a) == cls(b) and cls(a) in ("bridge", "oh", "cation")
                            for a, b in zip(tarr, geo)])
+    # an atom bonded to an edge atom (an Al that lost its OH2 has 4 O and is read as tetrahedral by the bond graph, so the O around
+    # it are misread too) is not compared either: the bond graph cannot predict its type
+    from ase.neighborlist import neighbor_list
+    edge_atom = np.array([is_edge_type(a) for a in tarr])
+    if edge_atom.any():
+        I, J = neighbor_list("ij", at, 2.6)
+        same_class[np.unique(I[edge_atom[J]])] = False
     differ = (~unknown) & same_class & (tarr != geo)
     type_check = dict(compared=int(((~unknown) & same_class).sum()), differ=int(differ.sum()),
                       kinds=dict(collections.Counter(f"{g}->{t}" for g, t in zip(geo[differ], tarr[differ]))))
