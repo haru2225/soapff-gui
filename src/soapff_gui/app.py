@@ -38,8 +38,7 @@ DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, b
                           all_elements=True),
                 swelling=dict(one_to=23, two_to=99, down=True, eq_ps=30.0, avg_ps=20.0))
 # charge schemes and water models (soapff_cui.clayff CHARGE_SCHEMES / WATER_MODELS): key -> label
-CHARGES = {"clayff2004": "ClayFF 2004 (Cygan et al.)", "underwood-bourg": "Underwood & Bourg (Mg 1.361)",
-           "library": "As stored in the library"}
+CHARGES = {"clayff2004": "ClayFF 2004 (Cygan et al., Table 1)"}
 WATERS = {"spc": "Flexible SPC (ClayFF)", "spce": "Rigid SPC/E (SHAKE)"}
 # the analyses (soapff_cui.analysis): key, label
 ANALYSES = (("msd", "Diffusion coefficient (when LAMMPS has a compute msd)"), ("sova", "SOVA: PDF g(r), RDF N(r), coordination numbers, S(Q)"))
@@ -97,6 +96,8 @@ def load_settings():
         # an older copy of the bundled library (it has fewer structures: e.g. no micas, so a mica gets fallback atoms):
         # the bundled one is used; a library with another name stays as the user chose it
         s["library"] = runner.default_library()
+    if s.get("charges") not in CHARGES:              # a charge scheme of an earlier version (Underwood & Bourg, library)
+        s["charges"] = "clayff2004"
     lmp, mpirun = runner.find_executables()
     s["sova"] = dict(DEFAULTS["sova"], **(s.get("sova") or {}))
     for k in ("sova_python", "sova_home"):          # the separate SOVA Python of earlier versions: sovapy is installed here now

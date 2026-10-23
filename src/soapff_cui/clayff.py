@@ -111,20 +111,10 @@ def register_types(names):
         ELEMENT[n] = ELEMENT[par]
         Q[n] = bv_charge(EDGE_ALIAS.get(n, n), Q)
 
-# charge schemes: the charge of every atom is the charge of its type (the type comes from SOAP).  "library": the charges stored in
-# the library (for a library whose charges are not one value per type).
-CHARGE_SCHEMES = {
-    "clayff2004": "ClayFF (Cygan et al. 2004, Table 1); the O and metals of surfaces and edges by the bond-valence rule of "
-                  "Lammers et al. 2017 (their Table 2 for the illite edge) with these charges",
-    "underwood-bourg": "Underwood & Bourg (smectite nanoparticles, SI Table 1): octahedral Mg 1.361, O next to it -1.081 "
-                       "(hydroxyl) / -1.181 (bridging), so that each Mg substitution carries exactly -1 e; edge O and metals by the "
-                       "bond-valence rule of their montmorillonite edges, and the M-O-M restraint",
-    "library": "the charges stored in the SOAP library",
-}
-# cation charges that differ from Table 1 (the O and edge types follow from them by the bond-valence rule)
-SCHEME_CATION_Q = {"clayff2004": {}, "underwood-bourg": {"mgo": 1.361}}
-# Table 1 types whose charge the scheme changes (Underwood & Bourg: the bond-valence values with Mg 1.361)
-SCHEME_Q = {"clayff2004": {}, "underwood-bourg": {"mgo": 1.361, "ohs": -1.081, "obos": -1.181}}
+# charges: only the values of ClayFF Table 1 as published (4 decimals; Cygan et al. 2004), one per type, the ions as in the table.
+# The charge of every atom is the charge of its type (the type comes from SOAP).  The net charge is not corrected: Table 1 leaves
+# +0.0002 e per octahedral Mg and -0.0002 e per tetrahedral Al substitution.
+CHARGE_SCHEMES = {"clayff2004": "ClayFF (Cygan et al. 2004, Table 1), the published values"}
 # water models (O, H charges); the O-H bond and H-O-H angle of ClayFF (r0 1.0 A, 109.47 deg, the geometry of SPC and SPC/E):
 # SPC flexible (ClayFF), SPC/E rigid (SHAKE on the water bond and angle, shake_line)
 WATER_MODELS = {"spc": (-0.82, 0.41), "spce": (-0.8476, 0.4238)}
@@ -138,20 +128,13 @@ def shake_line(bond_type, angle_type, fix_id="shake1"):
 
 
 def type_charges(scheme="clayff2004", water="spc", types=()):
-    """type -> charge of a charge scheme and a water model, for the Table 1 types and the oe_/_e types among `types`
-    (the bond-valence rule of Lammers et al. 2017 with the cation charges of the scheme; "library": only the water types)"""
-    qO, qH = WATER_MODELS[water]
-    if scheme == "library":
-        return {"ow": qO, "hw": qH}
-    if scheme not in SCHEME_Q:
+    """type -> charge: the values of ClayFF Table 1 as published, and the water model.  The oe_/_e types among `types` (edges,
+    made only by make_slab(allow_bond_cuts=True), not used for now) by the bond-valence rule of Lammers et al. 2017 with them."""
+    if scheme not in CHARGE_SCHEMES:
         raise ValueError(f"charge scheme must be one of {list(CHARGE_SCHEMES)}")
-    out = dict({t: v[0] for t, v in TABLE1.items()}, **SCHEME_Q[scheme], ow=qO, hw=qH)
-    cq = dict(out, **SCHEME_CATION_Q[scheme])
-    # the O of Table 1 (4 decimals) by the same rule, unrounded: the system is then neutral to machine precision (the rounding of
-    # Table 1 leaves +-0.0002 e per Mg / tetrahedral Al substitution); differs from Table 1 by < 4e-5 e
-    for name, t in BULK_O.items():
-        out[t] = bv_charge(name, cq)
+    qO, qH = WATER_MODELS[water]
+    out = dict({t: v[0] for t, v in TABLE1.items()}, ow=qO, hw=qH)
     for t in set(map(str, types)):
         if is_edge_type(t):
-            out[t] = bv_charge(EDGE_ALIAS.get(t, t), cq)
+            out[t] = bv_charge(EDGE_ALIAS.get(t, t), out)
     return out

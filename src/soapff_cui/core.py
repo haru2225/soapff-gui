@@ -552,7 +552,7 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     """reserve_water: the water types (ow, hw), the water O-H bond and H-O-H angle types and room for their bonds are
     written even when the structure has no water, so that water can be added in LAMMPS (swelling curve)."""
     bnd, periodic = parse_boundary(boundary)
-    bonds, angles, unbonded = topology_from_types(at, types, mom=charges == "underwood-bourg")
+    bonds, angles, unbonded = topology_from_types(at, types, mom=False)      # M-O-M restraint: Underwood & Bourg only, not offered now
     tnames = sorted(set(types) | ({"ow", "hw"} if reserve_water else set()), key=lambda x: (ELEMENT[x], x))
     tid = {x: k + 1 for k, x in enumerate(tnames)}
     bkeys = sorted(set(b[2] for b in bonds) | ({"OHw"} if reserve_water else set())); bid = {k: n + 1 for n, k in enumerate(bkeys)}
@@ -805,8 +805,8 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
          npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p", dump_ps=1.0, fallback=True, check=True, water_rule=False,
          relax_ps=10.0, timestep_fs=TIMESTEP_FS, md=True, reserve_water=False, stop_on_fallback=False, charges="clayff2004",
          water="spc", log=print):
-    """charges: charge scheme (clayff.CHARGE_SCHEMES): SOAP gives the type of every atom, the scheme its charge ("library": the
-    charge stored in the library entry).  water: water model ("spc" flexible SPC; "spce" rigid SPC/E: its charges and
+    """charges: "clayff2004", the only scheme (clayff.CHARGE_SCHEMES): SOAP gives the type of every atom, ClayFF Table 1 (the
+    published values) its charge.  water: water model ("spc" flexible SPC; "spce" rigid SPC/E: its charges and
     fix shake1 (SHAKE on the water bond and angle) after the minimisation).
     md=False: in.lammps stops after the energy minimisation (force field, neighbour list, thermo output, minimisation and
     the walls of fixed faces); the MD (velocities, time step, fixes, computes, runs) is then written by the user (soapff-gui).
@@ -880,8 +880,8 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
         m = TYPE_ALIAS.get(str(match[i]), str(match[i]))
         types.append(m if (not unknown[i] and m in LJ) else types_geo[i])
     tarr = np.array(types)
-    # charge of every atom from its type: the charge scheme and the water model (atoms of a type the scheme does not list keep
-    # the library / fallback charge)
+    # charge of every atom from its type: ClayFF Table 1 and the water model (atoms of a type the table does not list keep the
+    # library / fallback charge)
     tq = type_charges(charges, water, types=types)
     q = np.array([tq.get(t, q[i]) for i, t in enumerate(types)], float)
     # cross-check: the type found by SOAP against the bond-graph ClayFF type of the same atom (the rule used for

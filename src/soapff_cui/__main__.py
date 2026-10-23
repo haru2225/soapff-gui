@@ -65,9 +65,8 @@ def main():
     m.add_argument("--press", type=float, default=1.0, help="NPT pressure (atm)")
     m.add_argument("--baro", default="aniso", choices=["iso", "aniso", "tri", "z"],
                    help="NPT coupling: aniso/tri for bulk crystals, z for slabs and interfaces")
-    m.add_argument("--charges", default="clayff2004", choices=["clayff2004", "underwood-bourg", "library"],
-                   help="charge scheme: clayff2004 (Cygan et al. 2004), underwood-bourg (Mg 1.361 and neighbour O, smectite "
-                        "edges), library (the charges stored in the library)")
+    m.add_argument("--charges", default="clayff2004", choices=["clayff2004"],
+                   help="charges: clayff2004, the published values of ClayFF Table 1 (Cygan et al. 2004), the only choice")
     m.add_argument("--water", default="spc", choices=["spc", "spce"], help="water model: flexible SPC (ClayFF) or rigid SPC/E (fix shake1 after the minimisation)")
     m.add_argument("--boundary", default="p p p",
                    help="LAMMPS boundary, e.g. 'p p p' (default) or 'p p f' (slab with vacuum along z; NVT only)")
