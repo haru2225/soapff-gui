@@ -143,10 +143,17 @@ def _place_h(slab, o_index, u0):
     return best, best_d
 
 
-def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.1, seed=0):
+def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.1, seed=0, keep_cell=False, repeat=(1, 1, 1)):
     """slab of the bulk reference (Atoms, ClayFF type per atom; no water) for the face miller_unit of its unit cell.
+    keep_cell: the vacuum is added along the lattice vector that leaves the plane (for a face of the cell, e.g. (100): a is
+    lengthened, b and c stay as they are), so the cell keeps the shape and the directions of the input cell; the vacuum
+    along the normal is still `vacuum`.  Otherwise the third vector is the normal (a rectangular stacking direction).
+    repeat: (na, nb, nc), the bulk cell is repeated before the cut (the size of the cell).
     Returns (Atoms, types, info)."""
     types = list(types)
+    if tuple(repeat) != (1, 1, 1):
+        bulk = bulk.repeat(tuple(int(x) for x in repeat))
+        types = types * int(np.prod(repeat))
     reps = unit_repeats(bulk, types)
     m = [x * n for x, n in zip(miller_unit, reps)]
     g = math.gcd(math.gcd(abs(m[0]), abs(m[1])), abs(m[2]))
@@ -334,7 +341,10 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     zc = pos @ nrm
     shift = nrm * (zc.min() - vacuum / 2)
     height = (zc.max() - zc.min()) + vacuum
-    slab = Atoms([el[i] for i in idx], positions=pos - shift, cell=np.array([a1, a2, nrm * height]), pbc=True)
+    third = nrm * height
+    if keep_cell:                                              # along the lattice vector out of the plane, perpendicular height as above
+        third = a3 / abs(np.dot(a3, nrm)) * height
+    slab = Atoms([el[i] for i in idx], positions=pos - shift, cell=np.array([a1, a2, third]), pbc=True)
     typ = [new_t[i] for i in idx]
     where = {i: k for k, i in enumerate(idx)}
     h_min = 9.9
@@ -354,7 +364,8 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
                 cut_bonds=int(cut_best), basal=bool(basal), atoms=len(slab), oe=n_oe, h_added=len(add_h),
                 oh2_removed=len([o for o in remove if el[o] == "O"]), protons_adjusted=n_adj, fragments_dropped=dropped,
                 ions=int(sum(1 for s, x in zip(sym, typ) if x == s and s in ION_Z)), formal_charge=int(round(formal)),
-                close_contacts=len(close), min_contact=round(min(close, default=9.9), 2), h_clearance=round(h_min, 2))
+                close_contacts=len(close), min_contact=round(min(close, default=9.9), 2), h_clearance=round(h_min, 2),
+                keep_cell=bool(keep_cell))
     return slab, typ, info
 
 
@@ -362,7 +373,7 @@ def hkl_name(m):
     return "".join(f"m{-x}" if x < 0 else str(x) for x in m)
 
 
-def write_surfaces(data, out_dir, max_index=1, min_thickness=16.0, vacuum=16.0, log=print):
+def write_surfaces(data, out_dir, max_index=1, min_thickness=16.0, vacuum=16.0, keep_cell=False, repeat=(1, 1, 1), log=print):
     """slabs of every face |h|,|k|,|l| <= max_index of the bulk reference `data` (LAMMPS data file with type names; its
     water is left out) -> out_dir/<name>_<hkl>.data (ClayFF charges; references for build-library) and .xyz; returns
     {tag: info}"""
@@ -378,7 +389,7 @@ def write_surfaces(data, out_dir, max_index=1, min_thickness=16.0, vacuum=16.0, 
     summary = {}
     for m in faces(max_index):
         tag = f"{name}_{hkl_name(m)}"
-        slab, typ, info = make_slab(at, types, m, min_thickness=min_thickness, vacuum=vacuum)
+        slab, typ, info = make_slab(at, types, m, min_thickness=min_thickness, vacuum=vacuum, keep_cell=keep_cell, repeat=repeat)
         tq = type_charges("clayff2004", types=typ)
         qs = np.array([tq[t] for t in typ])
         info["partial_charge"] = round(float(qs.sum()), 4)

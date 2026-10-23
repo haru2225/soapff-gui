@@ -1462,6 +1462,15 @@ class App:
             ttk.Spinbox(f, from_=-3, to=3, width=4, textvariable=sv).grid(row=1, column=2 * k + 1, sticky="w", padx=(4, 14))
             hkl.append(sv)
         SLAB_THICKNESS, SLAB_VACUUM = 16.0, 30.0           # fixed: at least 16 A of mineral, 30 A of vacuum (room for water)
+        ttk.Label(f, text="Repeat the cell (a b c) before the cut").grid(row=2, column=0, columnspan=3, sticky="w", pady=2)
+        rep = []
+        for k in range(3):
+            sv = tk.StringVar(value="1")
+            ttk.Spinbox(f, from_=1, to=8, width=4, textvariable=sv).grid(row=2, column=3 + k, sticky="w", padx=(4, 4))
+            rep.append(sv)
+        keepv = tk.BooleanVar(value=True)
+        ttk.Checkbutton(f, text="Keep the cell: the vacuum is added along the lattice vector that leaves the plane "
+                                "(b and c of a (1 0 0) cut stay as they are)", variable=keepv).grid(row=3, column=0, columnspan=6, sticky="w")
         info = tk.StringVar(value="")
         ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=4, column=0, columnspan=6, sticky="w", pady=(10, 0))
         made = {}
@@ -1470,25 +1479,28 @@ class App:
             try:
                 m = tuple(int(x.get()) for x in hkl)
                 th, vac = SLAB_THICKNESS, SLAB_VACUUM
+                rp = tuple(max(1, int(x.get())) for x in rep)
             except ValueError:
-                info.set("Enter integers for h k l")
+                info.set("Enter integers for h k l and the repeats")
                 return None
+            kc = bool(keepv.get())
             if m == (0, 0, 0):
                 info.set("(0 0 0) is not a face")
                 return None
-            key = (m, th, vac)
+            key = (m, th, vac, rp, kc)
             if key in made:
                 return made[key]
             w.config(cursor="watch"); w.update()
             try:
-                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=th, vacuum=vac)
+                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=th, vacuum=vac, keep_cell=kc, repeat=rp)
             except Exception as e:
                 messagebox.showerror("soapff-GUI", f"Could not cut the surface: {e}", parent=w)
                 return None
             finally:
                 w.config(cursor="")
             stem = os.path.splitext(os.path.basename(self.structure))[0]
-            path = os.path.join(os.path.dirname(self.structure), f"{stem}_{surfaces.hkl_name(m)}.extxyz")
+            path = os.path.join(os.path.dirname(self.structure), f"{stem}_{surfaces.hkl_name(m)}"
+                                + ("" if rp == (1, 1, 1) else "_x" + "".join(map(str, rp))) + ".extxyz")
             import ase.io
             ase.io.write(path, slab, format="extxyz")
             txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, {inf['cut_bonds']} cation-O bonds cut"

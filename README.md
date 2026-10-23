@@ -79,3 +79,5 @@ Each of the 12 minerals (pyrophyllite, pyrophyllite_2, talc, kaolinite, lizardit
 | quartz | all 13 | Si-O bonds cut; Si-OH silanol surfaces | oe_sh |
 
 Faces outside this list are cut by `soapff-cui make-surfaces` / the GUI "Surface" button in the same way.
+
+Slab cell: `soapff-cui make-surfaces --keep-cell` (GUI Surface: "Keep the cell", on by default) adds the vacuum along the lattice vector that leaves the plane, so the in-plane vectors and the shape of the input cell are kept (a (1 0 0) cut lengthens a, b and c stay); without it the third vector is the surface normal. `--repeat NA NB NC` (GUI: "Repeat the cell") repeats the bulk cell before the cut.
