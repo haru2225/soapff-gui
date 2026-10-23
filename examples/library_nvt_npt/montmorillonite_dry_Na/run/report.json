@@ -1,7 +1,7 @@
 {
- "structure": "examples/library_nvt_npt/montmorillonite_dry_Na/montmorillonite_dry_Na.extxyz",
+ "structure": "montmorillonite_dry_Na.extxyz",
  "atoms": 163,
- "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
+ "library": "library_clayff_bulk.npz",
  "soap": {
   "r_cut": 5.0,
   "n_max": 4,

@@ -1,7 +1,7 @@
 {
- "structure": "examples/library_nvt_npt/talc/talc.extxyz",
+ "structure": "talc.extxyz",
  "atoms": 378,
- "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
+ "library": "library_clayff_bulk.npz",
  "soap": {
   "r_cut": 5.0,
   "n_max": 4,
