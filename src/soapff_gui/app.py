@@ -1516,6 +1516,8 @@ class App:
             txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, {inf['cut_bonds']} cation-O bonds cut"
                    + (" (basal cleavage: no bond cut, the interlayer ions shared by the two faces)" if inf["basal"] else
                       f", {inf['h_added']} H added, {inf['oh2_removed']} OH2 removed") + f"; net formal charge {inf['formal_charge']:+d}")
+            if inf.get("cell_doubled"):
+                txt += "\nThe cell holds one unit cell out of the plane, so it was doubled along that direction (the other half is empty)"
             if inf["formal_charge"]:
                 txt += "\nThis face stays charged at this protonation: the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
             info.set(txt)

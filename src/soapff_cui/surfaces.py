@@ -170,15 +170,22 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     d = abs(np.dot(a3, nrm))
     nper = max(1, math.ceil(min_thickness / d))
     n_u = 1                                              # unit cells along the vector out of the plane
+    cell_n = 1                                           # periods of the output cell along it (2: the cell is doubled)
     if periods is not None:
         for i in range(3):
             if np.allclose(a3, np.array(b.cell[i])) or np.allclose(a3, -np.array(b.cell[i])):
                 n_u = reps[i]
-        if periods == "auto":
-            periods = n_u - 1                                # all unit cells but one stay; the empty one holds the vacuum or water
-        if periods < 1 or periods > n_u - 1:
-            raise ValueError(f"the cell holds {n_u} unit cells along the direction out of the plane: choose 1..{n_u - 1} (the rest "
-                             f"stays empty), or repeat the cell along that direction")
+        if n_u < 2:                                       # one period only: the cell is doubled along it, the slab is one period
+            if periods not in ("auto", 1):
+                raise ValueError("the cell holds 1 unit cell along the direction out of the plane: only 1 can be kept (the cell is "
+                                 "doubled along it so that the other half is empty)")
+            periods, n_u, cell_n = 1, 1, 2
+        else:
+            if periods == "auto":
+                periods = n_u - 1                        # all unit cells but one stay; the empty one holds the vacuum or water
+            if periods < 1 or periods > n_u - 1:
+                raise ValueError(f"the cell holds {n_u} unit cells along the direction out of the plane: choose 1..{n_u - 1} (the "
+                                 f"rest stays empty), or repeat the cell along that direction")
         nper = 1
     big = ori.repeat((1, 1, nper + 3))
     tb = [types[k] for k in big.get_array("tid")]
@@ -356,7 +363,7 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     zc = pos @ nrm
     if periods is not None:                                   # inside the cell: the slab in the middle, the rest of the cell empty
         extent = zc.max() - zc.min()
-        height = d + vacuum
+        height = cell_n * d + vacuum
         if height - extent < 2.0:
             raise ValueError(f"the slab ({extent:.1f} A) leaves less than 2 A of the cell empty: use fewer unit cells or add vacuum")
         shift = nrm * (zc.min() - (height - extent) / 2)
@@ -388,7 +395,7 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
                 oh2_removed=len([o for o in remove if el[o] == "O"]), protons_adjusted=n_adj, fragments_dropped=dropped,
                 ions=int(sum(1 for s, x in zip(sym, typ) if x == s and s in ION_Z)), formal_charge=int(round(formal)),
                 close_contacts=len(close), min_contact=round(min(close, default=9.9), 2), h_clearance=round(h_min, 2),
-                keep_cell=bool(keep_cell), cell_periods=periods)
+                keep_cell=bool(keep_cell), cell_periods=periods, cell_doubled=(cell_n == 2))
     return slab, typ, info
 
 
