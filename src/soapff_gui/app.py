@@ -1453,8 +1453,8 @@ class App:
         at = at[keep]; types = [t for t, k in zip(types, keep) if k]
         w, f, bar = self._derived_dialog("Surface (slab in vacuum)", f"{os.path.basename(self.structure)}: {len(at)} atoms"
                                          + (" (its water is left out)" if not all(keep) else ""))
-        ttk.Label(f, text="Face (h k l) of the unit cell. Only |h|, |k|, |l| ≤ 1 can be cut (all are in the library for the bundled minerals); (0 0 1) is the "
-                          "basal plane of a layered mineral", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
+        ttk.Label(f, text="Face (h k l) of the unit cell. Only a face that cuts no cation-O bond can be cut: the basal plane between the "
+                          "layers of a layered mineral, (0 0 1) for the bundled minerals. Edges (bonds cut, O that would need H) are not supported", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
         hkl = []
         for k, (ax, v0) in enumerate(zip("hkl", (0, 0, 1))):
             ttk.Label(f, text=ax).grid(row=1, column=2 * k, sticky="e", pady=8)
@@ -1859,14 +1859,13 @@ class App:
                     else:                                       # a bulk reference without "_bulk" in its name
                         groups.setdefault(stem, dict(bulk=None, basal=None, edges=[], other=[]))["bulk"] = n
                 txt.insert("end", "  Atoms kept in the library (an environment already present is not stored twice)\n"
-                                  "  bulk: the crystal; 001: basal plane (no bond cut); the other faces: edges (cation-O bonds cut, "
-                                  "O healed by bond valence)\n\n")
+                                  "  bulk: the crystal; 001: basal plane (no bond cut; the only kind of surface supported, no edges)\n\n")
                 for m, g in groups.items():
                     if g["other"]:
                         txt.insert("end", f"  {m}: edge particle (JAEA), {g['other'][0][1]} atoms\n")
                         continue
                     txt.insert("end", f"  {m}: bulk {g['bulk']}" + ((", 001 (a face with bonds cut, no layers) " if m.startswith("quartz") else ", 001 ") + str(g["basal"]) if g["basal"] is not None else "")
-                               + f", edges {len(g['edges'])} faces ({sum(n for _, n in g['edges'])} atoms)\n")
+                               + (f", edges {len(g['edges'])} faces ({sum(n for _, n in g['edges'])} atoms)" if g["edges"] else "") + "\n")
                     if g["edges"]:
                         txt.insert("end", "      " + " ".join(f + ("" if n else "*") for f, n in g["edges"]) + "\n")
                 txt.insert("end", "\n  (* = every environment of that face was already in the library)\n")

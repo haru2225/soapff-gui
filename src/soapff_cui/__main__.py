@@ -25,7 +25,8 @@ def main():
     b.add_argument("--species-weight", nargs="*", default=[], metavar="EL=W",
                    help="scale the SOAP components of every species pair (Z1, Z2) by w(Z1) w(Z2), e.g. Al=2 Si=2 Mg=2")
     sf = sub.add_parser("make-surfaces", help="bulk reference data file -> slabs in vacuum of every face (h k l) of its unit "
-                                              "cell (surface references for build-library)")
+                                              "cell that cuts no cation-O bond, i.e. the basal plane (surface references for "
+                                              "build-library); the faces that cut bonds (edges) are skipped")
     sf.add_argument("data", help="LAMMPS data file with charges and type names (water is left out)")
     sf.add_argument("-o", "--out", default="surfaces")
     sf.add_argument("--max-index", type=int, default=1, choices=[0, 1], help="faces with |h|, |k|, |l| <= this (1 is the largest that can be cut)")
