@@ -77,8 +77,8 @@ def bv_charge(name, cation_q):
     e = edge_type(name)
     share = lambda t: (BV_ZCN[t][0] - cation_q[t]) / BV_ZCN[t][1]
     if e[0] == "O":
-        return round(-2.0 + sum(share(t) for t in e[1]), 4)
-    return round(cation_q[e[1]] + e[2] * share(e[1]), 4)
+        return -2.0 + sum(share(t) for t in e[1])
+    return cation_q[e[1]] + e[2] * share(e[1])
 
 
 def edge_parent(name):
@@ -147,6 +147,10 @@ def type_charges(scheme="clayff2004", water="spc", types=()):
         raise ValueError(f"charge scheme must be one of {list(CHARGE_SCHEMES)}")
     out = dict({t: v[0] for t, v in TABLE1.items()}, **SCHEME_Q[scheme], ow=qO, hw=qH)
     cq = dict(out, **SCHEME_CATION_Q[scheme])
+    # the O of Table 1 (4 decimals) by the same rule, unrounded: the system is then neutral to machine precision (the rounding of
+    # Table 1 leaves +-0.0002 e per Mg / tetrahedral Al substitution); differs from Table 1 by < 4e-5 e
+    for name, t in BULK_O.items():
+        out[t] = bv_charge(name, cq)
     for t in set(map(str, types)):
         if is_edge_type(t):
             out[t] = bv_charge(EDGE_ALIAS.get(t, t), cq)
