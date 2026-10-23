@@ -1467,8 +1467,16 @@ class App:
         ttk.Label(f, text=f"The slab is cut by pymatgen (SlabGenerator): at least {SLAB_THICKNESS:g} Å of mineral and {SLAB_VACUUM:g} Å of "
                           "vacuum, a termination that breaks no cation-O bond. The interlayer ions stay where the cut leaves them (on one face).",
                   foreground=MUTED, wraplength=560, justify="left").grid(row=2, column=0, columnspan=6, sticky="w", pady=(2, 0))
+        SIDES = {"above and below the slab (slab in the middle)": "both", "above the slab only": "above",
+                 "below the slab only": "below"}
+        vrow = ttk.Frame(f)
+        vrow.grid(row=3, column=0, columnspan=6, sticky="w", pady=(8, 0))
+        ttk.Label(vrow, text="Vacuum").pack(side="left")
+        side = tk.StringVar(value=next(iter(SIDES)))
+        ttk.Combobox(vrow, textvariable=side, values=list(SIDES), state="readonly", width=40).pack(side="left", padx=6)
+        ttk.Label(vrow, text="(the cell is periodic along c: above and below are one region either way)", foreground=MUTED).pack(side="left")
         info = tk.StringVar(value="")
-        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=3, column=0, columnspan=6, sticky="w", pady=(10, 0))
+        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=4, column=0, columnspan=6, sticky="w", pady=(10, 0))
         made = {}
 
         def make_file():
@@ -1480,28 +1488,32 @@ class App:
             if m == (0, 0, 0):
                 info.set("(0 0 0) is not a face")
                 return None
-            if m in made:
-                return made[m]
+            vs = SIDES[side.get()]
+            if (m, vs) in made:
+                return made[(m, vs)]
             w.config(cursor="watch"); w.update()
             try:
-                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=SLAB_THICKNESS, vacuum=SLAB_VACUUM)
+                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=SLAB_THICKNESS, vacuum=SLAB_VACUUM, vacuum_side=vs)
             except Exception as e:
                 messagebox.showerror("soapff-GUI", f"Could not cut the surface: {e}", parent=w)
                 return None
             finally:
                 w.config(cursor="")
             stem = os.path.splitext(os.path.basename(self.structure))[0]
-            path = os.path.join(os.path.dirname(self.structure), f"{stem}_{surfaces.hkl_name(m)}.extxyz")
+            path = os.path.join(os.path.dirname(self.structure),
+                                f"{stem}_{surfaces.hkl_name(m)}" + ("" if vs == "both" else f"_vac{vs}") + ".extxyz")
             import ase.io
             ase.io.write(path, slab, format="extxyz")
             txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, {inf['thickness']:.1f} Å thick, no bond cut "
                    f"({inf['terminations']} bond-free termination{'s' if inf['terminations'] > 1 else ''}), {inf['ions']} interlayer ions; "
-                   f"net formal charge {inf['formal_charge']:+d}")
+                   f"net formal charge {inf['formal_charge']:+d}; vacuum {inf['vacuum']:.1f} Å "
+                   + {"both": "above and below", "above": "above", "below": "below"}[vs]
+                   + ("" if inf["ions_face"] == "none" else f"; the interlayer ions are on the {inf['ions_face']} face"))
             if inf["formal_charge"]:
                 txt += "\nThis slab is charged: the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
             info.set(txt)
             self.log_add(f"Surface {m}: {path} ({inf['atoms']} atoms, formal charge {inf['formal_charge']:+d})\n", None)
-            made[m] = path
+            made[(m, vs)] = path
             return path
 
         def preview():

@@ -32,6 +32,8 @@ def main():
     sf.add_argument("--max-index", type=int, default=1, choices=[0, 1], help="faces with |h|, |k|, |l| <= this (1 is the largest that can be cut)")
     sf.add_argument("--thickness", type=float, default=16.0, help="minimum slab thickness (A)")
     sf.add_argument("--vacuum", type=float, default=16.0, help="vacuum along the normal (A)")
+    sf.add_argument("--vacuum-side", default="both", choices=["both", "above", "below"],
+                    help="vacuum above and below the slab (slab centred in the cell, default), above it only, or below it only")
     aw = sub.add_parser("add-water", help="structure -> the same structure with water (and ions of ClayFF Table 1) added by packmol "
                                           "in the chosen regions (empty slices along z, or any box)")
     aw.add_argument("structure")
@@ -151,7 +153,7 @@ def main():
               + f"; charge of the ions {W.net_charge(ions):+d} e")
     elif a.cmd == "make-surfaces":
         from .surfaces import write_surfaces
-        write_surfaces(a.data, a.out, max_index=a.max_index, min_thickness=a.thickness, vacuum=a.vacuum)
+        write_surfaces(a.data, a.out, max_index=a.max_index, min_thickness=a.thickness, vacuum=a.vacuum, vacuum_side=a.vacuum_side)
     elif a.cmd == "build-library":
         build_library(a.data, a.frames, a.out, every=a.every, soap=dict(r_cut=a.r_cut, l_max=a.l_max, species_weights={x.split('=')[0]: float(x.split('=')[1]) for x in a.species_weight} or None, weighting=dict(function='pow', r0=a.weight_r0, m=a.weight_m, c=1, d=1) if a.weight_r0 else None), prune=a.prune,
                       water_in_soap=a.water_in_soap, protect=a.protect)

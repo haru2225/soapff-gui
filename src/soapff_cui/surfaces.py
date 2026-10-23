@@ -8,7 +8,8 @@ refused: nothing is added to the atoms (no H).  Every atom keeps the ClayFF type
 charge: ClayFF Table 1, clayff.type_charges).  The interlayer ions are left as pymatgen cuts them: the slab has whole unit
 cells, so the cleaved interlayer stays on one face with all its ions and the other face is bare (the slab is neutral
 as the bulk, but the two faces differ).  Water of the reference is not used (the library leaves water out of the SOAP).
-The net formal charge of the slab is reported."""
+The vacuum is split above and below the slab (pymatgen centres it in the cell; one region across the periodic boundary),
+or put above or below it only (vacuum_side).  The net formal charge of the slab is reported."""
 import itertools
 import math
 
@@ -23,6 +24,8 @@ OH_MAX = 1.25                     # O-H of a hydroxyl (ho)
 ION_Z = {"Na": 1, "K": 1, "Cs": 1, "Li": 1, "Rb": 1, "Ca": 2, "Ba": 2, "Sr": 2, "Cl": -1}
 CATION_Z = {"st": 4, "at": 3, "ao": 3, "mgo": 2, "mgh": 2, "cao": 2, "cah": 2, "feo": 3, "lio": 1}   # formal valences
 MAX_INDEX = 1                     # only the faces |h|, |k|, |l| <= 1 of the unit cell (those of the library) can be cut
+VACUUM_SIDES = ("both", "above", "below")   # vacuum above and below the slab (centred), above it only, below it only
+EDGE = 0.5                        # A between the slab and the cell boundary when the vacuum is on one side only
 
 
 def unit_repeats(at, types, tol=0.25):
@@ -71,14 +74,17 @@ def bonds_of(at, types):
     return out
 
 
-def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0):
+def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, vacuum_side="both"):
     """slab of the bulk reference (Atoms, ClayFF type per atom; no water) for the face miller_unit of its unit cell, cut by
     pymatgen with the bonds of bonds_of() unbroken; returns (Atoms, types, info).  ValueError when every termination of the
-    face breaks a bond."""
+    face breaks a bond.  vacuum_side: "both" (the slab in the middle of the cell, the vacuum above and below it), "above"
+    (the slab at the bottom of the cell, EDGE above c = 0) or "below" (the slab at the top, EDGE below c = 1)."""
     from pymatgen.core import Lattice, Structure
     from pymatgen.core.surface import SlabGenerator
     if max(map(abs, miller_unit)) > MAX_INDEX:
         raise ValueError(f"face {tuple(miller_unit)}: only |h|, |k|, |l| <= {MAX_INDEX} can be cut")
+    if vacuum_side not in VACUUM_SIDES:
+        raise ValueError(f"vacuum_side must be one of {VACUUM_SIDES}")
     reps = unit_repeats(bulk, types)
     m = tuple(h * n for h, n in zip(miller_unit, reps))               # the same plane in the cell of the reference
     g = math.gcd(math.gcd(abs(m[0]), abs(m[1])), abs(m[2]))
@@ -101,16 +107,24 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0):
     typ = list(best.site_properties["clayff_type"])
     slab = Atoms([x.specie.symbol for x in best], positions=best.cart_coords, cell=best.lattice.matrix, pbc=True)
     slab.wrap()
+    if vacuum_side != "both":                          # move the slab along c (normal to it) to one end of the cell
+        fc = slab.get_scaled_positions(wrap=False)[:, 2]
+        h = np.linalg.norm(slab.cell[2])
+        shift = EDGE / h - fc.min() if vacuum_side == "above" else 1.0 - EDGE / h - fc.max()
+        slab.positions += shift * np.array(slab.cell[2])
     sym = slab.get_chemical_symbols()
     I, J, D = neighbor_list("ijd", slab, 1.5)
     bonded_oh = {(min(i, j), max(i, j)) for i, j, dd in zip(I, J, D) if {sym[i], sym[j]} == {"O", "H"} and dd < 1.1}
     close = [dd for i, j, dd in zip(I, J, D) if i < j and (i, j) not in bonded_oh]
     nrm = np.cross(slab.cell[0], slab.cell[1]); nrm /= np.linalg.norm(nrm)
     z = slab.positions @ nrm
+    zi = [zz for zz, s_, x in zip(z, sym, typ) if x == s_ and s_ in ION_Z]
+    ions_face = "none" if not zi else "top" if np.mean(zi) > (z.min() + z.max()) / 2 else "bottom"
     info = dict(miller=tuple(miller_unit), miller_cell=m, repeats=reps, terminations=len(found), cut_bonds=0, basal=True,
                 atoms=len(slab), thickness=round(float(z.max() - z.min()), 2),
                 ions=int(sum(1 for s, x in zip(sym, typ) if x == s and s in ION_Z)), formal_charge=int(round(formal_of(best))),
-                close_contacts=len(close), min_contact=round(min(close, default=9.9), 2))
+                close_contacts=len(close), min_contact=round(min(close, default=9.9), 2), vacuum_side=vacuum_side,
+                vacuum=round(float(np.linalg.norm(slab.cell[2]) - (z.max() - z.min())), 2), ions_face=ions_face)
     return slab, typ, info
 
 
@@ -118,7 +132,7 @@ def hkl_name(m):
     return "".join(f"m{-x}" if x < 0 else str(x) for x in m)
 
 
-def write_surfaces(data, out_dir, max_index=MAX_INDEX, min_thickness=16.0, vacuum=16.0, log=print):
+def write_surfaces(data, out_dir, max_index=MAX_INDEX, min_thickness=16.0, vacuum=16.0, vacuum_side="both", log=print):
     """slabs of every face |h|,|k|,|l| <= max_index of the bulk reference `data` (LAMMPS data file with type names; its
     water is left out) that cuts no cation-O bond -> out_dir/<name>_<hkl>.data (ClayFF charges; references for build-library)
     and .xyz; the faces that cut bonds are skipped; returns {tag: info}"""
@@ -135,7 +149,7 @@ def write_surfaces(data, out_dir, max_index=MAX_INDEX, min_thickness=16.0, vacuu
     for m in faces(max_index):
         tag = f"{name}_{hkl_name(m)}"
         try:
-            slab, typ, info = make_slab(at, types, m, min_thickness=min_thickness, vacuum=vacuum)
+            slab, typ, info = make_slab(at, types, m, min_thickness=min_thickness, vacuum=vacuum, vacuum_side=vacuum_side)
         except ValueError as e:
             if "cuts cation-O bonds" not in str(e):
                 raise
