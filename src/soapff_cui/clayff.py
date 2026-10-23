@@ -31,11 +31,10 @@ WATER_Q = (Q["ow"], Q["hw"])                    # flexible SPC
 # ------------------------------------------------------------------------------------------ surface and edge types
 # Names of edge types (oe_<codes>: an O that lost bonded cations, codes = the cations and H it keeps; <metal>_e<n>: a metal
 # whose n OH2 were removed), only to recognise them: edges are not supported and these types get no charge (make_slab refuses
-# a structure that has them).  BV_ZCN (valence, coordination) is also used by make_slab for the formal charge.
+# a structure that has them).
 BV_CODE = {"s": "st", "t": "at", "a": "ao", "m": "mgo", "g": "mgh", "c": "cao", "k": "cah", "f": "feo", "l": "lio", "h": "ho"}
 BV_ZCN = {"st": (4, 4), "at": (3, 4), "ao": (3, 6), "mgo": (2, 6), "mgh": (2, 6), "cao": (2, 6), "cah": (2, 6), "feo": (3, 6),
           "lio": (1, 6), "ho": (1, 1)}
-CODE_OF = {t: c for c, t in BV_CODE.items()}
 # type names of the JAEA particle file (clay_montmorillonite.data) -> the names above
 EDGE_ALIAS = {"oed": "oe_sh", "oaa": "oe_sa", "oab": "oe_ah", "omb": "oe_mh", "oma": "oe_sm", "alb": "ao_e1", "ala": "ao_e1",
               "mgb": "mgo_e1", "mga": "mgo_e1"}
@@ -49,19 +48,6 @@ def edge_type(name):
     if sep and base in BV_ZCN and base != "ho" and n.isdigit():
         return ("M", base, int(n))
     return None
-
-
-# the bonding of the O types of Table 1 (the same charge by the bond-valence rule): an O at a surface that keeps one of these
-# sets of cations is that type
-BULK_O = {"oe_ss": "ob", "oe_saa": "ob", "oe_sggg": "ob", "oe_sam": "obos", "oe_st": "obts", "oe_taa": "obts",
-          "oe_tggg": "obts", "oe_tam": "obss", "oe_aah": "oh", "oe_gggh": "oh", "oe_amh": "ohs"}
-
-
-def o_type_name(cations):
-    """type of an O bonded to these cation (and ho) types: the Table 1 type of that bonding (BULK_O) or oe_<codes>"""
-    order = list(BV_CODE.values())
-    name = "oe_" + "".join(CODE_OF[t] for t in sorted(cations, key=order.index))
-    return BULK_O.get(name, name)
 
 
 def edge_parent(name):

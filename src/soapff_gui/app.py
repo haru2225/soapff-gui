@@ -1433,8 +1433,8 @@ class App:
 
     def new_surface(self):
         """the current calculation (its structure and the ClayFF types of charges.csv) -> a slab in vacuum of a face (h k l)
-        (soapff_cui.surfaces: every Si and tetrahedral Al kept whole, broken O healed by bond valence, OH2 on a single
-        octahedral metal removed), written next to the structure; then the force field and input are made from it."""
+        (soapff_cui.surfaces: only the basal plane, cleaved through the interlayer without cutting any bond; the atoms keep
+        their types), written next to the structure; then the force field and input are made from it."""
         if self.busy():
             messagebox.showinfo("soapff-GUI", "A run is in progress. Choose after it finishes or is stopped")
             return
@@ -1515,14 +1515,13 @@ class App:
                                 + ("" if rp == (1, 1, 1) else "_x" + "".join(map(str, rp))) + ".extxyz")
             import ase.io
             ase.io.write(path, slab, format="extxyz")
-            txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, {inf['cut_bonds']} cation-O bonds cut"
-                   + (" (basal cleavage: no bond cut, the interlayer ions shared by the two faces)" if inf["basal"] else
-                      f", {inf['h_added']} H added, {inf['oh2_removed']} OH2 removed") + f"; net formal charge {inf['formal_charge']:+d}")
+            txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, basal cleavage (no bond cut, the interlayer ions shared by "
+                   f"the two faces); net formal charge {inf['formal_charge']:+d}")
             if inf.get("cell_doubled"):
                 txt += (f"\nThe cell was lengthened to {inf['cell_length_periods']} times its length along the direction out of the plane, "
                         "so that the empty part is at least 6 A wide (the two faces must not see each other)")
             if inf["formal_charge"]:
-                txt += "\nThis face stays charged at this protonation: the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
+                txt += "\nThis slab is charged (the interlayer ions do not split evenly): the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
             info.set(txt)
             self.log_add(f"Surface {m}: {path} ({inf['atoms']} atoms, formal charge {inf['formal_charge']:+d})\n", None)
             made[key] = path

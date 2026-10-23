@@ -13,7 +13,7 @@ from ._clayff.chem import MASS
 from ._clayff.ff import ELEMENT, ff_types, lammps_frame
 
 from .clayff import (ANGLE_HOH, ANGLE_MOH, BOND_OH, CHARGE_SCHEMES, EDGE_ALIAS, LJ, WATER_LABELS,
-                     WATER_MODELS, WATER_Q, is_edge_hydroxyl, is_edge_metal, is_edge_type,
+                     WATER_MODELS, WATER_Q, edge_parent, is_edge_hydroxyl, is_edge_metal, is_edge_type,
                      type_charges)
 from .clayff import Q as CLAYFF_Q
 
@@ -49,6 +49,9 @@ def read_lammps_data(path):
     for t, m in mass.items():
         if name[t] in ELEMENT:            # a known type name fixes the element (the particle-edge Al/Mg carry dummy masses 13 and 12)
             el_of[t] = ELEMENT[name[t]]
+            continue
+        if name[t] and is_edge_type(name[t]):    # an edge type (not supported; recognised for the element only)
+            el_of[t] = ELEMENT[edge_parent(name[t])]
             continue
         el_of[t] = min(MASS, key=lambda e: abs(MASS[e] - m)) if min(abs(MASS[e] - m) for e in MASS) < 0.1 else _mass_to_el(m)
     i = [k for k, l in enumerate(L) if l.strip().startswith("Atoms")][0] + 2
