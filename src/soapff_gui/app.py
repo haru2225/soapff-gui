@@ -1175,7 +1175,6 @@ class App:
         except (OSError, ValueError):
             water = "spc"
         open(os.path.join(self.out, "water.mol"), "w").write(core.water_molecule(tid, bond, angle, water=water))
-        shake = (bond, angle) if water in core.RIGID_WATER else None
         if p.get("waters"):
             up, down = list(p["waters"]), []                    # the listed water counts, in increasing order; no deswelling
         else:
@@ -1183,7 +1182,7 @@ class App:
         self.log_add(f"Swelling curve: adding water in {len(up)} states ({up[0]} to {up[-1]} molecules)" + (f", removing it in {len(down)} states" if down else "")
                      + f" (NPT {p['eq_ps']:g} + {p['avg_ps']:g} ps each). Wrote water.mol\n", None)
         return core.swelling_lines(tid, n_nonwater, n_water0, mol_max, self.s["temp"], self.s["press"], dt, tilted, up, down,
-                                   eq_ps=p["eq_ps"], avg_ps=p["avg_ps"], shake=shake)
+                                   eq_ps=p["eq_ps"], avg_ps=p["avg_ps"])
 
     def insert_lines(self, new):
         if self.tab in READONLY:

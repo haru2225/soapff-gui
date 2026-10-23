@@ -12,8 +12,8 @@ from ase.neighborlist import neighbor_list
 from ._clayff.chem import MASS
 from ._clayff.ff import ELEMENT, ff_types, lammps_frame
 
-from .clayff import (ANGLE_HOH, ANGLE_MOH, ANGLE_MOM, BOND_OH, CHARGE_SCHEMES, EDGE_ALIAS, LJ, RIGID_WATER, WATER_LABELS,
-                     WATER_MODELS, WATER_Q, is_edge_hydroxyl, is_edge_metal, is_edge_type, register_types, shake_line,
+from .clayff import (ANGLE_HOH, ANGLE_MOH, BOND_OH, CHARGE_SCHEMES, EDGE_ALIAS, LJ, WATER_LABELS,
+                     WATER_MODELS, WATER_Q, is_edge_hydroxyl, is_edge_metal, is_edge_type,
                      type_charges)
 from .clayff import Q as CLAYFF_Q
 
@@ -46,7 +46,6 @@ def read_lammps_data(path):
         name[int(p[0])] = L[i].split("#")[1].strip() if "#" in L[i] else None
         i += 1
     el_of = {}
-    register_types([n for n in name.values() if n])
     for t, m in mass.items():
         if name[t] in ELEMENT:            # a known type name fixes the element (the particle-edge Al/Mg carry dummy masses 13 and 12)
             el_of[t] = ELEMENT[name[t]]
@@ -348,7 +347,6 @@ def load_library(path):
     sw = json.loads(str(d["species_weights"])) if "species_weights" in d.files else {}
     if sw:
         soap["species_weights"] = sw
-    register_types(d["type"])
     return dict(X=d["X"], q=d["q"], type=d["type"], element=d["element"], species=list(d["species"]), soap=soap,
                 water_in_soap=bool(d["water_in_soap"]) if "water_in_soap" in d.files else True)
 
@@ -446,7 +444,7 @@ def kspace_setup(kspace, boundary, periodic, tilted):
 
 
 # ------------------------------------------------------------------------------------------------- topology and writer
-def topology_from_types(at, types, mom=False):
+def topology_from_types(at, types):
     """bonds and angles from the types (not from distances alone, so that overlapping atoms do not create false bonds):
     each water O takes its two nearest water H, each hydroxyl H its nearest hydroxyl O; M-O-H angles for the framework
     cations within 2.5 A (Al) / 2.6 A (Mg) of a hydroxyl O; H-O-H for water."""
@@ -484,16 +482,6 @@ def topology_from_types(at, types, mom=False):
         site = "bulk" if len(cat) >= 2 else "surface"
         for m in cat:
             angles.append((m, o, h, ("MOH", ELEMENT[t[m]], site)))
-    # M-O-M restraint of the particle edges (mom: the Underwood & Bourg charges): every Al/Mg-O-Al/Mg triple (M-O < 2.5 A)
-    # that contains an edge metal
-    em = np.array([is_edge_metal(x) for x in t], bool)
-    if mom and em.any():
-        mets = np.nonzero(framework_cation(t, si=False))[0]
-        for o in np.nonzero([ELEMENT.get(x) == "O" and x not in ("ow", "oaq") for x in t])[0]:
-            nb = mets[d(o, mets) < 2.5]
-            for a_, c_ in zip(*np.triu_indices(len(nb), 1)):
-                if em[nb[a_]] or em[nb[c_]]:
-                    angles.append((int(nb[a_]), int(o), int(nb[c_]), ("MOM",)))
     unbonded = [int(h) for h in free] + [int(o) for o, hs in nh.items() if len(hs) != 2]
     return bonds, angles, unbonded
 
@@ -552,7 +540,7 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     """reserve_water: the water types (ow, hw), the water O-H bond and H-O-H angle types and room for their bonds are
     written even when the structure has no water, so that water can be added in LAMMPS (swelling curve)."""
     bnd, periodic = parse_boundary(boundary)
-    bonds, angles, unbonded = topology_from_types(at, types, mom=False)      # M-O-M restraint: Underwood & Bourg only, not offered now
+    bonds, angles, unbonded = topology_from_types(at, types)
     tnames = sorted(set(types) | ({"ow", "hw"} if reserve_water else set()), key=lambda x: (ELEMENT[x], x))
     tid = {x: k + 1 for k, x in enumerate(tnames)}
     bkeys = sorted(set(b[2] for b in bonds) | ({"OHw"} if reserve_water else set())); bid = {k: n + 1 for n, k in enumerate(bkeys)}
@@ -606,7 +594,7 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     for k in bkeys:
         S.append(f"bond_coeff {bid[k]} {BOND_OH[0]} {BOND_OH[1]}  # {'O-H (water)' if k == 'OHw' else 'O-H'}")
     for k in akeys:
-        K, th = ANGLE_HOH if k[0] in ("HOH", "HOHw") else ANGLE_MOM if k[0] == "MOM" else ANGLE_MOH
+        K, th = ANGLE_HOH if k[0] in ("HOH", "HOHw") else ANGLE_MOH
         S.append(f"angle_coeff {aid[k]} {K} {th}  # {'-'.join(map(str, k))}")
     S += kspace_lines
     open(os.path.join(out_dir, "system.settings"), "w").write("\n".join(S) + "\n")
@@ -684,7 +672,6 @@ def reserve_water_types(out_dir, log=print):
         raise ValueError(f"charges.csv has {len(rows)} atoms, the structure {len(at)}")
     q = np.array([float(r["charge"]) for r in rows])
     types = [r["clayff_type"] for r in rows]
-    register_types(types)
     kspace = " ".join(rep.get("kspace", [""])[0].split()[1:]) if rep.get("kspace") else "pppm 1.0e-5"
     info = write_system(at, q, types, out_dir, kspace=kspace or "pppm 1.0e-5", boundary=rep.get("boundary", "p p p"),
                         reserve_water=True, charges=rep.get("charges", "clayff2004"), water=rep.get("water_model", "spc"))
@@ -717,7 +704,7 @@ def swelling_schedule(one_to=23, two_to=99, down=True, step_up2=2, step_down=2):
 
 
 def swelling_lines(type_ids, n_nonwater, n_water0, mol_max, temp, press, timestep_fs, tilted, up, down,
-                   eq_ps=30.0, avg_ps=20.0, seed=4928459, overlap=2.0, shake=None):
+                   eq_ps=30.0, avg_ps=20.0, seed=4928459, overlap=2.0):
     """LAMMPS commands of the swelling curve (Cygan et al. 2004): for each water content of `up` (then `down`), water
     molecules are added to (removed from) the interlayer, the structure is relaxed (minimize), then NPT (x, y, z and the
     in-plane tilt xy for a tilted box, else aniso; the interlayer shear tilts xz, yz fixed) for eq_ps and avg_ps more; every 100 fs (step, waters, phase, cell, energy) is appended
@@ -726,10 +713,7 @@ def swelling_lines(type_ids, n_nonwater, n_water0, mol_max, temp, press, timeste
     added between its top and the box top or its bottom and the box bottom (the interlayer across the periodic boundary).
     When no water fits (create_atoms overlap), the box is lengthened by 0.5 A along z and the insertion tried again.
     n_nonwater: atoms that are not water at the start; n_water0: water molecules at the start; mol_max: the largest
-    molecule ID of system.data (added molecules get the IDs above it, removed are the last added).
-    shake: (water bond type, water angle type) for rigid water: fix shake1 is (re)defined at the start and, in every state,
-    after the minimisation and the damped run, so that it holds the water added or removed (off while minimising and
-    during the nve/limit run, which does not go with SHAKE)."""
+    molecule ID of system.data (added molecules get the IDs above it, removed are the last added)."""
     nonwater = {"ow", "hw"} | set(ION_NAMES)
     clay = " ".join(str(v) for k, v in sorted(type_ids.items(), key=lambda kv: kv[1]) if k not in nonwater)
     s_eq = int(round(eq_ps * 1000.0 / timestep_fs))
@@ -742,16 +726,15 @@ def swelling_lines(type_ids, n_nonwater, n_water0, mol_max, temp, press, timeste
             else "aniso {P} {P} 1000.0")
     T, P = f"{float(temp):g}", f"{float(press):g}"
     n_pre = int(round(2000.0 / timestep_fs))        # 2 ps
-    rigid = [shake_line(*shake)] if shake else []
     state = [# the clay back to the middle of the cell in z (once per state; a lengthened box leaves it off centre)
-             "displace_atoms all move 0 0 $(0.5*(zlo+zhi)-xcm(sw_clay,z)) units box"] + (["unfix shake1"] if shake else []) + [
+             "displace_atoms all move 0 0 $(0.5*(zlo+zhi)-xcm(sw_clay,z)) units box",
              f"minimize 1.0e-4 1.0e-6 2000 20000",
              # the inserted water starts with large forces: a short damped run (limited displacement per step, Langevin)
              # before the barostat, which otherwise moves the cell too far in one step ("tilted box too far")
              f"fix sw_lim all nve/limit 0.1",
              f"fix sw_lan all langevin {T} {T} 50.0 {seed + 3} zero yes",
              f"run {n_pre}",
-             "unfix sw_lan", "unfix sw_lim"] + rigid + [               # rigid water only after the damped run (nve/limit)
+             "unfix sw_lan", "unfix sw_lim",
              f"fix sw_npt all npt temp {T} {T} 100.0 {baro.format(P=P)}",
              "variable sw_phase equal 0",
              f'fix sw_out all print {every} "${{sw_step}} ${{sw_nw}} ${{sw_phase}} ${{sw_lx}} ${{sw_ly}} ${{sw_lz}} ${{sw_xy}} '
@@ -767,7 +750,7 @@ def swelling_lines(type_ids, n_nonwater, n_water0, mol_max, temp, press, timeste
          f"velocity all create {T} {seed} mom yes rot no dist gaussian",
          f"timestep {timestep_fs:g}",
          "shell rm -f swelling_states.lammpstrj",
-         "molecule h2o water.mol"] + rigid + [
+         "molecule h2o water.mol",
          f"group sw_clay type {clay}",
          f"variable sw_nw equal (atoms-{n_nonwater})/3-{n_water0}",
          "variable sw_step equal step", "variable sw_lx equal lx", "variable sw_ly equal ly", "variable sw_lz equal lz",
@@ -971,9 +954,6 @@ minimize 1.0e-4 1.0e-6 1000 10000
 min_modify dmax 0.1
 minimize 1.0e-6 1.0e-6 5000 50000
 """
-    if water in RIGID_WATER and info["water_bond"]:
-        inp += (f"# {WATER_LABELS[water]}: the water O-H bond and H-O-H angle kept rigid during the MD (after the minimisation)\n"
-                f"{shake_line(info['water_bond'], info['water_angle'])}\n")
     if md:
         inp += f"""reset_timestep 0
 velocity all create {temp} 4928459 mom yes rot no dist gaussian

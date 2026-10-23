@@ -26,20 +26,12 @@ LJ = {t: (v[1], v[2] / SIGMA_FACTOR) for t, v in TABLE1.items()}          # (eps
 BOND_OH = (554.1349, 1.0000)                    # o*-h*, oh-ho, ohs-ho (k1 kcal/mol/A^2, r0 A)
 ANGLE_HOH = (45.7696, 109.47)                   # h*-o*-h* (k2 kcal/mol/rad^2, theta0 deg)
 ANGLE_MOH = (30.0, 109.47)                      # Metal-oh-ho and Metal-ohs-ho
-ANGLE_MOM = (800.0, 100.0)                      # M-O-M harmonic restraint (k kcal/mol/rad^2, theta0 deg) of the particle edges
-                                                # (JAEA file, "analogous to Ho et al."); only with the Underwood & Bourg charges,
-                                                # for the triples with an edge metal (_e)
 WATER_Q = (Q["ow"], Q["hw"])                    # flexible SPC
 
 # ------------------------------------------------------------------------------------------ surface and edge types
-# Bond-valence rule of the edge procedure of Lammers et al. (used by Underwood & Bourg):  q_O = -2 + sum_i (Z_i - q_i) / CN_i  over
-# the cations (and H) bonded to the O.  With the ClayFF charges it gives every O type of Table 1 (ob, obos, obts, obss, oh, ohs, and
-# the O of talc, brucite, kaolinite ...), so it extends ClayFF to O that lost cations at a surface or an edge:
-#   oe_<codes>   an O that lost bonded cations; codes = the cations (and H) it keeps, in the order below, e.g. oe_sh = Si-OH,
-#                oe_sa = Si-O-Al(oct), oe_ah = Al(oct)-OH, oe_th = Al(tet)-OH, oe_ta = Al(tet)-O-Al(oct), oe_ggh = Mg2-OH (brucite)
-#   <metal>_e<n> an octahedral metal whose n singly coordinated OH2 were removed (Underwood & Bourg); it takes their charge,
-#                n (Z - q) / CN, e.g. ao_e1 = 1.575 + 0.2375
-# LJ terms: those of the parent type (all O are alike in ClayFF; the metal's own).
+# Names of edge types (oe_<codes>: an O that lost bonded cations, codes = the cations and H it keeps; <metal>_e<n>: a metal
+# whose n OH2 were removed), only to recognise them: edges are not supported and these types get no charge (make_slab refuses
+# a structure that has them).  BV_ZCN (valence, coordination) is also used by make_slab for the formal charge.
 BV_CODE = {"s": "st", "t": "at", "a": "ao", "m": "mgo", "g": "mgh", "c": "cao", "k": "cah", "f": "feo", "l": "lio", "h": "ho"}
 BV_ZCN = {"st": (4, 4), "at": (3, 4), "ao": (3, 6), "mgo": (2, 6), "mgh": (2, 6), "cao": (2, 6), "cah": (2, 6), "feo": (3, 6),
           "lio": (1, 6), "ho": (1, 1)}
@@ -72,15 +64,6 @@ def o_type_name(cations):
     return BULK_O.get(name, name)
 
 
-def bv_charge(name, cation_q):
-    """charge of an oe_/_e type from the cation charges cation_q (type -> charge) by the bond-valence rule"""
-    e = edge_type(name)
-    share = lambda t: (BV_ZCN[t][0] - cation_q[t]) / BV_ZCN[t][1]
-    if e[0] == "O":
-        return -2.0 + sum(share(t) for t in e[1])
-    return cation_q[e[1]] + e[2] * share(e[1])
-
-
 def edge_parent(name):
     e = edge_type(EDGE_ALIAS.get(name, name))
     return None if e is None else ("ob" if e[0] == "O" else e[1])
@@ -100,41 +83,18 @@ def is_edge_hydroxyl(name):
     return e is not None and e[0] == "O" and "ho" in e[1]
 
 
-def register_types(names):
-    """add the oe_/_e types among names to Q, LJ and the element table (ClayFF charges); unknown names are left alone"""
-    from ._clayff.ff import ELEMENT
-    for n in set(map(str, names)):
-        par = edge_parent(n)
-        if par is None or n in LJ:
-            continue
-        LJ[n] = LJ[par]
-        ELEMENT[n] = ELEMENT[par]
-        Q[n] = bv_charge(EDGE_ALIAS.get(n, n), Q)
-
 # charges: only the values of ClayFF Table 1 as published (4 decimals; Cygan et al. 2004), one per type, the ions as in the table.
 # The charge of every atom is the charge of its type (the type comes from SOAP).  The net charge is not corrected: Table 1 leaves
 # +0.0002 e per octahedral Mg and -0.0002 e per tetrahedral Al substitution.
 CHARGE_SCHEMES = {"clayff2004": "ClayFF (Cygan et al. 2004, Table 1), the published values"}
 # water model (O, H charges): the flexible SPC water of ClayFF (Table 1 o*, h*; Table 2 bond and angle), the only one.
-# RIGID_WATER (SHAKE on the water bond and angle, shake_line) is empty: the rigid SPC/E of earlier versions is removed.
 WATER_MODELS = {"spc": (TABLE1["ow"][0], TABLE1["hw"][0])}
 WATER_LABELS = {"spc": "flexible SPC (ClayFF)"}
-RIGID_WATER = ()
-
-
-def shake_line(bond_type, angle_type, fix_id="shake1"):
-    """the LAMMPS fix that keeps the water molecules rigid (water O-H bond type and H-O-H angle type)"""
-    return f"fix {fix_id} all shake 0.0001 20 0 b {bond_type} a {angle_type}"
 
 
 def type_charges(scheme="clayff2004", water="spc", types=()):
-    """type -> charge: the values of ClayFF Table 1 as published, and the water model.  The oe_/_e types among `types` (edges,
-    made only by make_slab(allow_bond_cuts=True), not used for now) by the bond-valence rule of Lammers et al. 2017 with them."""
+    """type -> charge: the values of ClayFF Table 1 as published, and the water model (`types`: unused, kept for the callers)"""
     if scheme not in CHARGE_SCHEMES:
         raise ValueError(f"charge scheme must be one of {list(CHARGE_SCHEMES)}")
     qO, qH = WATER_MODELS[water]
-    out = dict({t: v[0] for t, v in TABLE1.items()}, ow=qO, hw=qH)
-    for t in set(map(str, types)):
-        if is_edge_type(t):
-            out[t] = bv_charge(EDGE_ALIAS.get(t, t), out)
-    return out
+    return dict({t: v[0] for t, v in TABLE1.items()}, ow=qO, hw=qH)

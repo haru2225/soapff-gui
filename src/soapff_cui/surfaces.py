@@ -30,7 +30,7 @@ import numpy as np
 from ase import Atoms
 from ase.neighborlist import neighbor_list
 
-from .clayff import BV_ZCN, o_type_name, register_types
+from .clayff import BV_ZCN, o_type_name
 
 # cation-O bond lengths (A, upper limits) by ClayFF type, and the formal charges of the ions
 BOND_MAX = {"st": 2.0, "at": 2.05, "ao": 2.3, "mgo": 2.45, "mgh": 2.45, "cao": 2.75, "cah": 2.75, "feo": 2.35, "lio": 2.5}
@@ -147,7 +147,7 @@ def _place_h(slab, o_index, u0):
 
 
 def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.1, seed=0, keep_cell=False, repeat=(1, 1, 1),
-              periods=None, allow_bond_cuts=False):
+              periods=None):
     """slab of the bulk reference (Atoms, ClayFF type per atom; no water) for the face miller_unit of its unit cell.
     keep_cell: the vacuum is added along the lattice vector that leaves the plane (for a face of the cell, e.g. (100): a is
     lengthened, b and c stay as they are), so the cell keeps the shape and the directions of the input cell; the vacuum
@@ -156,10 +156,8 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     periods: (an int, or "auto" = all unit cells but one) cut inside the cell, without changing it: the slab is `periods` unit cells thick (unit cells along the direction out
     of the plane, as counted in the cell) and the rest of the cell is empty; `vacuum` is then only the extra length added to
     the cell (0: the cell is exactly the input cell, in the same directions).  The empty part must be at least 2 A wide.
-    allow_bond_cuts: False (the default, and the only mode of the GUI and the command line): only a face that can be cut without
-    cutting any cation-O bond (the basal plane between the layers of a layered mineral) is accepted, at a position that cuts
-    none; a face that cuts bonds everywhere (an edge, every face of quartz) is refused.  True: the edge procedure below (O that
-    lost cations protonated by bond valence, oe_/_e types), kept but not used for now.
+    Only a face that can be cut without cutting any cation-O bond (the basal plane between the layers of a layered mineral) is
+    accepted, at a position that cuts none; a face that cuts bonds everywhere (an edge, every face of quartz) is refused.
     Returns (Atoms, types, info)."""
     types = list(types)
     if max(abs(int(x)) for x in miller_unit) > MAX_INDEX:
@@ -286,12 +284,11 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     exposure, exposure_side = {}, {}
     z0s = np.arange(d, 2 * d, step)
     score = [evaluate(z0) for z0 in z0s]
-    if not allow_bond_cuts:
-        if min(s_[2] for s_ in score) > 0:
-            raise ValueError(f"face {tuple(miller_unit)} cuts cation-O bonds wherever it is placed: only faces that cut no bond (the "
-                             "basal plane between the layers of a layered mineral, e.g. (0 0 1)) are supported; edges, whose O "
-                             "would need H, are not")
-        score = [s_ if s_[2] == 0 else (math.inf,) * 4 for s_ in score]     # only the positions that cut no bond
+    if min(s_[2] for s_ in score) > 0:
+        raise ValueError(f"face {tuple(miller_unit)} cuts cation-O bonds wherever it is placed: only faces that cut no bond (the "
+                         "basal plane between the layers of a layered mineral, e.g. (0 0 1)) are supported; edges, whose O "
+                         "would need H, are not")
+    score = [s_ if s_[2] == 0 else (math.inf,) * 4 for s_ in score]         # only the positions that cut no bond
     best = min(score)
     runs, cur = [], []
     for k, s_ in enumerate(score):
@@ -401,7 +398,6 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
         slab.append("H"); slab.positions[-1] = x; typ.append("ho")
         h_min = min(h_min, dmin)
     slab.wrap()
-    register_types(typ)
     sym = slab.get_chemical_symbols()
     I, J, D = neighbor_list("ijd", slab, 1.5)
     bonded_oh = {(min(i, j), max(i, j)) for i, j, dd in zip(I, J, D) if {sym[i], sym[j]} == {"O", "H"} and dd < 1.1}
