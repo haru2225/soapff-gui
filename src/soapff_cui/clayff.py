@@ -115,11 +115,11 @@ def register_types(names):
 # The charge of every atom is the charge of its type (the type comes from SOAP).  The net charge is not corrected: Table 1 leaves
 # +0.0002 e per octahedral Mg and -0.0002 e per tetrahedral Al substitution.
 CHARGE_SCHEMES = {"clayff2004": "ClayFF (Cygan et al. 2004, Table 1), the published values"}
-# water models (O, H charges); the O-H bond and H-O-H angle of ClayFF (r0 1.0 A, 109.47 deg, the geometry of SPC and SPC/E):
-# SPC flexible (ClayFF), SPC/E rigid (SHAKE on the water bond and angle, shake_line)
-WATER_MODELS = {"spc": (-0.82, 0.41), "spce": (-0.8476, 0.4238)}
-WATER_LABELS = {"spc": "flexible SPC (ClayFF)", "spce": "rigid SPC/E (SHAKE)"}
-RIGID_WATER = ("spce",)
+# water model (O, H charges): the flexible SPC water of ClayFF (Table 1 o*, h*; Table 2 bond and angle), the only one.
+# RIGID_WATER (SHAKE on the water bond and angle, shake_line) is empty: the rigid SPC/E of earlier versions is removed.
+WATER_MODELS = {"spc": (TABLE1["ow"][0], TABLE1["hw"][0])}
+WATER_LABELS = {"spc": "flexible SPC (ClayFF)"}
+RIGID_WATER = ()
 
 
 def shake_line(bond_type, angle_type, fix_id="shake1"):

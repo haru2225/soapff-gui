@@ -39,7 +39,7 @@ DEFAULTS = dict(temp=300.0, relax_ps=10.0, nvt_ps=50.0, npt_ps=0.0, press=1.0, b
                 swelling=dict(one_to=23, two_to=99, down=True, eq_ps=30.0, avg_ps=20.0))
 # charge schemes and water models (soapff_cui.clayff CHARGE_SCHEMES / WATER_MODELS): key -> label
 CHARGES = {"clayff2004": "ClayFF 2004 (Cygan et al., Table 1)"}
-WATERS = {"spc": "Flexible SPC (ClayFF)", "spce": "Rigid SPC/E (SHAKE)"}
+WATERS = {"spc": "Flexible SPC (ClayFF)"}
 # the analyses (soapff_cui.analysis): key, label
 ANALYSES = (("msd", "Diffusion coefficient (when LAMMPS has a compute msd)"), ("sova", "SOVA: PDF g(r), RDF N(r), coordination numbers, S(Q)"))
 XRD_MODES = {"cluster": "Crystallite: a finite crystal of tiled cells (crystals, clay minerals)",
@@ -98,6 +98,8 @@ def load_settings():
         s["library"] = runner.default_library()
     if s.get("charges") not in CHARGES:              # a charge scheme of an earlier version (Underwood & Bourg, library)
         s["charges"] = "clayff2004"
+    if s.get("water") not in WATERS:                  # the rigid SPC/E of earlier versions
+        s["water"] = "spc"
     lmp, mpirun = runner.find_executables()
     s["sova"] = dict(DEFAULTS["sova"], **(s.get("sova") or {}))
     for k in ("sova_python", "sova_home"):          # the separate SOVA Python of earlier versions: sovapy is installed here now
@@ -2046,7 +2048,7 @@ class App:
         entry(de, 1, "threshold", "Similarity threshold", width=8)
         entry(de, 2, "cutoff", "Cutoff (Å)", width=8)
         for row, key, lab, names, note in ((3, "charges", "Charges", CHARGES, "the type of each atom comes from SOAP, its charge from this scheme"),
-                                           (4, "water", "Water model", WATERS, "SPC/E: fix shake1 keeps the water rigid after the minimization")):
+                                           (4, "water", "Water model", WATERS, "the flexible SPC water of ClayFF")):
             ttk.Label(de, text=lab).grid(row=row, column=0, sticky="w", pady=4, padx=(0, 10))
             v[key] = tk.StringVar(value=names.get(self.s.get(key), next(iter(names.values()))))
             ttk.Combobox(de, textvariable=v[key], values=list(names.values()), width=30, state="readonly").grid(row=row, column=1, sticky="w")

@@ -67,7 +67,7 @@ def main():
                    help="NPT coupling: aniso/tri for bulk crystals, z for slabs and interfaces")
     m.add_argument("--charges", default="clayff2004", choices=["clayff2004"],
                    help="charges: clayff2004, the published values of ClayFF Table 1 (Cygan et al. 2004), the only choice")
-    m.add_argument("--water", default="spc", choices=["spc", "spce"], help="water model: flexible SPC (ClayFF) or rigid SPC/E (fix shake1 after the minimisation)")
+    m.add_argument("--water", default="spc", choices=["spc"], help="water model: flexible SPC of ClayFF, the only choice")
     m.add_argument("--boundary", default="p p p",
                    help="LAMMPS boundary, e.g. 'p p p' (default) or 'p p f' (slab with vacuum along z; NVT only)")
     o = sub.add_parser("open", help="open an output directory or file (traj.lammpstrj, data file) in OVITO")

@@ -694,7 +694,7 @@ def reserve_water_types(out_dir, log=print):
 
 
 def water_molecule(type_ids, bond_type, angle_type, water="spc"):
-    """LAMMPS molecule file of one flexible water (charges of the water model `water`, spc or spce) for create_atoms ... mol."""
+    """LAMMPS molecule file of one flexible water (charges of the water model `water`, spc) for create_atoms ... mol."""
     h = np.radians(SPC_HOH / 2)
     xs = [(0.0, 0.0, 0.0), (SPC_OH * np.sin(h), SPC_OH * np.cos(h), 0.0), (-SPC_OH * np.sin(h), SPC_OH * np.cos(h), 0.0)]
     t = [type_ids["ow"], type_ids["hw"], type_ids["hw"]]
@@ -806,8 +806,7 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
          relax_ps=10.0, timestep_fs=TIMESTEP_FS, md=True, reserve_water=False, stop_on_fallback=False, charges="clayff2004",
          water="spc", log=print):
     """charges: "clayff2004", the only scheme (clayff.CHARGE_SCHEMES): SOAP gives the type of every atom, ClayFF Table 1 (the
-    published values) its charge.  water: water model ("spc" flexible SPC; "spce" rigid SPC/E: its charges and
-    fix shake1 (SHAKE on the water bond and angle) after the minimisation).
+    published values) its charge.  water: "spc", the flexible SPC water of ClayFF (the only model).
     md=False: in.lammps stops after the energy minimisation (force field, neighbour list, thermo output, minimisation and
     the walls of fixed faces); the MD (velocities, time step, fixes, computes, runs) is then written by the user (soapff-gui).
     fallback=True: atoms whose best similarity is below `threshold` get the geometric ClayFF type and charge.
