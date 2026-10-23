@@ -1517,7 +1517,8 @@ class App:
                    + (" (basal cleavage: no bond cut, the interlayer ions shared by the two faces)" if inf["basal"] else
                       f", {inf['h_added']} H added, {inf['oh2_removed']} OH2 removed") + f"; net formal charge {inf['formal_charge']:+d}")
             if inf.get("cell_doubled"):
-                txt += "\nThe cell holds one unit cell out of the plane, so it was doubled along that direction (the other half is empty)"
+                txt += (f"\nThe cell was lengthened to {inf['cell_length_periods']} times its length along the direction out of the plane, "
+                        "so that the empty part is at least 6 A wide (the two faces must not see each other)")
             if inf["formal_charge"]:
                 txt += "\nThis face stays charged at this protonation: the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
             info.set(txt)

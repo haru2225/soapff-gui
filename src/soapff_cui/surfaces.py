@@ -36,6 +36,8 @@ from .clayff import BV_ZCN, o_type_name, register_types
 BOND_MAX = {"st": 2.0, "at": 2.05, "ao": 2.3, "mgo": 2.45, "mgh": 2.45, "cao": 2.75, "cah": 2.75, "feo": 2.35, "lio": 2.5}
 ION_Z = {"Na": 1, "K": 1, "Cs": 1, "Li": 1, "Rb": 1, "Ca": 2, "Ba": 2, "Sr": 2, "Cl": -1}
 OH_LEN = 1.0
+GAP_MIN = 6.0                     # the empty part of a cell cut inside the cell: wider than the SOAP cut-off (5 A)
+AUTO_THICKNESS = 10.0             # the slab of the automatic cut inside the cell is at least this thick (A)
 H_CLEAR = 1.8                     # an added H is turned until it is at least this far from every other atom (if possible)
 
 
@@ -176,23 +178,19 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     d = abs(np.dot(a3, nrm))
     nper = max(1, math.ceil(min_thickness / d))
     n_u = 1                                              # unit cells along the vector out of the plane
-    cell_n = 1                                           # periods of the output cell along it (2: the cell is doubled)
+    cell_n = 1                                           # periods of the output cell along it (more than 1: the cell is lengthened)
+    u = d                                                # the length of a unit cell along it
     if periods is not None:
         for i in range(3):
             if np.allclose(a3, np.array(b.cell[i])) or np.allclose(a3, -np.array(b.cell[i])):
                 n_u = reps[i]
-        if n_u < 2:                                       # one period only: the cell is doubled along it, the slab is one period
-            if periods not in ("auto", 1):
-                raise ValueError("the cell holds 1 unit cell along the direction out of the plane: only 1 can be kept (the cell is "
-                                 "doubled along it so that the other half is empty)")
-            periods, n_u, cell_n = 1, 1, 2
-        else:
-            if periods == "auto":
-                periods = n_u - 1                        # all unit cells but one stay; the empty one holds the vacuum or water
-            if periods < 1 or periods > n_u - 1:
-                raise ValueError(f"the cell holds {n_u} unit cells along the direction out of the plane: choose 1..{n_u - 1} (the "
-                                 f"rest stays empty), or repeat the cell along that direction")
-        nper = 1
+        u = d / n_u
+        if periods == "auto":                            # all unit cells but one stay, and at least AUTO_THICKNESS of slab
+            periods = max(n_u - 1, math.ceil(AUTO_THICKNESS / u - 1e-9), 1)
+        if periods < 1:
+            raise ValueError("keep at least 1 unit cell")
+        nper = max(1, math.ceil(periods * u / d - 1e-9))
+        cell_n = max(1, math.ceil((periods * u + GAP_MIN) / d - 1e-9))   # the empty part of the cell is at least GAP_MIN wide
     big = ori.repeat((1, 1, nper + 3))
     tb = [types[k] for k in big.get_array("tid")]
     el = np.array(big.get_chemical_symbols())
@@ -208,7 +206,7 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     o_list = np.array(sorted(cat_of_o))
     o_cats = [np.array([i for i, _ in cat_of_o[o]]) for o in o_list]
     o_nh = np.array([len(h_of_o.get(o, [])) for o in o_list])
-    T = nper * d if periods is None else periods * d / n_u
+    T = nper * d if periods is None else periods * u
 
     def protonate(inside, ion_charge, exposure):
         """protonation of the O touched by the window `inside` (cations kept).  First White & Zelazny at near-neutral pH:
@@ -369,9 +367,9 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     zc = pos @ nrm
     if periods is not None:                                   # inside the cell: the slab in the middle, the rest of the cell empty
         extent = zc.max() - zc.min()
+        while cell_n * d + vacuum - extent < GAP_MIN:         # the faces must not see each other (SOAP cut-off): lengthen the cell
+            cell_n += 1
         height = cell_n * d + vacuum
-        if height - extent < 2.0:
-            raise ValueError(f"the slab ({extent:.1f} A) leaves less than 2 A of the cell empty: use fewer unit cells or add vacuum")
         shift = nrm * (zc.min() - (height - extent) / 2)
         keep_cell = True
     else:
@@ -401,7 +399,7 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
                 oh2_removed=len([o for o in remove if el[o] == "O"]), protons_adjusted=n_adj, fragments_dropped=dropped,
                 ions=int(sum(1 for s, x in zip(sym, typ) if x == s and s in ION_Z)), formal_charge=int(round(formal)),
                 close_contacts=len(close), min_contact=round(min(close, default=9.9), 2), h_clearance=round(h_min, 2),
-                keep_cell=bool(keep_cell), cell_periods=periods, cell_doubled=(cell_n == 2))
+                keep_cell=bool(keep_cell), cell_periods=periods, cell_doubled=(cell_n > 1), cell_length_periods=cell_n)
     return slab, typ, info
 
 
