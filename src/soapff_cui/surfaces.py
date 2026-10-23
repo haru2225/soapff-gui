@@ -155,6 +155,12 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     the cell (0: the cell is exactly the input cell, in the same directions).  The empty part must be at least 2 A wide.
     Returns (Atoms, types, info)."""
     types = list(types)
+    from .clayff import is_edge_type
+    edge = sorted({t for t in types if is_edge_type(t)})
+    if edge:
+        raise ValueError("this structure already has surface or edge atoms (" + ", ".join(edge[:4]) + "...): a face is cut from the bulk "
+                         "crystal once; cutting a slab again (an edge and then a second face, a corner) is not supported, because the "
+                         "types and charges of the atoms at the second cut are not defined")
     if tuple(repeat) != (1, 1, 1):
         bulk = bulk.repeat(tuple(int(x) for x in repeat))
         types = types * int(np.prod(repeat))
