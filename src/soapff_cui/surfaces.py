@@ -143,12 +143,16 @@ def _place_h(slab, o_index, u0):
     return best, best_d
 
 
-def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.1, seed=0, keep_cell=False, repeat=(1, 1, 1)):
+def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.1, seed=0, keep_cell=False, repeat=(1, 1, 1),
+              periods=None):
     """slab of the bulk reference (Atoms, ClayFF type per atom; no water) for the face miller_unit of its unit cell.
     keep_cell: the vacuum is added along the lattice vector that leaves the plane (for a face of the cell, e.g. (100): a is
     lengthened, b and c stay as they are), so the cell keeps the shape and the directions of the input cell; the vacuum
     along the normal is still `vacuum`.  Otherwise the third vector is the normal (a rectangular stacking direction).
     repeat: (na, nb, nc), the bulk cell is repeated before the cut (the size of the cell).
+    periods: (an int, or "auto" = all unit cells but one) cut inside the cell, without changing it: the slab is `periods` unit cells thick (unit cells along the direction out
+    of the plane, as counted in the cell) and the rest of the cell is empty; `vacuum` is then only the extra length added to
+    the cell (0: the cell is exactly the input cell, in the same directions).  The empty part must be at least 2 A wide.
     Returns (Atoms, types, info)."""
     types = list(types)
     if tuple(repeat) != (1, 1, 1):
@@ -165,6 +169,17 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     nrm = np.cross(a1, a2); area = np.linalg.norm(nrm); nrm /= area
     d = abs(np.dot(a3, nrm))
     nper = max(1, math.ceil(min_thickness / d))
+    n_u = 1                                              # unit cells along the vector out of the plane
+    if periods is not None:
+        for i in range(3):
+            if np.allclose(a3, np.array(b.cell[i])) or np.allclose(a3, -np.array(b.cell[i])):
+                n_u = reps[i]
+        if periods == "auto":
+            periods = n_u - 1                                # all unit cells but one stay; the empty one holds the vacuum or water
+        if periods < 1 or periods > n_u - 1:
+            raise ValueError(f"the cell holds {n_u} unit cells along the direction out of the plane: choose 1..{n_u - 1} (the rest "
+                             f"stays empty), or repeat the cell along that direction")
+        nper = 1
     big = ori.repeat((1, 1, nper + 3))
     tb = [types[k] for k in big.get_array("tid")]
     el = np.array(big.get_chemical_symbols())
@@ -180,7 +195,7 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     o_list = np.array(sorted(cat_of_o))
     o_cats = [np.array([i for i, _ in cat_of_o[o]]) for o in o_list]
     o_nh = np.array([len(h_of_o.get(o, [])) for o in o_list])
-    T = nper * d
+    T = nper * d if periods is None else periods * d / n_u
 
     def protonate(inside, ion_charge, exposure):
         """protonation of the O touched by the window `inside` (cations kept).  First White & Zelazny at near-neutral pH:
@@ -339,8 +354,16 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     idx = [i for i in sorted(new_t) if i not in remove]
     pos = np.array([big.positions[i] + moved.get(i, 0.0) for i in idx])
     zc = pos @ nrm
-    shift = nrm * (zc.min() - vacuum / 2)
-    height = (zc.max() - zc.min()) + vacuum
+    if periods is not None:                                   # inside the cell: the slab in the middle, the rest of the cell empty
+        extent = zc.max() - zc.min()
+        height = d + vacuum
+        if height - extent < 2.0:
+            raise ValueError(f"the slab ({extent:.1f} A) leaves less than 2 A of the cell empty: use fewer unit cells or add vacuum")
+        shift = nrm * (zc.min() - (height - extent) / 2)
+        keep_cell = True
+    else:
+        shift = nrm * (zc.min() - vacuum / 2)
+        height = (zc.max() - zc.min()) + vacuum
     third = nrm * height
     if keep_cell:                                              # along the lattice vector out of the plane, perpendicular height as above
         third = a3 / abs(np.dot(a3, nrm)) * height
@@ -365,7 +388,7 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
                 oh2_removed=len([o for o in remove if el[o] == "O"]), protons_adjusted=n_adj, fragments_dropped=dropped,
                 ions=int(sum(1 for s, x in zip(sym, typ) if x == s and s in ION_Z)), formal_charge=int(round(formal)),
                 close_contacts=len(close), min_contact=round(min(close, default=9.9), 2), h_clearance=round(h_min, 2),
-                keep_cell=bool(keep_cell))
+                keep_cell=bool(keep_cell), cell_periods=periods)
     return slab, typ, info
 
 
@@ -373,7 +396,7 @@ def hkl_name(m):
     return "".join(f"m{-x}" if x < 0 else str(x) for x in m)
 
 
-def write_surfaces(data, out_dir, max_index=1, min_thickness=16.0, vacuum=16.0, keep_cell=False, repeat=(1, 1, 1), log=print):
+def write_surfaces(data, out_dir, max_index=1, min_thickness=16.0, vacuum=16.0, keep_cell=False, repeat=(1, 1, 1), periods=None, log=print):
     """slabs of every face |h|,|k|,|l| <= max_index of the bulk reference `data` (LAMMPS data file with type names; its
     water is left out) -> out_dir/<name>_<hkl>.data (ClayFF charges; references for build-library) and .xyz; returns
     {tag: info}"""
@@ -389,7 +412,8 @@ def write_surfaces(data, out_dir, max_index=1, min_thickness=16.0, vacuum=16.0, 
     summary = {}
     for m in faces(max_index):
         tag = f"{name}_{hkl_name(m)}"
-        slab, typ, info = make_slab(at, types, m, min_thickness=min_thickness, vacuum=vacuum, keep_cell=keep_cell, repeat=repeat)
+        slab, typ, info = make_slab(at, types, m, min_thickness=min_thickness, vacuum=vacuum, keep_cell=keep_cell, repeat=repeat,
+                                      periods=periods)
         tq = type_charges("clayff2004", types=typ)
         qs = np.array([tq[t] for t in typ])
         info["partial_charge"] = round(float(qs.sum()), 4)

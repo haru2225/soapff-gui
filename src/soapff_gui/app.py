@@ -1469,10 +1469,16 @@ class App:
             ttk.Spinbox(f, from_=1, to=8, width=4, textvariable=sv).grid(row=2, column=3 + k, sticky="w", padx=(4, 4))
             rep.append(sv)
         keepv = tk.BooleanVar(value=True)
-        ttk.Checkbutton(f, text="Keep the cell: the vacuum is added along the lattice vector that leaves the plane "
-                                "(b and c of a (1 0 0) cut stay as they are)", variable=keepv).grid(row=3, column=0, columnspan=6, sticky="w")
+        ttk.Checkbutton(f, text="Cut inside the cell: the cell is not changed, the slab fills it except for one unit cell along the "
+                                "direction out of the plane (the empty part takes the water)", variable=keepv).grid(row=3, column=0, columnspan=6, sticky="w")
+        ttk.Label(f, text="Unit cells kept (blank: all but one)").grid(row=4, column=0, columnspan=3, sticky="w", pady=2)
+        perv = tk.StringVar(value="")
+        ttk.Entry(f, textvariable=perv, width=6, style="Field.TEntry").grid(row=4, column=3, sticky="w")
+        ttk.Label(f, text="Extra length of the cell (Å)").grid(row=5, column=0, columnspan=3, sticky="w", pady=2)
+        extv = tk.StringVar(value="0")
+        ttk.Entry(f, textvariable=extv, width=6, style="Field.TEntry").grid(row=5, column=3, sticky="w")
         info = tk.StringVar(value="")
-        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=4, column=0, columnspan=6, sticky="w", pady=(10, 0))
+        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=6, column=0, columnspan=6, sticky="w", pady=(10, 0))
         made = {}
 
         def make_file():
@@ -1480,19 +1486,23 @@ class App:
                 m = tuple(int(x.get()) for x in hkl)
                 th, vac = SLAB_THICKNESS, SLAB_VACUUM
                 rp = tuple(max(1, int(x.get())) for x in rep)
+                per = (int(perv.get()) if perv.get().strip() else "auto") if keepv.get() else None
+                ext = float(extv.get())
             except ValueError:
-                info.set("Enter integers for h k l and the repeats")
+                info.set("Enter integers for h k l, the repeats and the unit cells, and a number for the extra length")
                 return None
-            kc = bool(keepv.get())
+            kc = True
+            if per is not None:
+                vac = ext                                   # inside the cell: the vacuum is only the extra length of the cell
             if m == (0, 0, 0):
                 info.set("(0 0 0) is not a face")
                 return None
-            key = (m, th, vac, rp, kc)
+            key = (m, th, vac, rp, kc, per)
             if key in made:
                 return made[key]
             w.config(cursor="watch"); w.update()
             try:
-                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=th, vacuum=vac, keep_cell=kc, repeat=rp)
+                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=th, vacuum=vac, keep_cell=kc, repeat=rp, periods=per)
             except Exception as e:
                 messagebox.showerror("soapff-GUI", f"Could not cut the surface: {e}", parent=w)
                 return None

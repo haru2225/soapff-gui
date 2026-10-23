@@ -33,6 +33,8 @@ def main():
     sf.add_argument("--vacuum", type=float, default=16.0, help="vacuum along the normal (A)")
     sf.add_argument("--keep-cell", action="store_true", help="add the vacuum along the lattice vector out of the plane, so that the "
                                                              "cell keeps the shape of the input cell (default: along the normal)")
+    sf.add_argument("--periods", type=lambda x: x if x == "auto" else int(x), default=None, metavar="N|auto", help="cut inside the cell without changing it: the slab is this many unit "
+                    "cells thick, the rest of the cell is empty (--vacuum is then the extra length added to the cell)")
     sf.add_argument("--repeat", type=int, nargs=3, default=[1, 1, 1], metavar=("NA", "NB", "NC"),
                     help="repeat the bulk cell before the cut (the size of the cell)")
     c = sub.add_parser("check-library", help="developer check: nearest other entry has the same charge (one to one)")
@@ -107,7 +109,7 @@ def main():
     elif a.cmd == "make-surfaces":
         from .surfaces import write_surfaces
         write_surfaces(a.data, a.out, max_index=a.max_index, min_thickness=a.thickness, vacuum=a.vacuum, keep_cell=a.keep_cell,
-                       repeat=tuple(a.repeat))
+                       repeat=tuple(a.repeat), periods=a.periods)
     elif a.cmd == "build-library":
         build_library(a.data, a.frames, a.out, every=a.every, soap=dict(r_cut=a.r_cut, l_max=a.l_max, species_weights={x.split('=')[0]: float(x.split('=')[1]) for x in a.species_weight} or None, weighting=dict(function='pow', r0=a.weight_r0, m=a.weight_m, c=1, d=1) if a.weight_r0 else None), prune=a.prune,
                       water_in_soap=a.water_in_soap, protect=a.protect)
