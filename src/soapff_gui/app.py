@@ -1499,7 +1499,7 @@ class App:
                    + (" (basal cleavage: no bond cut, the interlayer ions shared by the two faces)" if inf["basal"] else
                       f", {inf['h_added']} H added, {inf['oh2_removed']} OH2 removed") + f"; net formal charge {inf['formal_charge']:+d}")
             if inf["formal_charge"]:
-                txt += "\nThis face stays charged at this protonation: the force field neutralises it by spreading the charge (a warning)"
+                txt += "\nThis face stays charged at this protonation: the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
             info.set(txt)
             self.log_add(f"Surface {m}: {path} ({inf['atoms']} atoms, formal charge {inf['formal_charge']:+d})\n", None)
             made[key] = path
