@@ -1817,8 +1817,38 @@ class App:
                 org = d["origin"] if "origin" in d.files else []
                 txt.insert("end", f"{len(el)} rows (1 row = 1 atom of a reference structure: SOAP vector of {d['X'].shape[1]} components, charge, type)\n")
                 txt.insert("end", f"Elements: {' '.join(d['species'])}\n\nReference structures\n")
-                for o, n in collections.Counter(org).items():
-                    txt.insert("end", f"  {o:30s} {n:6d} atoms\n")
+                import re
+                kept = collections.Counter(org)
+                groups = collections.OrderedDict()
+                for src in d["source"]:
+                    base = os.path.basename(str(src))
+                    stem = base[:-5] if base.endswith(".data") else base
+                    mineral, _, tail = stem.rpartition("_")
+                    n = kept.get(base, 0)
+                    if tail == "bulk":
+                        groups.setdefault(mineral, dict(bulk=None, basal=None, edges=[], other=[]))["bulk"] = n
+                    elif re.fullmatch(r"[0-9m]+", tail):
+                        g = groups.setdefault(mineral, dict(bulk=None, basal=None, edges=[], other=[]))
+                        if tail == "001":
+                            g["basal"] = n
+                        else:
+                            g["edges"].append((tail, n))
+                    elif "particle" in stem:
+                        groups.setdefault(stem, dict(bulk=None, basal=None, edges=[], other=[]))["other"].append(("particle", n))
+                    else:                                       # a bulk reference without "_bulk" in its name
+                        groups.setdefault(stem, dict(bulk=None, basal=None, edges=[], other=[]))["bulk"] = n
+                txt.insert("end", "  Atoms kept in the library (an environment already present is not stored twice)\n"
+                                  "  bulk: the crystal; 001: basal plane (no bond cut); the other faces: edges (cation-O bonds cut, "
+                                  "O healed by bond valence)\n\n")
+                for m, g in groups.items():
+                    if g["other"]:
+                        txt.insert("end", f"  {m}: edge particle (JAEA), {g['other'][0][1]} atoms\n")
+                        continue
+                    txt.insert("end", f"  {m}: bulk {g['bulk']}" + ((", 001 (a face with bonds cut, no layers) " if m.startswith("quartz") else ", 001 ") + str(g["basal"]) if g["basal"] is not None else "")
+                               + f", edges {len(g['edges'])} faces ({sum(n for _, n in g['edges'])} atoms)\n")
+                    if g["edges"]:
+                        txt.insert("end", "      " + " ".join(f + ("" if n else "*") for f, n in g["edges"]) + "\n")
+                txt.insert("end", "\n  (* = every environment of that face was already in the library)\n")
                 txt.insert("end", "\nRows and charges per type\n")
                 for (e, t), n in sorted(collections.Counter(zip(el, ty)).items()):
                     qs = sorted({round(float(x), 4) for x, ee, tt in zip(q, el, ty) if ee == e and tt == t})
