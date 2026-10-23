@@ -1420,11 +1420,42 @@ class App:
         f = ttk.Frame(w, padding=16)
         f.pack(fill="both", expand=True)
         ttk.Label(f, text=header, font=self.f_bold).pack(anchor="w")
+        bar = ttk.Frame(f)
+        bar.pack(side="bottom", fill="x", pady=(14, 0))      # packed first: kept when the window is smaller than the body asks
         body = ttk.Frame(f)
         body.pack(fill="both", expand=True, pady=(8, 0))
-        bar = ttk.Frame(f)
-        bar.pack(fill="x", pady=(14, 0))
         return w, body, bar
+
+    def _scroll_body(self, w, outer):
+        """a frame inside `outer` that scrolls when the dialog would not fit on the screen; returns (frame, fit): call fit()
+        when the frame is filled (it sizes the view to the frame, at most the screen)"""
+        cv = tk.Canvas(outer, highlightthickness=0, bg=BG)
+        vs = ttk.Scrollbar(outer, orient="vertical", command=cv.yview)
+        hs = ttk.Scrollbar(outer, orient="horizontal", command=cv.xview)
+        cv.configure(yscrollcommand=vs.set, xscrollcommand=hs.set)
+        inner = ttk.Frame(cv)
+        cv.create_window(0, 0, window=inner, anchor="nw")
+        cv.grid(row=0, column=0, sticky="nsew")
+        outer.rowconfigure(0, weight=1)
+        outer.columnconfigure(0, weight=1)
+        inner.bind("<Configure>", lambda e: cv.configure(scrollregion=(0, 0, inner.winfo_reqwidth(), inner.winfo_reqheight())))
+
+        def wheel(e):
+            cv.yview_scroll(-1 if e.delta > 0 else 1, "units") if e.delta else None
+        cv.bind("<Enter>", lambda e: cv.bind_all("<MouseWheel>", wheel))
+        cv.bind("<Leave>", lambda e: cv.unbind_all("<MouseWheel>"))
+
+        def fit():
+            w.update_idletasks()
+            rw, rh = inner.winfo_reqwidth(), inner.winfo_reqheight()
+            mw, mh = w.winfo_screenwidth() - 60, w.winfo_screenheight() - 300   # room for the menu bar, title, header, buttons and the Dock
+            cv.configure(width=min(rw, mw), height=min(rh, mh))
+            if rh > mh:
+                vs.grid(row=0, column=1, sticky="ns")
+            if rw > mw:
+                hs.grid(row=1, column=0, sticky="ew")
+            w.geometry("+20+10")
+        return inner, fit
 
     def _build_from(self, path, w):
         w.destroy()
@@ -1566,8 +1597,9 @@ class App:
         ax_, by_, cz_ = fr["ax"], fr["by"], fr["cz"]
         z0_, z1_ = fr["z_atoms"]
         gl = W.gaps(at, density=1.0)
-        w, f, bar = self._derived_dialog("Add water (packmol)", f"{os.path.basename(p)}: {len(at)} atoms; cell a {ax_:.2f} Å along x', "
-                                         f"b {by_:.2f} Å along y, c {cz_:.2f} Å along z; atoms at z {z0_:.2f}–{z1_:.2f} Å")
+        w, outer, bar = self._derived_dialog("Add water (packmol)", f"{os.path.basename(p)}: {len(at)} atoms; cell a {ax_:.2f} Å along x', "
+                                             f"b {by_:.2f} Å along y, c {cz_:.2f} Å along z; atoms at z {z0_:.2f}–{z1_:.2f} Å")
+        f, fit = self._scroll_body(w, outer)
         left = ttk.Frame(f)
         left.grid(row=0, column=0, sticky="nsew")
         right = ttk.Frame(f)
@@ -1577,14 +1609,14 @@ class App:
         ttk.Label(left, text="Coordinates (Å) are those of packmol: x' = x − y·cot γ (x' = x when γ = 90°), y in the a–b plane, z normal "
                              "to it (the standard orientation); a region may run past the top of the cell (the cell is periodic in x', y "
                              "and along c). Only the water and the ions of ClayFF Table 1 can be placed.", foreground=MUTED,
-                  wraplength=600, justify="left").pack(anchor="w")
+                  wraplength=640, justify="left").pack(anchor="w")
 
         # ---- the items: molecule, number, constraints
         items = []                                               # dict(molecule, number (str), constraints [(loc, shape, [floats])])
         tf = ttk.Frame(left)
         tf.pack(fill="x", pady=(8, 0))
-        tv = ttk.Treeview(tf, columns=("mol", "n", "cons"), show="headings", height=5, selectmode="browse")
-        for c_, h_, w_ in (("mol", "Molecule", 80), ("n", "Number", 70), ("cons", "Region (packmol constraints)", 440)):
+        tv = ttk.Treeview(tf, columns=("mol", "n", "cons"), show="headings", height=4, selectmode="browse")
+        for c_, h_, w_ in (("mol", "Molecule", 80), ("n", "Number", 70), ("cons", "Region (packmol constraints)", 470)):
             tv.heading(c_, text=h_, anchor="w")
             tv.column(c_, width=w_, anchor="w", stretch=(c_ == "cons"))
         tv.pack(side="left", fill="x", expand=True)
@@ -1624,7 +1656,7 @@ class App:
                 draw()
         ttk.Button(ib, text="Add item", style="Ghost.TButton", command=new_item).pack(side="left")
         ttk.Button(ib, text="Remove item", style="Ghost.TButton", command=remove_item).pack(side="left", padx=6)
-        ttk.Label(ib, text="(a new item starts with the region of the selected one)", foreground=MUTED).pack(side="left", padx=6)
+        ttk.Label(ib, text="(starts with the region of the selected one)", foreground=MUTED).pack(side="left", padx=6)
 
         # ---- the selected item: molecule and number; the number of water molecules from a density
         ef = ttk.Frame(left)
@@ -1634,8 +1666,10 @@ class App:
         ttk.Combobox(ef, textvariable=mol, values=list(W.MOLECULES), state="readonly", width=7).pack(side="left", padx=6)
         ttk.Label(ef, text="Number").pack(side="left", padx=(8, 0))
         ttk.Entry(ef, textvariable=num, width=7, style="Field.TEntry").pack(side="left", padx=6)
-        ttk.Label(ef, text="Density (g/cm³)").pack(side="left", padx=(14, 0))
-        ttk.Entry(ef, textvariable=dens, width=5, style="Field.TEntry").pack(side="left", padx=6)
+        ef2 = ttk.Frame(left)
+        ef2.pack(fill="x", pady=(4, 0))
+        ttk.Label(ef2, text="Density (g/cm³)").pack(side="left")
+        ttk.Entry(ef2, textvariable=dens, width=5, style="Field.TEntry").pack(side="left", padx=6)
         est = tk.StringVar(value="")
         loading = [False]
 
@@ -1662,8 +1696,8 @@ class App:
                     f"→ {r_['n_water']} water molecules at {float(dens.get()):g} g/cm³ (Monte Carlo)")
             if items[k]["molecule"] == "water":
                 num.set(str(r_["n_water"]))
-        ttk.Button(ef, text="Number from density", style="Ghost.TButton", command=from_density).pack(side="left")
-        ttk.Label(left, textvariable=est, foreground=MUTED, wraplength=600, justify="left").pack(anchor="w")
+        ttk.Button(ef2, text="Number from density", style="Ghost.TButton", command=from_density).pack(side="left")
+        ttk.Label(left, textvariable=est, foreground=MUTED, wraplength=520, justify="left").pack(anchor="w")
 
         # ---- the constraints of the selected item
         cf = ttk.LabelFrame(left, text="Region of the selected item (all the constraints hold at once)", padding=8)
@@ -1800,12 +1834,12 @@ class App:
                     pass
             con_changed(k)
         ttk.Label(gf, text="Empty region").pack(side="left")
-        ttk.Combobox(gf, textvariable=gsel, values=gap_names, state="readonly", width=44).pack(side="left", padx=6)
+        ttk.Combobox(gf, textvariable=gsel, values=gap_names, state="readonly", width=36).pack(side="left", padx=6)
         ttk.Button(gf, text="Use as the box", style="Ghost.TButton", command=use_gap).pack(side="left")
         ttk.Label(cf, text="“Use as the box” replaces the inside boxes of the item and, for water, sets the number from the density "
                            "and the area × thickness of the empty slice (between the atom planes)." if gl else
                   "No empty slice thicker than 2.5 Å along z: make room first (Surface: vacuum; a larger c), or give a region "
-                  "around the atoms", foreground=MUTED, wraplength=580, justify="left").grid(row=5, column=0, columnspan=8, sticky="w")
+                  "around the atoms", foreground=MUTED, wraplength=620, justify="left").grid(row=5, column=0, columnspan=8, sticky="w")
 
         def pick_item(*_):
             k = cur()
@@ -1872,29 +1906,31 @@ class App:
                 k = len(items) - 1
             refill(k)
             draw()
-        nf = ttk.Frame(left)
-        nf.pack(fill="x", pady=(10, 0))
+        rinfo = ttk.Frame(right)                                 # packed under the preview (below)
+        nf = ttk.Frame(rinfo)
+        nf.pack(fill="x", pady=(4, 0))
         ttk.Label(nf, text="Cancel the net charge with").pack(side="left")
         ttk.Combobox(nf, textvariable=counter, values=list(W.ION_CHARGE), width=4, state="readonly").pack(side="left", padx=6)
         ttk.Button(nf, text="Set the number", style="Ghost.TButton", command=neutralize).pack(side="left")
-        ttk.Label(nf, text="(an item of that ion, or a new one in the region of the water)", foreground=MUTED).pack(side="left", padx=6)
-        ttk.Label(left, textvariable=qinfo, foreground=MUTED, wraplength=600, justify="left").pack(anchor="w")
+        ttk.Label(rinfo, text="(an item of that ion, or a new one in the region of the water)", foreground=MUTED).pack(anchor="w")
+        ttk.Label(rinfo, textvariable=qinfo, foreground=MUTED, wraplength=460, justify="left").pack(anchor="w")
 
-        of = ttk.Frame(left)
+        of = ttk.Frame(rinfo)
         of.pack(fill="x", pady=(10, 0))
         tol, seed = tk.StringVar(value="2.0"), tk.StringVar(value="1")
         ttk.Label(of, text="Tolerance (Å)").pack(side="left")
         ttk.Entry(of, textvariable=tol, width=5, style="Field.TEntry").pack(side="left", padx=6)
         ttk.Label(of, text="Seed").pack(side="left", padx=(8, 0))
         ttk.Entry(of, textvariable=seed, width=6, style="Field.TEntry").pack(side="left", padx=6)
-        ttk.Label(of, text="(the smallest distance between the placed atoms and every other atom)", foreground=MUTED).pack(side="left")
+        ttk.Label(rinfo, text="Tolerance: the smallest distance between the placed atoms and every other atom", foreground=MUTED,
+                  wraplength=460, justify="left").pack(anchor="w")
         status = tk.StringVar(value=f"packmol: {exe}")
-        ttk.Label(left, textvariable=status, foreground=MUTED, wraplength=600, justify="left").pack(anchor="w", pady=(8, 0))
+        ttk.Label(rinfo, textvariable=status, foreground=MUTED, wraplength=460, justify="left").pack(anchor="w", pady=(8, 0))
 
         # ---- the preview: the atoms and the regions (Monte Carlo points outside the van der Waals spheres), side and top views
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-        fig = Figure(figsize=(5.2, 6.4), dpi=90)
+        fig = Figure(figsize=(4.6, 4.4), dpi=90)
         a_side, a_top = fig.add_subplot(211), fig.add_subplot(212)
         canvas = FigureCanvasTkAgg(fig, master=right)
         canvas.get_tk_widget().pack(fill="both", expand=True)
@@ -1931,10 +1967,12 @@ class App:
             canvas.draw_idle()
             if notes:
                 status.set("; ".join(notes))
-        ttk.Button(right, text="Draw the regions", style="Ghost.TButton", command=draw).pack(anchor="w", pady=(6, 0))
+        rb = ttk.Frame(right)
+        rb.pack(fill="x", pady=(6, 0))
+        ttk.Button(rb, text="Draw the regions", style="Ghost.TButton", command=draw).pack(side="left")
         lgf = ttk.LabelFrame(right, text="packmol log", padding=4)
         lgf.pack(fill="both", expand=False, pady=(6, 0))
-        logt = tk.Text(lgf, height=8, width=64, font=self.f_mono_s, bg=CODE_BG, fg=TEXT, relief="flat", wrap="none")
+        logt = tk.Text(lgf, height=4, width=56, font=self.f_mono_s, bg=CODE_BG, fg=TEXT, relief="flat", wrap="none")
         logt.pack(fill="both", expand=True)
 
         # the starting items: water in every empty slice at least 6 Å thick (the number at 1 g/cm3 of its area x thickness)
@@ -1944,6 +1982,7 @@ class App:
         refill(0)
         pick_item()
         draw()
+        fit()
 
         def collect():
             out = []
@@ -1968,7 +2007,8 @@ class App:
             t.pack(fill="both", expand=True)
             t.insert("1.0", txt + "\n# solid.xyz: the structure (fixed), water.xyz: one rigid water, ion_<X>.xyz: one ion; written to "
                                   f"{os.path.splitext(os.path.basename(p))[0]}_water_packmol/ when packmol runs\n")
-        ttk.Button(right, text="Show packmol input", style="Ghost.TButton", command=show_input).pack(anchor="w", pady=(6, 0))
+        ttk.Button(rb, text="Show packmol input", style="Ghost.TButton", command=show_input).pack(side="left", padx=6)
+        rinfo.pack(fill="x", pady=(8, 0))
         made = {}
 
         def make_file(then):
