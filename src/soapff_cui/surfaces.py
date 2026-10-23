@@ -36,6 +36,7 @@ from .clayff import BV_ZCN, o_type_name, register_types
 BOND_MAX = {"st": 2.0, "at": 2.05, "ao": 2.3, "mgo": 2.45, "mgh": 2.45, "cao": 2.75, "cah": 2.75, "feo": 2.35, "lio": 2.5}
 ION_Z = {"Na": 1, "K": 1, "Cs": 1, "Li": 1, "Rb": 1, "Ca": 2, "Ba": 2, "Sr": 2, "Cl": -1}
 OH_LEN = 1.0
+MAX_INDEX = 1                     # only the faces |h|, |k|, |l| <= 1 of the unit cell (those of the library) can be cut
 GAP_MIN = 6.0                     # the empty part of a cell cut inside the cell: wider than the SOAP cut-off (5 A)
 AUTO_THICKNESS = 10.0             # the slab of the automatic cut inside the cell is at least this thick (A)
 H_CLEAR = 1.8                     # an added H is turned until it is at least this far from every other atom (if possible)
@@ -157,6 +158,9 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
     the cell (0: the cell is exactly the input cell, in the same directions).  The empty part must be at least 2 A wide.
     Returns (Atoms, types, info)."""
     types = list(types)
+    if max(abs(int(x)) for x in miller_unit) > MAX_INDEX:
+        raise ValueError(f"face {tuple(miller_unit)}: only faces with |h|, |k|, |l| <= {MAX_INDEX} of the unit cell can be cut (the faces "
+                         "of the library; faces with larger indices are not validated)")
     from .clayff import is_edge_type
     edge = sorted({t for t in types if is_edge_type(t)})
     if edge:
@@ -407,7 +411,7 @@ def hkl_name(m):
     return "".join(f"m{-x}" if x < 0 else str(x) for x in m)
 
 
-def write_surfaces(data, out_dir, max_index=1, min_thickness=16.0, vacuum=16.0, keep_cell=False, repeat=(1, 1, 1), periods=None, log=print):
+def write_surfaces(data, out_dir, max_index=MAX_INDEX, min_thickness=16.0, vacuum=16.0, keep_cell=False, repeat=(1, 1, 1), periods=None, log=print):
     """slabs of every face |h|,|k|,|l| <= max_index of the bulk reference `data` (LAMMPS data file with type names; its
     water is left out) -> out_dir/<name>_<hkl>.data (ClayFF charges; references for build-library) and .xyz; returns
     {tag: info}"""

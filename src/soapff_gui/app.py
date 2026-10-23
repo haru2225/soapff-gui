@@ -1453,13 +1453,13 @@ class App:
         at = at[keep]; types = [t for t, k in zip(types, keep) if k]
         w, f, bar = self._derived_dialog("Surface (slab in vacuum)", f"{os.path.basename(self.structure)}: {len(at)} atoms"
                                          + (" (its water is left out)" if not all(keep) else ""))
-        ttk.Label(f, text="Face (h k l) of the unit cell. |h|, |k|, |l| ≤ 1 of the bundled minerals are in the library; (0 0 1) is the "
+        ttk.Label(f, text="Face (h k l) of the unit cell. Only |h|, |k|, |l| ≤ 1 can be cut (all are in the library for the bundled minerals); (0 0 1) is the "
                           "basal plane of a layered mineral", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
         hkl = []
         for k, (ax, v0) in enumerate(zip("hkl", (0, 0, 1))):
             ttk.Label(f, text=ax).grid(row=1, column=2 * k, sticky="e", pady=8)
             sv = tk.StringVar(value=str(v0))
-            ttk.Spinbox(f, from_=-3, to=3, width=4, textvariable=sv).grid(row=1, column=2 * k + 1, sticky="w", padx=(4, 14))
+            ttk.Spinbox(f, from_=-1, to=1, width=4, textvariable=sv).grid(row=1, column=2 * k + 1, sticky="w", padx=(4, 14))
             hkl.append(sv)
         SLAB_THICKNESS, SLAB_VACUUM = 16.0, 30.0           # fixed: at least 16 A of mineral, 30 A of vacuum (room for water)
         ttk.Label(f, text="Repeat the cell (a b c) before the cut").grid(row=2, column=0, columnspan=3, sticky="w", pady=2)

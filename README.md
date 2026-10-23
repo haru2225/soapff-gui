@@ -70,7 +70,7 @@ examples/        the examples above
 
 ## Interfaces in the library
 
-Each of the 12 minerals (pyrophyllite, pyrophyllite_2, talc, kaolinite, lizardite, brucite, muscovite 1M, muscovite 2M1, phlogopite 1M, nanpingite, montmorillonite (dry, Na), quartz) has the 13 faces with |h|,|k|,|l| <= 1 (indices of the cell of its own reference file, signs removed: 100 010 001 1-10 110 10-1 101 01-1 011 1-1-1 1-11 11-1 111) as slabs in vacuum, plus the 13 bulk references and the JAEA montmorillonite particle (hexagonal edges, no face index): 156 slabs, 10,017 library rows.
+Each of the 12 minerals (pyrophyllite, pyrophyllite_2, talc, kaolinite, lizardite, brucite, muscovite 1M, muscovite 2M1, phlogopite 1M, nanpingite, montmorillonite (dry, Na), quartz) has the 13 faces with |h|,|k|,|l| <= 1 (indices of the cell of its own reference file, signs removed: 100 010 001 1-10 110 10-1 101 01-1 011 1-1-1 1-11 11-1 111) as slabs in vacuum, plus the 13 bulk references and the JAEA montmorillonite particle (hexagonal edges, no face index): 156 slabs, 10,017 library rows. Only these faces (|h|, |k|, |l| <= 1 of the unit cell) can be cut: a face with a larger index is refused, in the GUI (the spinboxes stop at ±1), `make-surfaces` and `make_slab`.
 
 | kind | faces | bonds cut | charges |
 |---|---|---|---|

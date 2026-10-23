@@ -28,7 +28,7 @@ def main():
                                               "cell (surface references for build-library)")
     sf.add_argument("data", help="LAMMPS data file with charges and type names (water is left out)")
     sf.add_argument("-o", "--out", default="surfaces")
-    sf.add_argument("--max-index", type=int, default=1, help="faces with |h|, |k|, |l| <= this")
+    sf.add_argument("--max-index", type=int, default=1, choices=[0, 1], help="faces with |h|, |k|, |l| <= this (1 is the largest that can be cut)")
     sf.add_argument("--thickness", type=float, default=16.0, help="minimum slab thickness (A)")
     sf.add_argument("--vacuum", type=float, default=16.0, help="vacuum along the normal (A)")
     sf.add_argument("--keep-cell", action="store_true", help="add the vacuum along the lattice vector out of the plane, so that the "
