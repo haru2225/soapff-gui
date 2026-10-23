@@ -329,7 +329,7 @@ def make_slab(bulk, types, miller_unit, min_thickness=16.0, vacuum=16.0, step=0.
         for i in band:
             keep[i] = True
             if i not in stay:
-                moved[i] = nper * a3                                   # the same interlayer site on the other face
+                moved[i] = (T / d) * a3                                # the same interlayer site on the other face (T = nper d, or the cut inside the cell)
     else:
         keep[[i for i in ion_idx if z0 <= z[i] < z0 + T]] = True
     # healing: the protonation of the chosen window
