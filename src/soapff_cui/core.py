@@ -590,7 +590,8 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
          "special_bonds lj/coul 0.0 0.0 0.0", "read_data system.data"]
     for x in tnames:
         e, sg = LJ[x]
-        S.append(f"pair_coeff {tid[x]} {tid[x]} {e:.10g} {sg:.6g}  # {x}")
+        # Table 1 as published: epsilon = D0, sigma = R0 / 2^(1/6) written in full double precision (not rounded)
+        S.append(f"pair_coeff {tid[x]} {tid[x]} {e!r} {sg!r}  # {x}")
     for k in bkeys:
         S.append(f"bond_coeff {bid[k]} {BOND_OH[0]} {BOND_OH[1]}  # {'O-H (water)' if k == 'OHw' else 'O-H'}")
     for k in akeys:
