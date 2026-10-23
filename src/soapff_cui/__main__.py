@@ -53,6 +53,14 @@ def main():
     aw.add_argument("--charge", type=float, default=0.0, help="net charge of the input structure (e) to cancel with --neutralize")
     aw.add_argument("--tolerance", type=float, default=2.0, help="minimum distance between the water or ions and the other atoms (A)")
     aw.add_argument("--seed", type=int, default=1)
+    aw.add_argument("--spec", default=None, metavar="ITEMS.json",
+                    help="general placement (as PACKMOL-GUI) instead of --gap/--region/--ion: a JSON list of items "
+                         '{"molecule": "water" or Na, K, Cs, Ca, Ba, Cl, "number": N (or "density": g/cm3 for water: N from the free '
+                         'volume of the region), "constraints": [["inside", "box", [xmin, ymin, zmin, xmax, ymax, zmax]], ...]} '
+                         "with the packmol constraints inside/outside box, cube, sphere, ellipsoid, cylinder and over/below plane, "
+                         "xygauss (frame: x' = x - y cot(gamma), y, z of the standard orientation)")
+    aw.add_argument("--show-input", action="store_true", help="with --spec: only print the packmol input")
+    aw.add_argument("--workdir", default=None, help="with --spec: keep packmol's files (pack.inp, xyz, packmol.log) in this folder")
     c = sub.add_parser("check-library", help="developer check: nearest other entry has the same charge (one to one)")
     c.add_argument("library")
     m = sub.add_parser("make", help="structure -> system.data, system.settings, in.lammps, charges.csv, report.json")
@@ -131,6 +139,28 @@ def main():
             for i, g in enumerate(gl):
                 print(f"{i}: z {g['lo']:.2f}-{g['hi']:.2f} A, thickness {g['thickness']:.2f} A, area {g['area']:.1f} A2, "
                       f"{g['n_water']} molecules at {a.density:g} g/cm3")
+            return
+        if a.spec:
+            import json
+            items = []
+            for it in json.load(open(a.spec)):
+                n = it.get("number")
+                if n is None:
+                    if it["molecule"] != "water" or "density" not in it:
+                        raise SystemExit(f"{it['molecule']}: give a number (or a density, for water)")
+                    e = W.estimate(at, it["constraints"], density=float(it["density"]))
+                    n = e["n_water"]
+                    print(f"water: region {e['volume']:.0f} A3, free {e['free_volume']:.0f} A3 -> {n} molecules at {it['density']} g/cm3")
+                items.append(dict(molecule=it["molecule"], number=int(n), constraints=[tuple(c) for c in it["constraints"]]))
+            if a.show_input:
+                print(W.packmol_input(at, items, tolerance=a.tolerance, seed=a.seed), end="")
+                return
+            new, rep = W.pack(at, items, tolerance=a.tolerance, seed=a.seed, workdir=a.workdir)
+            out = a.out or a.structure.rsplit(".", 1)[0] + "_water.extxyz"
+            ase.io.write(out, new, format="extxyz")
+            ions = [(r["molecule"], r["n"]) for r in rep["items"] if r["molecule"] != "water"]
+            print(f"wrote {out}: {len(new)} atoms; charge of the ions {W.net_charge(ions):+d} e"
+                  + ("" if rep["converged"] else "; packmol did NOT converge"))
             return
         regs = [gl[i] for i in a.gap] + [W.region(at, lo, hi, tuple(a.x), tuple(a.y), a.density) for lo, hi in a.region]
         if not regs:

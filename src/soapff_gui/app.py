@@ -1455,8 +1455,11 @@ class App:
         at = at[keep]; types = [t for t, k in zip(types, keep) if k]
         w, f, bar = self._derived_dialog("Surface (slab in vacuum)", f"{os.path.basename(self.structure)}: {len(at)} atoms"
                                          + (" (its water is left out)" if not all(keep) else ""))
-        ttk.Label(f, text="Face (h k l) of the unit cell. Only a face that cuts no cation-O bond can be cut: the basal plane between the "
-                          "layers of a layered mineral, (0 0 1) for the bundled minerals: montmorillonite, muscovite 1M/2M1, phlogopite, nanpingite, pyrophyllite, talc, kaolinite, lizardite, brucite. Every other face cuts bonds: edges (O that would need H) are not supported", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
+        nt = ttk.Frame(f)
+        nt.grid(row=0, column=0, columnspan=6, sticky="w")
+        ttk.Label(nt, text="Valid only for the (0 0 1) face (the basal plane of a layered mineral).", font=self.f_bold).pack(anchor="w")
+        ttk.Label(nt, text="Face (h k l) of the unit cell. Only a face that cuts no cation-O bond can be cut: the basal plane between the "
+                          "layers of a layered mineral, (0 0 1) for the bundled minerals: montmorillonite, muscovite 1M/2M1, phlogopite, nanpingite, pyrophyllite, talc, kaolinite, lizardite, brucite. Every other face cuts bonds: edges (O that would need H) are not supported", foreground=MUTED, wraplength=560, justify="left").pack(anchor="w")
         hkl = []
         for k, (ax, v0) in enumerate(zip("hkl", (0, 0, 1))):
             ttk.Label(f, text=ax).grid(row=1, column=2 * k, sticky="e", pady=8)
@@ -1533,14 +1536,18 @@ class App:
         ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left")
 
     def new_water(self):
-        """a structure (the current one, or one chosen) -> the empty slices along z (vacuum, interlayer) listed; the chosen
-        ones are filled with water by packmol at a density or a number of molecules (soapff_cui.water); the result is written
-        next to the structure and the force field and input are made from it (the water is typed by rule, with the water
-        model of the Calculation settings)."""
+        """a structure (the current one, or one chosen) -> water and ions placed by packmol (soapff_cui.water.pack), as in
+        PACKMOL-GUI: a list of items (the water or an ion of ClayFF Table 1, a number, the packmol constraints of its region:
+        inside/outside box, cube, sphere, ellipsoid, cylinder; over/below plane, xygauss), the regions drawn over the structure
+        (side and top views), the number of water molecules from a density and the free volume of the region, the packmol
+        input shown and its log.  The empty slices along z (vacuum, interlayer) are offered as boxes.  The result is written
+        next to the structure (packmol's files in <stem>_water_packmol/) and the force field and input are made from it (the
+        water is typed by rule, with the water model of the Calculation settings)."""
         if self.busy():
             messagebox.showinfo("soapff-GUI", "A run is in progress. Choose after it finishes or is stopped")
             return
         from soapff_cui import water as W
+        import numpy as np
         try:
             exe = W.find_packmol()
         except FileNotFoundError as e:
@@ -1555,83 +1562,263 @@ class App:
         except Exception as e:
             messagebox.showerror("soapff-GUI", f"Cannot read the structure: {e}")
             return
-        dens = tk.StringVar(value="1.0")
+        fr = W.frame_of(at)
+        ax_, by_, cz_ = fr["ax"], fr["by"], fr["cz"]
+        z0_, z1_ = fr["z_atoms"]
         gl = W.gaps(at, density=1.0)
-        w, f, bar = self._derived_dialog("Add water (packmol)", f"{os.path.basename(p)}: {len(at)} atoms; empty regions along z (normal to the a-b plane)")
-        if not gl:
-            ttk.Label(f, text="No empty region thicker than 2.5 Å: make room first (Surface: vacuum; a larger c)").grid(row=0, column=0, sticky="w")
-            ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="left")
-            return
-        top = ttk.Frame(f)
-        top.grid(row=0, column=0, columnspan=10, sticky="w")
-        ttk.Label(top, text="Density (g/cm³)").pack(side="left")
-        ttk.Entry(top, textvariable=dens, width=6, style="Field.TEntry").pack(side="left", padx=6)
-        ttk.Label(top, text="sets the numbers below (area × thickness of the region); z from/to and the numbers can be edited, "
-                            "so a region can be narrower than an empty slice", foreground=MUTED).pack(side="left", padx=6)
-        for k, h in enumerate(("Fill", "z from (Å)", "to (Å)", "Thickness (Å)", "Area (Å²)", "Molecules", "a from", "a to", "b from", "b to")):
-            ttk.Label(f, text=h, font=self.f_bold).grid(row=1, column=k, sticky="w", padx=6, pady=(10, 2))
-        cell_a = abs(W.standard(at).cell[0, 0] * W.standard(at).cell[1, 1])
-        rows = []                                                  # (use, lo, hi, a0, a1, b0, b1, n) variables of every region
-        lab = []
+        w, f, bar = self._derived_dialog("Add water (packmol)", f"{os.path.basename(p)}: {len(at)} atoms; cell a {ax_:.2f} Å along x', "
+                                         f"b {by_:.2f} Å along y, c {cz_:.2f} Å along z; atoms at z {z0_:.2f}–{z1_:.2f} Å")
+        left = ttk.Frame(f)
+        left.grid(row=0, column=0, sticky="nsew")
+        right = ttk.Frame(f)
+        right.grid(row=0, column=1, sticky="nsew", padx=(14, 0))
+        f.columnconfigure(1, weight=1)
+        f.rowconfigure(0, weight=1)
+        ttk.Label(left, text="Coordinates (Å) are those of packmol: x' = x − y·cot γ (x' = x when γ = 90°), y in the a–b plane, z normal "
+                             "to it (the standard orientation); a region may run past the top of the cell (the cell is periodic in x', y "
+                             "and along c). Only the water and the ions of ClayFF Table 1 can be placed.", foreground=MUTED,
+                  wraplength=600, justify="left").pack(anchor="w")
 
-        def add_row(i, g, custom):
-            use = tk.BooleanVar(value=(g["thickness"] >= 6.0) and not custom)
-            v = [tk.StringVar(value=x) for x in (f"{g['lo']:.2f}", f"{g['hi']:.2f}", "0", "1", "0", "1", str(g["n_water"]))]
-            ttk.Checkbutton(f, variable=use).grid(row=2 + i, column=0, padx=6)
-            ttk.Entry(f, textvariable=v[0], width=7, style="Field.TEntry").grid(row=2 + i, column=1, sticky="w", padx=6)
-            ttk.Entry(f, textvariable=v[1], width=7, style="Field.TEntry").grid(row=2 + i, column=2, sticky="w", padx=6)
-            th, ar = tk.StringVar(), tk.StringVar()
-            ttk.Label(f, textvariable=th).grid(row=2 + i, column=3, sticky="w", padx=6)
-            ttk.Label(f, textvariable=ar).grid(row=2 + i, column=4, sticky="w", padx=6)
-            ttk.Entry(f, textvariable=v[6], width=7, style="Field.TEntry").grid(row=2 + i, column=5, sticky="w", padx=6)
-            for k in range(2, 6):
-                if custom:
-                    ttk.Entry(f, textvariable=v[k], width=5, style="Field.TEntry").grid(row=2 + i, column=4 + k, sticky="w", padx=4)
+        # ---- the items: molecule, number, constraints
+        items = []                                               # dict(molecule, number (str), constraints [(loc, shape, [floats])])
+        tf = ttk.Frame(left)
+        tf.pack(fill="x", pady=(8, 0))
+        tv = ttk.Treeview(tf, columns=("mol", "n", "cons"), show="headings", height=5, selectmode="browse")
+        for c_, h_, w_ in (("mol", "Molecule", 80), ("n", "Number", 70), ("cons", "Region (packmol constraints)", 440)):
+            tv.heading(c_, text=h_, anchor="w")
+            tv.column(c_, width=w_, anchor="w", stretch=(c_ == "cons"))
+        tv.pack(side="left", fill="x", expand=True)
+        ib = ttk.Frame(left)
+        ib.pack(fill="x", pady=(4, 0))
+
+        def con_text(con):
+            loc, shape, par = con
+            return f"{loc} {shape} " + " ".join(f"{x:.2f}" for x in par)
+
+        def cur():
+            s_ = tv.selection()
+            return int(s_[0]) if s_ else None
+
+        def refill(select=None):
+            tv.delete(*tv.get_children())
+            for k, it in enumerate(items):
+                tv.insert("", "end", iid=str(k), values=(it["molecule"], it["number"], "; ".join(con_text(c) for c in it["constraints"]) or "(none)"))
+            if items:
+                k = min(select if select is not None else 0, len(items) - 1)
+                tv.selection_set(str(k))
+                tv.see(str(k))
+            charge_text()
+
+        def new_item():
+            k = cur()
+            cons = [tuple(c) for c in items[k]["constraints"]] if k is not None else []
+            items.append(dict(molecule="water", number="0", constraints=cons))   # the region of the selected item, to start with
+            refill(len(items) - 1)
+            draw()
+
+        def remove_item():
+            k = cur()
+            if k is not None:
+                del items[k]
+                refill(k)
+                draw()
+        ttk.Button(ib, text="Add item", style="Ghost.TButton", command=new_item).pack(side="left")
+        ttk.Button(ib, text="Remove item", style="Ghost.TButton", command=remove_item).pack(side="left", padx=6)
+        ttk.Label(ib, text="(a new item starts with the region of the selected one)", foreground=MUTED).pack(side="left", padx=6)
+
+        # ---- the selected item: molecule and number; the number of water molecules from a density
+        ef = ttk.Frame(left)
+        ef.pack(fill="x", pady=(10, 0))
+        mol, num, dens = tk.StringVar(value="water"), tk.StringVar(value="0"), tk.StringVar(value="1.0")
+        ttk.Label(ef, text="Molecule").pack(side="left")
+        ttk.Combobox(ef, textvariable=mol, values=list(W.MOLECULES), state="readonly", width=7).pack(side="left", padx=6)
+        ttk.Label(ef, text="Number").pack(side="left", padx=(8, 0))
+        ttk.Entry(ef, textvariable=num, width=7, style="Field.TEntry").pack(side="left", padx=6)
+        ttk.Label(ef, text="Density (g/cm³)").pack(side="left", padx=(14, 0))
+        ttk.Entry(ef, textvariable=dens, width=5, style="Field.TEntry").pack(side="left", padx=6)
+        est = tk.StringVar(value="")
+        loading = [False]
+
+        def item_changed(*_):
+            k = cur()
+            if k is None or loading[0]:
+                return
+            items[k]["molecule"], items[k]["number"] = mol.get(), num.get().strip()
+            tv.item(str(k), values=(mol.get(), num.get().strip(), tv.item(str(k), "values")[2]))
+            charge_text()
+        mol.trace_add("write", item_changed)
+        num.trace_add("write", item_changed)
+
+        def from_density():
+            k = cur()
+            if k is None:
+                return
+            try:
+                r_ = W.estimate(at, items[k]["constraints"], density=float(dens.get()))
+            except ValueError as e:
+                est.set(str(e))
+                return
+            est.set(f"region {r_['volume']:.0f} Å³, outside the van der Waals spheres of the atoms {r_['free_volume']:.0f} Å³ "
+                    f"→ {r_['n_water']} water molecules at {float(dens.get()):g} g/cm³ (Monte Carlo)")
+            if items[k]["molecule"] == "water":
+                num.set(str(r_["n_water"]))
+        ttk.Button(ef, text="Number from density", style="Ghost.TButton", command=from_density).pack(side="left")
+        ttk.Label(left, textvariable=est, foreground=MUTED, wraplength=600, justify="left").pack(anchor="w")
+
+        # ---- the constraints of the selected item
+        cf = ttk.LabelFrame(left, text="Region of the selected item (all the constraints hold at once)", padding=8)
+        cf.pack(fill="x", pady=(8, 0))
+        lb = tk.Listbox(cf, font=self.f_mono_s, height=4, activestyle="none", selectbackground=SEL_BG, selectforeground=TEXT,
+                        exportselection=False)
+        lb.grid(row=0, column=0, columnspan=8, sticky="ew")
+        cf.columnconfigure(7, weight=1)
+        loc, shape = tk.StringVar(value="inside"), tk.StringVar(value="box")
+        lc = ttk.Combobox(cf, textvariable=loc, values=["inside", "outside"], state="readonly", width=8)
+        lc.grid(row=1, column=0, sticky="w", pady=(6, 0))
+        ttk.Combobox(cf, textvariable=shape, values=list(W.SHAPES), state="readonly", width=10).grid(row=1, column=1, sticky="w", padx=6, pady=(6, 0))
+        pf = ttk.Frame(cf)
+        pf.grid(row=2, column=0, columnspan=8, sticky="w", pady=(4, 0))
+        pl, pv = [], []
+        for k in range(8):
+            l_ = ttk.Label(pf, text="")
+            v_ = tk.StringVar()
+            e_ = ttk.Entry(pf, textvariable=v_, width=8, style="Field.TEntry")
+            l_.grid(row=k // 4, column=2 * (k % 4), sticky="e", padx=(6, 2), pady=2)
+            e_.grid(row=k // 4, column=2 * (k % 4) + 1, sticky="w", pady=2)
+            pl.append((l_, e_))
+            pv.append(v_)
+
+        def defaults(sh):
+            zt = z1_ + 2.0                                       # 2 Å above the highest atom
+            return {"box": [0.0, 0.0, zt, ax_, by_, zt + 10.0], "cube": [0.0, 0.0, zt, 10.0],
+                    "sphere": [ax_ / 2, by_ / 2, zt + 5.0, 5.0], "ellipsoid": [ax_ / 2, by_ / 2, zt + 5.0, 5.0, 4.0, 3.0, 1.0],
+                    "cylinder": [ax_ / 2, by_ / 2, zt, 0.0, 0.0, 1.0, 4.0, 10.0], "plane": [0.0, 0.0, 1.0, zt],
+                    "xygauss": [ax_ / 2, by_ / 2, 3.0, 3.0, zt, 3.0]}[sh]
+        setting = [False]
+
+        def show_shape(*_):
+            names, locs = W.SHAPES[shape.get()]
+            lc.configure(values=list(locs))
+            if loc.get() not in locs:
+                loc.set(locs[0])
+            for k, (l_, e_) in enumerate(pl):
+                if k < len(names):
+                    l_.configure(text=names[k]); l_.grid(); e_.grid()
                 else:
-                    ttk.Label(f, text=("0" if k % 2 == 0 else "1"), foreground=MUTED).grid(row=2 + i, column=4 + k, sticky="w", padx=8)
-            rows.append((use, v))
-            lab.append((th, ar))
+                    l_.grid_remove(); e_.grid_remove()
+            if not setting[0]:
+                for v_, x in zip(pv, defaults(shape.get())):
+                    v_.set(f"{x:.2f}")
+        shape.trace_add("write", show_shape)
+        show_shape()
+        hint = {"box": "xmin ymin zmin xmax ymax zmax", "cube": "corner (xmin ymin zmin) and side",
+                "sphere": "centre and radius", "ellipsoid": "((x−x0)/a)² + ((y−y0)/b)² + ((z−z0)/c)² ≤ d",
+                "cylinder": "from (x y z) along (dx dy dz), radius, length", "plane": "over: a x + b y + c z ≥ d; below: ≤ d",
+                "xygauss": "over: z ≥ z0 + height·exp(−(x−x0)²/2sx² − (y−y0)²/2sy²)"}
+        hl = ttk.Label(cf, text="", foreground=MUTED)
+        hl.grid(row=1, column=2, columnspan=6, sticky="w", padx=6, pady=(6, 0))
+        shape.trace_add("write", lambda *_: hl.configure(text=hint[shape.get()]))
+        hl.configure(text=hint[shape.get()])
 
-        for i, g in enumerate(gl):
-            add_row(i, g, False)
-        add_row(len(gl), dict(lo=gl[0]["lo"], hi=gl[0]["lo"] + min(10.0, gl[0]["thickness"]), thickness=min(10.0, gl[0]["thickness"]),
-                              n_water=W.n_water(gl[0]["area"] * min(10.0, gl[0]["thickness"]), 1.0)), True)
-        ttk.Label(f, text="The last row is a free box: any z range (it may be a part of an empty slice) and the fractions of a and b "
-                          "(example: the upper 10 Å of a vacuum, or half of the cell in b).", foreground=MUTED, wraplength=700,
-                  justify="left").grid(row=3 + len(gl), column=0, columnspan=10, sticky="w", pady=(2, 0))
+        def read_con():
+            names, _ = W.SHAPES[shape.get()]
+            try:
+                return W.check_constraint((loc.get(), shape.get(), [float(v_.get()) for v_ in pv[:len(names)]]))
+            except ValueError as e:
+                status.set(f"Check the constraint: {e}")
+                return None
 
-        def region_of(k):
-            use, v = rows[k]
-            lo, hi, a0, a1, b0, b1 = (float(x.get()) for x in v[:6])
-            return W.region(at, lo, hi, (a0, a1), (b0, b1), float(dens.get()))
+        def fill_cons(k):
+            lb.delete(0, "end")
+            if k is not None:
+                for c in items[k]["constraints"]:
+                    lb.insert("end", con_text(c))
 
-        def redo(*_):
-            for k, (use, v) in enumerate(rows):
+        def con_changed(k):
+            tv.item(str(k), values=(items[k]["molecule"], items[k]["number"],
+                                    "; ".join(con_text(c) for c in items[k]["constraints"]) or "(none)"))
+            fill_cons(k)
+            draw()
+
+        def add_con():
+            k, c = cur(), read_con()
+            if k is None:
+                status.set("Add an item first")
+            elif c:
+                items[k]["constraints"].append(c)
+                con_changed(k)
+
+        def replace_con():
+            k, c, s_ = cur(), read_con(), lb.curselection()
+            if k is not None and c and s_:
+                items[k]["constraints"][s_[0]] = c
+                con_changed(k)
+
+        def remove_con():
+            k, s_ = cur(), lb.curselection()
+            if k is not None and s_:
+                del items[k]["constraints"][s_[0]]
+                con_changed(k)
+
+        def pick_con(*_):
+            k, s_ = cur(), lb.curselection()
+            if k is None or not s_:
+                return
+            l0, sh, par = items[k]["constraints"][s_[0]]
+            setting[0] = True
+            shape.set(sh); loc.set(l0)
+            for v_, x in zip(pv, par):
+                v_.set(f"{x:.4g}")
+            setting[0] = False
+        lb.bind("<<ListboxSelect>>", pick_con)
+        cb = ttk.Frame(cf)
+        cb.grid(row=3, column=0, columnspan=8, sticky="w", pady=(6, 0))
+        ttk.Button(cb, text="Add constraint", style="Ghost.TButton", command=add_con).pack(side="left")
+        ttk.Button(cb, text="Replace selected", style="Ghost.TButton", command=replace_con).pack(side="left", padx=6)
+        ttk.Button(cb, text="Remove selected", style="Ghost.TButton", command=remove_con).pack(side="left")
+
+        # the empty slices along z as boxes (0.5 Å in from the atom planes that bound them, the whole cell in x', y)
+        gf = ttk.Frame(cf)
+        gf.grid(row=4, column=0, columnspan=8, sticky="w", pady=(8, 0))
+        gap_names = [f"z {g['lo']:.2f}–{g['hi']:.2f} Å ({g['thickness']:.1f} Å thick, {g['n_water']} water at 1 g/cm³)" for g in gl]
+        gsel = tk.StringVar(value=gap_names[0] if gl else "")
+
+        def gap_box(g):
+            m = min(0.5, 0.25 * (g["hi"] - g["lo"]))
+            return ("inside", "box", [0.0, 0.0, g["lo"] + m, ax_, by_, g["hi"] - m])
+
+        def use_gap():
+            k = cur()
+            if k is None or not gl:
+                return
+            g = gl[gap_names.index(gsel.get())]
+            items[k]["constraints"] = [c for c in items[k]["constraints"] if not (c[0] == "inside" and c[1] == "box")] + [gap_box(g)]
+            if items[k]["molecule"] == "water":
                 try:
-                    g = region_of(k)
+                    num.set(str(W.n_water(g["area"] * g["thickness"], float(dens.get()))))
                 except ValueError:
-                    lab[k][0].set("-"); lab[k][1].set("-")
-                    continue
-                lab[k][0].set(f"{g['thickness']:.2f}"); lab[k][1].set(f"{g['area']:.1f}")
-                v[6].set(str(g["n_water"]))
-        for use, v in rows:
-            for x in v[:6]:
-                x.trace_add("write", redo)
-        dens.trace_add("write", redo)
-        redo()
+                    pass
+            con_changed(k)
+        ttk.Label(gf, text="Empty region").pack(side="left")
+        ttk.Combobox(gf, textvariable=gsel, values=gap_names, state="readonly", width=44).pack(side="left", padx=6)
+        ttk.Button(gf, text="Use as the box", style="Ghost.TButton", command=use_gap).pack(side="left")
+        ttk.Label(cf, text="“Use as the box” replaces the inside boxes of the item and, for water, sets the number from the density "
+                           "and the area × thickness of the empty slice (between the atom planes)." if gl else
+                  "No empty slice thicker than 2.5 Å along z: make room first (Surface: vacuum; a larger c), or give a region "
+                  "around the atoms", foreground=MUTED, wraplength=580, justify="left").grid(row=5, column=0, columnspan=8, sticky="w")
 
-        # ions of ClayFF Table 1 (soapff_cui.water.ION_CHARGE): counts, shared among the filled regions in proportion to the water
-        r0 = 4 + len(gl)
-        ttk.Label(f, text="Ions (ClayFF Table 1), placed in the filled regions with the water:", font=self.f_bold).grid(
-            row=r0, column=0, columnspan=10, sticky="w", pady=(12, 2))
-        ionf = ttk.Frame(f)
-        ionf.grid(row=r0 + 1, column=0, columnspan=10, sticky="w")
-        ionv = {}
-        for k, e in enumerate(W.ION_CHARGE):
-            ionv[e] = tk.StringVar(value="0")
-            ttk.Label(ionf, text=f"{e}{'+' * W.ION_CHARGE[e] if W.ION_CHARGE[e] > 0 else '-'}" if abs(W.ION_CHARGE[e]) == 1
-                      else f"{e}{abs(W.ION_CHARGE[e])}+").grid(row=0, column=2 * k, padx=(10, 2))
-            ttk.Entry(ionf, textvariable=ionv[e], width=5, style="Field.TEntry").grid(row=0, column=2 * k + 1)
+        def pick_item(*_):
+            k = cur()
+            if k is None:
+                fill_cons(None)
+                return
+            loading[0] = True
+            mol.set(items[k]["molecule"]); num.set(items[k]["number"])
+            loading[0] = False
+            fill_cons(k)
+        tv.bind("<<TreeviewSelect>>", pick_item)
+
+        # ---- net charge: the ClayFF charges of the structure + the ions; the number of a counter-ion that cancels it
         q0 = 0.0
         csvf = os.path.join(self.out, "charges.csv") if self.out and p == self.structure else ""
         if csvf and os.path.isfile(csvf):
@@ -1640,73 +1827,169 @@ class App:
         qinfo = tk.StringVar()
         counter = tk.StringVar(value="Cl")
 
-        def ion_list():
+        def ion_list(skip=None):
             out = []
-            for e, v in ionv.items():
+            for it in items:
+                if it["molecule"] == "water" or it["molecule"] == skip:
+                    continue
                 try:
-                    n = int(v.get())
+                    n = int(it["number"])
                 except ValueError:
-                    raise ValueError(f"the number of {e} ions must be an integer")
-                if n > 0:
-                    out.append((e, n))
+                    raise ValueError(f"the number of {it['molecule']} must be an integer")
+                out.append((it["molecule"], n))
             return out
 
         def charge_text(*_):
             try:
                 qi = W.net_charge(ion_list())
-                qinfo.set(f"net charge of the structure {q0:+.4f} e (its ClayFF charges) + ions {qi:+d} e = {q0 + qi:+.4f} e (the water is neutral)")
+                qinfo.set(f"net charge: the structure {q0:+.4f} e (its ClayFF charges"
+                          + ("" if csvf and os.path.isfile(csvf) else "; no charges.csv for it, taken as 0") + f") + ions {qi:+d} e = "
+                          f"{q0 + qi:+.4f} e (the water is neutral)")
             except ValueError as e:
                 qinfo.set(str(e))
-        for v in ionv.values():
-            v.trace_add("write", charge_text)
-        charge_text()
 
         def neutralize():
             try:
-                cur = [(e, n) for e, n in ion_list() if e != counter.get()]
-                q = round(q0) + W.net_charge(cur)
-                z = W.ION_CHARGE[counter.get()]
-                k = -q / z
-                if k < 0 or abs(k - round(k)) > 1e-9:
-                    status.set(f"{counter.get()} cannot cancel {q:+d} e (choose an ion of the opposite sign; Ca and Ba carry 2 e)")
-                    return
-                ionv[counter.get()].set(str(int(round(k))))
+                q = round(q0) + W.net_charge(ion_list(skip=counter.get()))
             except ValueError as e:
                 status.set(str(e))
-        nf = ttk.Frame(f)
-        nf.grid(row=r0 + 2, column=0, columnspan=10, sticky="w", pady=(4, 0))
+                return
+            z = W.ION_CHARGE[counter.get()]
+            n = -q / z
+            if n < 0 or abs(n - round(n)) > 1e-9:
+                status.set(f"{counter.get()} cannot cancel {q:+d} e (choose an ion of the opposite sign; Ca and Ba carry 2 e)")
+                return
+            ks = [k for k, it in enumerate(items) if it["molecule"] == counter.get()]
+            if ks:                                               # the first item of that ion takes the number, the others 0
+                for k in ks:
+                    items[k]["number"] = "0"
+                items[ks[0]]["number"] = str(int(round(n)))
+                k = ks[0]
+            else:                                                # a new item, in the region of the first water item
+                src = next((it for it in items if it["molecule"] == "water"), items[cur()] if cur() is not None else None)
+                items.append(dict(molecule=counter.get(), number=str(int(round(n))),
+                                  constraints=[tuple(c) for c in src["constraints"]] if src else []))
+                k = len(items) - 1
+            refill(k)
+            draw()
+        nf = ttk.Frame(left)
+        nf.pack(fill="x", pady=(10, 0))
         ttk.Label(nf, text="Cancel the net charge with").pack(side="left")
         ttk.Combobox(nf, textvariable=counter, values=list(W.ION_CHARGE), width=4, state="readonly").pack(side="left", padx=6)
         ttk.Button(nf, text="Set the number", style="Ghost.TButton", command=neutralize).pack(side="left")
-        ttk.Label(f, textvariable=qinfo, foreground=MUTED, wraplength=700, justify="left").grid(row=r0 + 3, column=0, columnspan=10, sticky="w")
-        status = tk.StringVar(value=f"packmol: {exe}; water and ions at least 2.0 Å from every atom")
-        ttk.Label(f, textvariable=status, foreground=MUTED, wraplength=700, justify="left").grid(row=r0 + 4, column=0, columnspan=10, sticky="w", pady=(10, 0))
+        ttk.Label(nf, text="(an item of that ion, or a new one in the region of the water)", foreground=MUTED).pack(side="left", padx=6)
+        ttk.Label(left, textvariable=qinfo, foreground=MUTED, wraplength=600, justify="left").pack(anchor="w")
+
+        of = ttk.Frame(left)
+        of.pack(fill="x", pady=(10, 0))
+        tol, seed = tk.StringVar(value="2.0"), tk.StringVar(value="1")
+        ttk.Label(of, text="Tolerance (Å)").pack(side="left")
+        ttk.Entry(of, textvariable=tol, width=5, style="Field.TEntry").pack(side="left", padx=6)
+        ttk.Label(of, text="Seed").pack(side="left", padx=(8, 0))
+        ttk.Entry(of, textvariable=seed, width=6, style="Field.TEntry").pack(side="left", padx=6)
+        ttk.Label(of, text="(the smallest distance between the placed atoms and every other atom)", foreground=MUTED).pack(side="left")
+        status = tk.StringVar(value=f"packmol: {exe}")
+        ttk.Label(left, textvariable=status, foreground=MUTED, wraplength=600, justify="left").pack(anchor="w", pady=(8, 0))
+
+        # ---- the preview: the atoms and the regions (Monte Carlo points outside the van der Waals spheres), side and top views
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+        fig = Figure(figsize=(5.2, 6.4), dpi=90)
+        a_side, a_top = fig.add_subplot(211), fig.add_subplot(212)
+        canvas = FigureCanvasTkAgg(fig, master=right)
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+        P = fr["positions"]
+        el = np.array(fr["symbols"])
+
+        def draw():
+            for a in (a_side, a_top):
+                a.clear()
+            heavy = el != "H"
+            a_side.scatter(P[heavy, 0], P[heavy, 2], s=3, c="#9aa5ad", lw=0)
+            a_top.scatter(P[heavy, 0], P[heavy, 1], s=3, c="#9aa5ad", lw=0)
+            for a, top_ in ((a_side, cz_), (a_top, by_)):
+                a.plot([0, ax_, ax_, 0, 0], [0, 0, top_, top_, 0], ls="--", lw=0.8, c="#5d6b75")
+            notes = []
+            for k, it in enumerate(items):
+                col = f"C{k % 10}"
+                try:
+                    r_ = W.estimate(at, it["constraints"], n_points=40000, seed=k)
+                except ValueError as e:
+                    notes.append(f"{k + 1} {it['molecule']}: {e}")
+                    continue
+                X = r_["points"]
+                lab_ = f"{k + 1} {it['molecule']} ({it['number']})"
+                a_side.scatter(X[:, 0], X[:, 2], s=2, c=col, alpha=0.35, lw=0, label=lab_)
+                a_top.scatter(X[:, 0], X[:, 1], s=2, c=col, alpha=0.35, lw=0)
+            a_side.set_xlabel("x' (Å)"); a_side.set_ylabel("z (Å)")
+            a_top.set_xlabel("x' (Å)"); a_top.set_ylabel("y (Å)")
+            a_side.set_title("side (x'–z)", fontsize=9); a_top.set_title("top (x'–y)", fontsize=9)
+            a_top.set_aspect("equal", adjustable="datalim")
+            if items:
+                a_side.legend(fontsize=7, markerscale=4, loc="best")
+            fig.tight_layout()
+            canvas.draw_idle()
+            if notes:
+                status.set("; ".join(notes))
+        ttk.Button(right, text="Draw the regions", style="Ghost.TButton", command=draw).pack(anchor="w", pady=(6, 0))
+        lgf = ttk.LabelFrame(right, text="packmol log", padding=4)
+        lgf.pack(fill="both", expand=False, pady=(6, 0))
+        logt = tk.Text(lgf, height=8, width=64, font=self.f_mono_s, bg=CODE_BG, fg=TEXT, relief="flat", wrap="none")
+        logt.pack(fill="both", expand=True)
+
+        # the starting items: water in every empty slice at least 6 Å thick (the number at 1 g/cm3 of its area x thickness)
+        for g in gl:
+            if g["thickness"] >= 6.0:
+                items.append(dict(molecule="water", number=str(g["n_water"]), constraints=[gap_box(g)]))
+        refill(0)
+        pick_item()
+        draw()
+
+        def collect():
+            out = []
+            for it in items:
+                try:
+                    n = int(it["number"])
+                except ValueError:
+                    raise ValueError(f"the number of {it['molecule']} must be an integer")
+                out.append(dict(molecule=it["molecule"], number=n, constraints=it["constraints"]))
+            return out, float(tol.get()), int(seed.get())
+
+        def show_input():
+            try:
+                its, t_, sd = collect()
+                txt = W.packmol_input(at, its, tolerance=t_, seed=sd)
+            except ValueError as e:
+                status.set(f"Check the items: {e}")
+                return
+            v = tk.Toplevel(w)
+            v.title("packmol input (pack.inp)")
+            t = scrolledtext.ScrolledText(v, font=self.f_mono_s, height=30, width=100, wrap="none")
+            t.pack(fill="both", expand=True)
+            t.insert("1.0", txt + "\n# solid.xyz: the structure (fixed), water.xyz: one rigid water, ion_<X>.xyz: one ion; written to "
+                                  f"{os.path.splitext(os.path.basename(p))[0]}_water_packmol/ when packmol runs\n")
+        ttk.Button(right, text="Show packmol input", style="Ghost.TButton", command=show_input).pack(anchor="w", pady=(6, 0))
         made = {}
 
         def make_file(then):
             try:
-                chosen = []
-                for k, (use, v) in enumerate(rows):
-                    if use.get() and int(v[6].get()) > 0:
-                        chosen.append((region_of(k), int(v[6].get())))
-                ions = ion_list()
+                its, t_, sd = collect()
+                W.packmol_input(at, its, tolerance=t_, seed=sd)      # checks the items (regions, numbers) before packmol runs
             except ValueError as e:
-                status.set(f"Check the numbers: {e}")
+                status.set(f"Check the items: {e}")
                 return
-            if not chosen:
-                status.set("Choose at least one region with molecules")
-                return
-            key = (tuple((g["lo"], g["hi"], g["xr"], g["yr"], n) for g, n in chosen), tuple(ions))
+            key = repr((its, t_, sd))
             if key in made:
                 then(made[key])
                 return
-            status.set(f"packmol: placing {sum(n for _, n in chosen)} water molecules" + "".join(f", {n} {e}" for e, n in ions) + "…")
+            status.set("packmol: placing " + ", ".join(f"{it['number']} {it['molecule']}" for it in its if it["number"] > 0) + "…")
             w.config(cursor="watch")
+            stem = os.path.splitext(os.path.basename(p))[0]
+            wd = os.path.join(os.path.dirname(p), f"{stem}_water_packmol")
 
             def work():
                 try:
-                    new, rep = W.add_water(at, chosen, ions=ions, log=lambda m: self.q.put(("log", m + "\n", None)))
-                    stem = os.path.splitext(os.path.basename(p))[0]
+                    new, rep = W.pack(at, its, tolerance=t_, seed=sd, workdir=wd, log=lambda m: self.q.put(("log", m + "\n", None)))
                     out = os.path.join(os.path.dirname(p), f"{stem}_water.extxyz")
                     import ase.io
                     ase.io.write(out, new, format="extxyz")
@@ -1719,13 +2002,18 @@ class App:
                         return
                     w.config(cursor="")
                     out, rep, err = res
+                    logt.delete("1.0", "end")
                     if err:
                         status.set(f"packmol failed: {err}")
+                        logt.insert("1.0", str(err))
                         return
-                    bad = [r for r in rep if not r["converged"]]
-                    status.set(f"→ {os.path.basename(out)}: " + ", ".join(f"{r['n']} molecules" + "".join(f" + {k} {e}" for e, k in r["ions"].items())
-                                                                         + f" in z {r['lo']:.1f}-{r['hi']:.1f} Å" for r in rep)
-                               + (" (packmol did not converge in a region: fewer molecules or a lower density)" if bad else ""))
+                    logt.insert("1.0", rep["log"])
+                    logt.see("end")
+                    status.set(f"→ {os.path.basename(out)}: " + ", ".join(f"{r['n']} {r['molecule']} (nearest atom {r['min_distance']:.2f} Å)"
+                                                                         for r in rep["items"])
+                               + ("" if rep["converged"] else " — packmol did NOT converge (overlaps may remain): fewer molecules, a "
+                                                              "lower density or a larger region")
+                               + f"; packmol's files in {os.path.basename(wd)}/")
                     self.log_add(f"Water added: {out}\n", None)
                     made[key] = out
                     then(out)
@@ -1742,6 +2030,7 @@ class App:
         ttk.Button(bar, text="Build force field from this structure", style="Accent.TButton",
                    command=lambda: make_file(lambda out: self._build_from(out, w))).pack(side="right")
         ttk.Button(bar, text="Check in OVITO", style="Ghost.TButton", command=preview).pack(side="right", padx=8)
+        ttk.Button(bar, text="Run packmol", style="Ghost.TButton", command=lambda: make_file(lambda out: None)).pack(side="right")
         ttk.Button(bar, text="Cancel", style="Ghost.TButton", command=w.destroy).pack(side="left")
 
     def open_project(self):
