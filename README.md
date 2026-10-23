@@ -67,3 +67,15 @@ src/soapff_gui/  GUI (app.py), command lists (catalog.py), SSH (remote.py), exec
 src/soapff_cui/  force-field generation (core.py), analysis (analysis.py). The command is soapff-cui
 examples/        the examples above
 ```
+
+## Interfaces in the library
+
+Each of the 12 minerals (pyrophyllite, pyrophyllite_2, talc, kaolinite, lizardite, brucite, muscovite 1M, muscovite 2M1, phlogopite 1M, nanpingite, montmorillonite (dry, Na), quartz) has the 13 faces with |h|,|k|,|l| <= 1 (indices of the cell of its own reference file, signs removed: 100 010 001 1-10 110 10-1 101 01-1 011 1-1-1 1-11 11-1 111) as slabs in vacuum, plus the 13 bulk references and the JAEA montmorillonite particle (hexagonal edges, no face index): 156 slabs, 10,017 library rows.
+
+| kind | faces | bonds cut | charges |
+|---|---|---|---|
+| basal (layered minerals) | 001 | none; the interlayer ions shared by the two faces | the ClayFF types of the bulk |
+| edges (layered minerals) | the other 12 | cation-O bonds cut; O healed by bond valence (H added, OH2 on a single octahedral metal removed) | oe_ / _e types by the bond-valence rule (Lammers et al. 2017, Eq. 1) |
+| quartz | all 13 | Si-O bonds cut; Si-OH silanol surfaces | oe_sh |
+
+Faces outside this list are cut by `soapff-cui make-surfaces` / the GUI "Surface" button in the same way.
