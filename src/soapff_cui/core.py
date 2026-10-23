@@ -608,7 +608,7 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
 BARO = {"iso": "iso", "aniso": "aniso", "tri": "tri", "z": "z"}   # NPT coupling: iso/aniso/full cell (tri)/normal only (z)
 
 
-ION_NAMES = ("Na", "K", "Ca", "Cs", "Cl")
+ION_NAMES = ("Na", "K", "Ca", "Cs", "Ba", "Cl")
 
 
 def analysis_lines(type_ids, every=100):

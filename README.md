@@ -9,7 +9,7 @@ A GUI for clay minerals. You pick a structure file (elements, coordinates, and b
 - **Adding MD steps**: after the minimization, choose from the lists of LAMMPS fix, compute, and other commands to add them (temperature, pressure, time step, and IDs are filled in automatically). Commands can also be entered by **copy and paste** (select a line and press Cmd+V, or use "Open as text (large, paste)" in the editor to edit the whole input in a large window and press "Apply"). The editor can be enlarged by dragging the border at the bottom or with "Expand".
 - **Supercell**: replicates the structure along a, b, and c with OVITO's Replicate, then builds the force field.
 - **Surface**: cuts the basal plane of a layered mineral from the current calculation (it uses the ClayFF types of the bulk): the cut goes through the interlayer, no cation-O bond is cut, and the interlayer ions are shared by the two faces. A face that would cut bonds (an edge, any face of quartz) is refused: edges, whose O would need H, are not supported. Then builds the force field.
-- **Add water**: lists the empty slices of the structure along z (the vacuum above a surface, an interlayer) with their thickness and area; the chosen ones are filled by packmol at a density (default 1.0 g/cm³) or a number of molecules, at least 2 Å from every atom. Then builds the force field (the water typed by rule, with the chosen water model). The recommended way to make hydrated or interfacial systems: give the dry structure and add the water here.
+- **Add water**: lists the empty slices of the structure along z (the vacuum above a surface, an interlayer) with their thickness and area. Every region can be narrowed (edit z from/to), and a free box (any z range, and the fractions of a and b) can be added, e.g. only the upper 10 Å of a vacuum or half of the cell. Water is placed by packmol at a density (default 1.0 g/cm³) or a number of molecules, at least 2 Å from every atom. **Ions** of ClayFF Table 1 (Na⁺, K⁺, Cs⁺, Ca²⁺, Ba²⁺, Cl⁻) can be added in the same regions (shared in proportion to the water), with a button that sets the number of an ion to cancel the net charge. Then builds the force field (the water and the ions typed by rule, with the chosen water model). The recommended way to make hydrated or interfacial systems: give the dry structure and add the water here. The same from the command line: `soapff-cui add-water STRUCTURE --list`, then e.g. `soapff-cui add-water slab.extxyz --region 30 50 --x 0 0.5 --ion Ca:3 --neutralize Cl -o slab_water.extxyz`.
 - **Swelling curve**: runs NPT while adding water molecules to the interlayer, and records the box of each state in `swelling.dat` (same procedure as Cygan et al. 2004; the plot is made by `examples/montmorillonite_swelling/analyze_swelling.py`).
 - **Running**: LAMMPS runs on this computer or on another computer registered over SSH (just enter `user@host` to register it).
 - **Analysis**: diffusion coefficients (when a `compute msd` is present), and SOVA PDF, RDF, coordination numbers, and S(Q). The SOVA dr, maximum r, Q range and step, X-ray or neutron, number of frames, and the pairs to compute, including pairs split by type (example: K-ob K-obts), can be set on the analysis screen (Settings > Analysis). Structures can be displayed in OVITO ("OVITO" (or the menu item "Open in OVITO")).
@@ -47,10 +47,12 @@ Passwords are not saved (you are asked each time you register, run, or press "Te
 
 | Folder | Contents |
 |---|---|
-| `library_nvt_npt/` | NVT and NPT of each of the 13 library structures (inputs, outputs, and analysis made with the GUI) |
-| `montmorillonite_2W/` | Diffusion coefficients of Na montmorillonite with a 2-layer hydrate (300, 330, and 366 K; compared with Greathouse et al. 2016). The JAEA initial structure used there has two Si-O pairs 0.83 Å apart; the current library leaves it out, and the GUI stops on it (overlapping atoms) |
-| `montmorillonite_swelling/` | How to build the same Na montmorillonite structure as Cygan et al. 2004, and its swelling curve |
-| `muscovite_2M1/` | Elastic constants, tension, and shear of muscovite 2M1 (calculations for the paper) |
+| `library_nvt_npt/` | NVT and NPT of each of the 12 bulk library structures (soapff-cui `make` inputs, LAMMPS outputs, and analysis; summary table in its README) |
+| `montmorillonite_2W/` | Diffusion coefficients of Na montmorillonite with a 2-layer hydrate (1,554 atoms made from the 32-water state of the swelling example; 300, 330, and 366 K; compared with Greathouse et al. 2016) |
+| `montmorillonite_swelling/` | How to build the same Na montmorillonite structure as Cygan et al. 2004, and its swelling curve (10 water contents) |
+| `muscovite_2M1/` | 0 K elastic constants, tension, compression, and shear of muscovite 2M1 (the property commands of an earlier soapff-gui version, rerun with the current force field) |
+
+All the examples use the current force field: the charges of Table 1 of Cygan et al. 2004 as they are, the LJ parameters unrounded, and the flexible SPC water. The runs were made on an SSH computer (Linux, Open MPI, PPPM 1e-5).
 
 ## Supported structures and limits
 
@@ -77,6 +79,29 @@ Only interfaces that cut no bond: the basal plane (0 0 1) of the 11 layered mine
 | basal (layered minerals) | 001 | none; the interlayer ions shared by the two faces | the ClayFF types of the bulk |
 | edges, quartz surfaces | the others | cation-O bonds | not supported |
 
+Which mineral and which face (|h|, |k|, |l| <= 1; each was tested by cutting all 13 faces of the bulk reference):
+
+| Mineral | Interlayer ion | (001) slab and its water interface | Other faces |
+|---|---|---|---|
+| montmorillonite (dry, Na; Cygan et al. composition) | Na⁺ | yes | refused |
+| muscovite 2M1, muscovite 1M | K⁺ | yes | refused |
+| phlogopite 1M | K⁺ | yes | refused |
+| nanpingite (Cs mica) | Cs⁺ | yes | refused |
+| pyrophyllite (two sources), talc | none | yes | refused |
+| kaolinite, lizardite | none (1:1 layers) | yes | refused |
+| brucite | none | yes | refused |
+| quartz | none | no (Si-O bonds are cut by every face) | refused |
+
+Of the 156 slabs (12 minerals x 13 faces) only the 11 (001) slabs can be made (formal charge 0, no cation-O bond cut); the other 145 are refused. Water was added to all 11 and the minimization converged (fallback 0). Any other ClayFF mineral can be added with its own bulk reference (see above), and an interface with it follows the same rule.
+
 A mineral-water interface is the basal slab with water added in the empty part ("Add water").
 
-Slab cell: `soapff-cui make-surfaces --keep-cell` (GUI Surface: "Keep the cell", on by default) adds the vacuum along the lattice vector that leaves the plane, so the in-plane vectors and the shape of the input cell are kept; without it the third vector is the surface normal. `--repeat NA NB NC` (GUI: "Repeat the cell") repeats the bulk cell before the cut. `--periods N|auto` (GUI: "Cut inside the cell", on by default) cuts inside the input cell without changing it: the slab keeps N unit cells (auto: all but one) along the direction out of the plane and the rest of the cell is empty; `--vacuum` is then only an extra length added to the cell. The automatic cut keeps all unit cells but one (and a slab at least 10 A thick); the cell is lengthened by whole periods along that direction only when the empty part would be narrower than 6 A (wider than the SOAP cut-off, so that the two faces do not see each other), and the result says so.
+Slab cell (the three options of the Surface dialog, with their command-line names):
+
+| GUI | Command line | Meaning |
+|---|---|---|
+| Repeat the cell (a b c) before the cut | `--repeat NA NB NC` | the bulk cell is repeated before the cut, so the slab (and the cell) is larger in the plane and along the stacking direction, e.g. `3 2 1` for a 3x2 supercell |
+| Cut inside the cell / Unit cells kept (blank: all but one) | `--periods N\|auto` | the cell is not changed: the slab keeps N unit cells along the direction out of the plane (blank/auto: all but one, at least 10 Å thick) and the rest of the cell is empty (it takes the water). Off: a slab at least 16 Å thick with 30 Å of vacuum added along that direction (command line: `--thickness`, `--vacuum`) |
+| Extra length of the cell (Å) | `--vacuum` (with `--periods`) | with "Cut inside the cell" only: an extra length added to the cell along that direction (0: nothing). The cell is also lengthened by whole periods, automatically, when the empty part would be narrower than 6 Å (wider than the SOAP cut-off, so that the two faces do not see each other); the result says so |
+
+`--keep-cell` (GUI: always on) adds the vacuum along the lattice vector that leaves the plane, so the in-plane vectors and the shape of the input cell are kept.

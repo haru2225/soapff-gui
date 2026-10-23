@@ -1456,7 +1456,7 @@ class App:
         w, f, bar = self._derived_dialog("Surface (slab in vacuum)", f"{os.path.basename(self.structure)}: {len(at)} atoms"
                                          + (" (its water is left out)" if not all(keep) else ""))
         ttk.Label(f, text="Face (h k l) of the unit cell. Only a face that cuts no cation-O bond can be cut: the basal plane between the "
-                          "layers of a layered mineral, (0 0 1) for the bundled minerals. Edges (bonds cut, O that would need H) are not supported", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
+                          "layers of a layered mineral, (0 0 1) for the bundled minerals: montmorillonite, muscovite 1M/2M1, phlogopite, nanpingite, pyrophyllite, talc, kaolinite, lizardite, brucite. Every other face, and every face of quartz, cuts bonds: edges (O that would need H) are not supported", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
         hkl = []
         for k, (ax, v0) in enumerate(zip("hkl", (0, 0, 1))):
             ttk.Label(f, text=ax).grid(row=1, column=2 * k, sticky="e", pady=8)
@@ -1574,54 +1574,149 @@ class App:
             ttk.Button(bar, text="Close", style="Ghost.TButton", command=w.destroy).pack(side="left")
             return
         top = ttk.Frame(f)
-        top.grid(row=0, column=0, columnspan=6, sticky="w")
+        top.grid(row=0, column=0, columnspan=10, sticky="w")
         ttk.Label(top, text="Density (g/cm³)").pack(side="left")
         ttk.Entry(top, textvariable=dens, width=6, style="Field.TEntry").pack(side="left", padx=6)
-        ttk.Label(top, text="sets the numbers below (area × thickness between the atom planes); a number can be edited",
-                  foreground=MUTED).pack(side="left", padx=6)
-        for k, h in enumerate(("Fill", "z from (Å)", "to (Å)", "Thickness (Å)", "Area (Å²)", "Molecules")):
+        ttk.Label(top, text="sets the numbers below (area × thickness of the region); z from/to and the numbers can be edited, "
+                            "so a region can be narrower than an empty slice", foreground=MUTED).pack(side="left", padx=6)
+        for k, h in enumerate(("Fill", "z from (Å)", "to (Å)", "Thickness (Å)", "Area (Å²)", "Molecules", "a from", "a to", "b from", "b to")):
             ttk.Label(f, text=h, font=self.f_bold).grid(row=1, column=k, sticky="w", padx=6, pady=(10, 2))
-        rows = []
-        for i, g in enumerate(gl):
-            use = tk.BooleanVar(value=g["thickness"] >= 6.0)
-            nv = tk.StringVar(value=str(g["n_water"]))
+        cell_a = abs(W.standard(at).cell[0, 0] * W.standard(at).cell[1, 1])
+        rows = []                                                  # (use, lo, hi, a0, a1, b0, b1, n) variables of every region
+        lab = []
+
+        def add_row(i, g, custom):
+            use = tk.BooleanVar(value=(g["thickness"] >= 6.0) and not custom)
+            v = [tk.StringVar(value=x) for x in (f"{g['lo']:.2f}", f"{g['hi']:.2f}", "0", "1", "0", "1", str(g["n_water"]))]
             ttk.Checkbutton(f, variable=use).grid(row=2 + i, column=0, padx=6)
-            for k, x in enumerate((g["lo"], g["hi"], g["thickness"], g["area"]), start=1):
-                ttk.Label(f, text=f"{x:.2f}" if k < 4 else f"{x:.1f}").grid(row=2 + i, column=k, sticky="w", padx=6)
-            ttk.Entry(f, textvariable=nv, width=7, style="Field.TEntry").grid(row=2 + i, column=5, sticky="w", padx=6)
-            rows.append((g, use, nv))
+            ttk.Entry(f, textvariable=v[0], width=7, style="Field.TEntry").grid(row=2 + i, column=1, sticky="w", padx=6)
+            ttk.Entry(f, textvariable=v[1], width=7, style="Field.TEntry").grid(row=2 + i, column=2, sticky="w", padx=6)
+            th, ar = tk.StringVar(), tk.StringVar()
+            ttk.Label(f, textvariable=th).grid(row=2 + i, column=3, sticky="w", padx=6)
+            ttk.Label(f, textvariable=ar).grid(row=2 + i, column=4, sticky="w", padx=6)
+            ttk.Entry(f, textvariable=v[6], width=7, style="Field.TEntry").grid(row=2 + i, column=5, sticky="w", padx=6)
+            for k in range(2, 6):
+                if custom:
+                    ttk.Entry(f, textvariable=v[k], width=5, style="Field.TEntry").grid(row=2 + i, column=4 + k, sticky="w", padx=4)
+                else:
+                    ttk.Label(f, text=("0" if k % 2 == 0 else "1"), foreground=MUTED).grid(row=2 + i, column=4 + k, sticky="w", padx=8)
+            rows.append((use, v))
+            lab.append((th, ar))
+
+        for i, g in enumerate(gl):
+            add_row(i, g, False)
+        add_row(len(gl), dict(lo=gl[0]["lo"], hi=gl[0]["lo"] + min(10.0, gl[0]["thickness"]), thickness=min(10.0, gl[0]["thickness"]),
+                              n_water=W.n_water(gl[0]["area"] * min(10.0, gl[0]["thickness"]), 1.0)), True)
+        ttk.Label(f, text="The last row is a free box: any z range (it may be a part of an empty slice) and the fractions of a and b "
+                          "(example: the upper 10 Å of a vacuum, or half of the cell in b).", foreground=MUTED, wraplength=700,
+                  justify="left").grid(row=3 + len(gl), column=0, columnspan=10, sticky="w", pady=(2, 0))
+
+        def region_of(k):
+            use, v = rows[k]
+            lo, hi, a0, a1, b0, b1 = (float(x.get()) for x in v[:6])
+            return W.region(at, lo, hi, (a0, a1), (b0, b1), float(dens.get()))
 
         def redo(*_):
-            try:
-                d = float(dens.get())
-            except ValueError:
-                return
-            for g, use, nv in rows:
-                nv.set(str(W.n_water(g["area"] * g["thickness"], d)))
+            for k, (use, v) in enumerate(rows):
+                try:
+                    g = region_of(k)
+                except ValueError:
+                    lab[k][0].set("-"); lab[k][1].set("-")
+                    continue
+                lab[k][0].set(f"{g['thickness']:.2f}"); lab[k][1].set(f"{g['area']:.1f}")
+                v[6].set(str(g["n_water"]))
+        for use, v in rows:
+            for x in v[:6]:
+                x.trace_add("write", redo)
         dens.trace_add("write", redo)
-        status = tk.StringVar(value=f"packmol: {exe}; water at least 2.0 Å from every atom")
-        ttk.Label(f, textvariable=status, foreground=MUTED, wraplength=620, justify="left").grid(row=3 + len(gl), column=0, columnspan=6, sticky="w", pady=(10, 0))
+        redo()
+
+        # ions of ClayFF Table 1 (soapff_cui.water.ION_CHARGE): counts, shared among the filled regions in proportion to the water
+        r0 = 4 + len(gl)
+        ttk.Label(f, text="Ions (ClayFF Table 1), placed in the filled regions with the water:", font=self.f_bold).grid(
+            row=r0, column=0, columnspan=10, sticky="w", pady=(12, 2))
+        ionf = ttk.Frame(f)
+        ionf.grid(row=r0 + 1, column=0, columnspan=10, sticky="w")
+        ionv = {}
+        for k, e in enumerate(W.ION_CHARGE):
+            ionv[e] = tk.StringVar(value="0")
+            ttk.Label(ionf, text=f"{e}{'+' * W.ION_CHARGE[e] if W.ION_CHARGE[e] > 0 else '-'}" if abs(W.ION_CHARGE[e]) == 1
+                      else f"{e}{abs(W.ION_CHARGE[e])}+").grid(row=0, column=2 * k, padx=(10, 2))
+            ttk.Entry(ionf, textvariable=ionv[e], width=5, style="Field.TEntry").grid(row=0, column=2 * k + 1)
+        q0 = 0.0
+        csvf = os.path.join(self.out, "charges.csv") if self.out and p == self.structure else ""
+        if csvf and os.path.isfile(csvf):
+            import csv as _csv
+            q0 = sum(float(r["charge"]) for r in _csv.DictReader(open(csvf)))
+        qinfo = tk.StringVar()
+        counter = tk.StringVar(value="Cl")
+
+        def ion_list():
+            out = []
+            for e, v in ionv.items():
+                try:
+                    n = int(v.get())
+                except ValueError:
+                    raise ValueError(f"the number of {e} ions must be an integer")
+                if n > 0:
+                    out.append((e, n))
+            return out
+
+        def charge_text(*_):
+            try:
+                qi = W.net_charge(ion_list())
+                qinfo.set(f"net charge of the structure {q0:+.4f} e (its ClayFF charges) + ions {qi:+d} e = {q0 + qi:+.4f} e (the water is neutral)")
+            except ValueError as e:
+                qinfo.set(str(e))
+        for v in ionv.values():
+            v.trace_add("write", charge_text)
+        charge_text()
+
+        def neutralize():
+            try:
+                cur = [(e, n) for e, n in ion_list() if e != counter.get()]
+                q = round(q0) + W.net_charge(cur)
+                z = W.ION_CHARGE[counter.get()]
+                k = -q / z
+                if k < 0 or abs(k - round(k)) > 1e-9:
+                    status.set(f"{counter.get()} cannot cancel {q:+d} e (choose an ion of the opposite sign; Ca and Ba carry 2 e)")
+                    return
+                ionv[counter.get()].set(str(int(round(k))))
+            except ValueError as e:
+                status.set(str(e))
+        nf = ttk.Frame(f)
+        nf.grid(row=r0 + 2, column=0, columnspan=10, sticky="w", pady=(4, 0))
+        ttk.Label(nf, text="Cancel the net charge with").pack(side="left")
+        ttk.Combobox(nf, textvariable=counter, values=list(W.ION_CHARGE), width=4, state="readonly").pack(side="left", padx=6)
+        ttk.Button(nf, text="Set the number", style="Ghost.TButton", command=neutralize).pack(side="left")
+        ttk.Label(f, textvariable=qinfo, foreground=MUTED, wraplength=700, justify="left").grid(row=r0 + 3, column=0, columnspan=10, sticky="w")
+        status = tk.StringVar(value=f"packmol: {exe}; water and ions at least 2.0 Å from every atom")
+        ttk.Label(f, textvariable=status, foreground=MUTED, wraplength=700, justify="left").grid(row=r0 + 4, column=0, columnspan=10, sticky="w", pady=(10, 0))
         made = {}
 
         def make_file(then):
             try:
-                chosen = [(g, int(nv.get())) for g, use, nv in rows if use.get() and int(nv.get()) > 0]
-            except ValueError:
-                status.set("The numbers of molecules must be integers")
+                chosen = []
+                for k, (use, v) in enumerate(rows):
+                    if use.get() and int(v[6].get()) > 0:
+                        chosen.append((region_of(k), int(v[6].get())))
+                ions = ion_list()
+            except ValueError as e:
+                status.set(f"Check the numbers: {e}")
                 return
             if not chosen:
                 status.set("Choose at least one region with molecules")
                 return
-            key = tuple((g["lo"], n) for g, n in chosen)
+            key = (tuple((g["lo"], g["hi"], g["xr"], g["yr"], n) for g, n in chosen), tuple(ions))
             if key in made:
                 then(made[key])
                 return
-            status.set(f"packmol: placing {sum(n for _, n in chosen)} water molecules…")
+            status.set(f"packmol: placing {sum(n for _, n in chosen)} water molecules" + "".join(f", {n} {e}" for e, n in ions) + "…")
             w.config(cursor="watch")
 
             def work():
                 try:
-                    new, rep = W.add_water(at, chosen, log=lambda m: self.q.put(("log", m + "\n", None)))
+                    new, rep = W.add_water(at, chosen, ions=ions, log=lambda m: self.q.put(("log", m + "\n", None)))
                     stem = os.path.splitext(os.path.basename(p))[0]
                     out = os.path.join(os.path.dirname(p), f"{stem}_water.extxyz")
                     import ase.io
@@ -1639,7 +1734,8 @@ class App:
                         status.set(f"packmol failed: {err}")
                         return
                     bad = [r for r in rep if not r["converged"]]
-                    status.set(f"→ {os.path.basename(out)}: " + ", ".join(f"{r['n']} molecules in z {r['lo']:.1f}-{r['hi']:.1f} Å" for r in rep)
+                    status.set(f"→ {os.path.basename(out)}: " + ", ".join(f"{r['n']} molecules" + "".join(f" + {k} {e}" for e, k in r["ions"].items())
+                                                                         + f" in z {r['lo']:.1f}-{r['hi']:.1f} Å" for r in rep)
                                + (" (packmol did not converge in a region: fewer molecules or a lower density)" if bad else ""))
                     self.log_add(f"Water added: {out}\n", None)
                     made[key] = out

@@ -38,6 +38,25 @@ def main():
                     "cells thick, the rest of the cell is empty (--vacuum is then the extra length added to the cell)")
     sf.add_argument("--repeat", type=int, nargs=3, default=[1, 1, 1], metavar=("NA", "NB", "NC"),
                     help="repeat the bulk cell before the cut (the size of the cell)")
+    aw = sub.add_parser("add-water", help="structure -> the same structure with water (and ions of ClayFF Table 1) added by packmol "
+                                          "in the chosen regions (empty slices along z, or any box)")
+    aw.add_argument("structure")
+    aw.add_argument("-o", "--out", default=None, help="output extxyz (default: <structure>_water.extxyz)")
+    aw.add_argument("--list", action="store_true", help="only list the empty slices along z (index, z from-to, thickness, molecules at --density)")
+    aw.add_argument("--gap", type=int, nargs="*", default=[], metavar="I", help="fill these empty slices (index of --list, 0 = thickest)")
+    aw.add_argument("--region", type=float, nargs=2, action="append", default=[], metavar=("ZLO", "ZHI"),
+                    help="fill the slab z from ZLO to ZHI (A, standard orientation: a along x, b in the xy plane); may be repeated, "
+                         "and may be narrower than an empty slice")
+    aw.add_argument("--x", type=float, nargs=2, default=(0.0, 1.0), metavar=("F0", "F1"), help="limit the --region boxes to this fraction of a")
+    aw.add_argument("--y", type=float, nargs=2, default=(0.0, 1.0), metavar=("F0", "F1"), help="limit the --region boxes to this fraction of b")
+    aw.add_argument("--density", type=float, default=1.0, help="g/cm3 of the water (sets the numbers of molecules)")
+    aw.add_argument("--n", type=int, nargs="*", default=None, help="molecules per region/slice, in the order of --gap then --region (instead of --density)")
+    aw.add_argument("--ion", action="append", default=[], metavar="EL:N", help="N ions of Na, K, Cs, Ca, Ba or Cl (ClayFF Table 1), shared among the regions")
+    aw.add_argument("--neutralize", choices=["Na", "K", "Cs", "Ca", "Ba", "Cl"], default=None,
+                    help="after --ion, add this ion until the formal charge of the added ions cancels --charge")
+    aw.add_argument("--charge", type=float, default=0.0, help="net charge of the input structure (e) to cancel with --neutralize")
+    aw.add_argument("--tolerance", type=float, default=2.0, help="minimum distance between the water or ions and the other atoms (A)")
+    aw.add_argument("--seed", type=int, default=1)
     c = sub.add_parser("check-library", help="developer check: nearest other entry has the same charge (one to one)")
     c.add_argument("library")
     m = sub.add_parser("make", help="structure -> system.data, system.settings, in.lammps, charges.csv, report.json")
@@ -106,6 +125,36 @@ def main():
         import json
         r = check_library(a.library)
         json.dump(r, open(a.library.replace(".npz", "_check.json"), "w"), indent=1)
+    elif a.cmd == "add-water":
+        from . import water as W
+        from .core import read_structure
+        import ase.io
+        at = read_structure(a.structure)
+        gl = W.gaps(at, density=a.density)
+        if a.list:
+            for i, g in enumerate(gl):
+                print(f"{i}: z {g['lo']:.2f}-{g['hi']:.2f} A, thickness {g['thickness']:.2f} A, area {g['area']:.1f} A2, "
+                      f"{g['n_water']} molecules at {a.density:g} g/cm3")
+            return
+        regs = [gl[i] for i in a.gap] + [W.region(at, lo, hi, tuple(a.x), tuple(a.y), a.density) for lo, hi in a.region]
+        if not regs:
+            raise SystemExit("choose the regions: --gap I ... or --region ZLO ZHI (see --list)")
+        ns = a.n if a.n is not None else [g["n_water"] for g in regs]
+        if len(ns) != len(regs):
+            raise SystemExit(f"--n needs {len(regs)} numbers (one per region)")
+        ions = [(x.split(":")[0], int(x.split(":")[1])) for x in a.ion]
+        if a.neutralize:
+            q = a.charge + W.net_charge(ions)
+            z = W.ION_CHARGE[a.neutralize]
+            k = -q / z
+            if abs(k - round(k)) > 1e-6 or k < 0:
+                raise SystemExit(f"cannot cancel the charge {q:+g} e with {a.neutralize} ({z:+d}): choose an ion of the opposite sign")
+            ions.append((a.neutralize, int(round(k))))
+        new, rep = W.add_water(at, list(zip(regs, ns)), tolerance=a.tolerance, seed=a.seed, ions=ions)
+        out = a.out or a.structure.rsplit(".", 1)[0] + "_water.extxyz"
+        ase.io.write(out, new, format="extxyz")
+        print(f"wrote {out}: {len(new)} atoms; ions " + (", ".join(f"{e} {n}" for e, n in ions) or "none")
+              + f"; charge of the ions {W.net_charge(ions):+d} e")
     elif a.cmd == "make-surfaces":
         from .surfaces import write_surfaces
         write_surfaces(a.data, a.out, max_index=a.max_index, min_thickness=a.thickness, vacuum=a.vacuum, keep_cell=a.keep_cell,
