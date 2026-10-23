@@ -1,7 +1,9 @@
 Analysis: MD 0-100.0 ps, first 20.0 ps excluded as equilibration (time step 0.5 fs). Trajectory for SOVA and XRD: traj.lammpstrj
-Diffusion coefficients: no msd_*.dat files. Add the catalog item 'MSD for diffusion' (soapff) before run
+Diffusion coefficients (10⁻⁹ m²/s, slope of LAMMPS compute msd, Einstein relation, no finite-size correction)
+  Na       D = 0.003 (in-plane xy 0.009, normal z -0.011)  linear fit over 20.0-100.0 ps
+  Motion along z is restricted in interlayers and near surfaces, so use the in-plane xy value of the diffusion coefficient
 PDF g(r) and RDF N(r) = 4πr²ρg(r) (SOVA 0.8.3, r ≤ 4.6 Å, 40 frames): sova_pdf.csv, sova_rdf.csv
-  Na-mineral O 1st peak 2.52 Å (g = 2.83), coordination number 10.20 (up to the minimum at 3.62 Å)
+  Na-mineral O 1st peak 2.50 Å (g = 2.40), coordination number 9.12 (up to the minimum at 3.34 Å)
   21 more element pairs over all atoms (all:)
 X-ray structure factor S(Q) (SOVA, all atoms, g(r) used up to 4.6 Å, Q ≤ 12 Å⁻¹): sova_sq.csv
   Q < 2π/4.6 Å = 1.37 Å⁻¹ is not determined because g(r) is truncated. In layered and interface systems g(r) does not approach 1, so do not use the low-Q values

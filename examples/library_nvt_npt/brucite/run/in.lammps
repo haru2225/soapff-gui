@@ -10,20 +10,21 @@ min_modify dmax 0.01
 minimize 1.0e-4 1.0e-6 1000 10000
 min_modify dmax 0.1
 minimize 1.0e-6 1.0e-6 5000 50000
-
-# Add the MD (fix, compute, run, etc.) below this line (+ fix / + compute / + Other)
+reset_timestep 0
 velocity all create 300.0 4928459 mom yes rot no dist gaussian
 timestep 0.5
+change_box all triclinic
 # relaxation of the initial structure: NVT, not recorded
 fix relax all nvt temp 300.0 300.0 100.0
 run 20000
 unfix relax
 reset_timestep 0
+# production
+fix md all nvt temp 300.0 300.0 100.0
 dump d all custom 2000 traj.lammpstrj id type element x y z ix iy iz q
-fix nvt all nvt temp 300 300 100.0
+dump_modify d sort id element ho mgh oh
 run 100000
-unfix nvt
-fix npt all npt temp 300 300 100.0 tri 1 1 1000.0
+unfix md
+fix md all npt temp 300.0 300.0 100.0 tri 1.0 1.0 1000.0
 run 100000
-unfix npt
 write_data final.data

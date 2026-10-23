@@ -27,12 +27,20 @@
    "sova_sq.png"
   ]
  ],
- "diffusion_1e-9_m2_s": {},
- "diffusion_note": "no LAMMPS msd_*.dat in this folder: add the MSD of soapff (catalog) before run",
+ "diffusion_1e-9_m2_s": {
+  "K": {
+   "D_total": 0.0011952325557439112,
+   "D_xy": -0.0007774240511665598,
+   "D_z": 0.005140545632641244,
+   "fit_from_ps": 20.0,
+   "fit_to_ps": 100.0,
+   "msd_at_end_A2": 0.309582
+  }
+ },
  "sova": {
   "sovapy_version": "0.8.3",
   "frames": 40,
-  "rmax": 4.859783121095328,
+  "rmax": 4.859129889191766,
   "dr": 0.02,
   "pairs": [
    "K-O_min",
@@ -54,14 +62,14 @@
   ],
   "first_peaks": {
    "K-O_min": {
-    "r_peak": 3.06,
-    "g_peak": 3.5137656549936715
+    "r_peak": 3.08,
+    "g_peak": 3.6916858223345543
    }
   },
   "coordination": {
    "K-O_min": {
     "r_min": 4.24,
-    "cn": 13.752587199917546
+    "cn": 13.735209299981651
    }
   },
   "sq_xray": true,

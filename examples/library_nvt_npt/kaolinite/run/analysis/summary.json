@@ -32,7 +32,7 @@
  "sova": {
   "sovapy_version": "0.8.3",
   "frames": 40,
-  "rmax": 7.0607953115583175,
+  "rmax": 7.077545385822734,
   "dr": 0.02,
   "pairs": [
    "all:H-H",

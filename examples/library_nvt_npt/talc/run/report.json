@@ -1,5 +1,5 @@
 {
- "structure": "/Users/harutokono/clay/soapff-gui/examples/library_nvt_npt/talc/talc.extxyz",
+ "structure": "examples/library_nvt_npt/talc/talc.extxyz",
  "atoms": 378,
  "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
  "soap": {
@@ -14,6 +14,8 @@
   "kspace_style pppm 1.0e-5"
  ],
  "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
  "charge_sum_before": 6.217248937900877e-15,
  "charge_sum": 6.217248937900877e-15,
  "from_soap": 378,
@@ -37,7 +39,7 @@
    ],
    "from_soap": 36,
    "fallback": 0,
-   "min_similarity": 0.9999998211860657
+   "min_similarity": 1.0000001192092896
   },
   "mgh": {
    "atoms": 54,
@@ -55,7 +57,7 @@
    ],
    "from_soap": 180,
    "fallback": 0,
-   "min_similarity": 0.9999997019767761
+   "min_similarity": 0.9999994039535522
   },
   "oh": {
    "atoms": 36,
@@ -64,7 +66,7 @@
    ],
    "from_soap": 36,
    "fallback": 0,
-   "min_similarity": 1.0
+   "min_similarity": 0.9999998211860657
   },
   "st": {
    "atoms": 72,
@@ -81,9 +83,9 @@
   "temp": 300.0,
   "relax_ps": 10.0,
   "nvt_ps": 50.0,
-  "npt_ps": 0.0,
+  "npt_ps": 50.0,
   "press": 1.0,
-  "baro": "aniso",
+  "baro": "tri",
   "dump_ps": 1.0,
   "timestep_fs": 0.5
  }

@@ -1,5 +1,5 @@
 {
- "structure": "/Users/harutokono/clay/soapff-gui/examples/library_nvt_npt/phlogopite_1M/phlogopite_1M.extxyz",
+ "structure": "examples/library_nvt_npt/phlogopite_1M/phlogopite_1M.extxyz",
  "atoms": 176,
  "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
  "soap": {
@@ -14,8 +14,10 @@
   "kspace_style pppm 1.0e-5"
  ],
  "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
  "charge_sum_before": -0.0016000000000042647,
- "charge_sum": 1.1546319456101628e-14,
+ "charge_sum": -0.0016000000000042647,
  "from_soap": 176,
  "fallback": 0,
  "type_check": {
@@ -23,7 +25,9 @@
   "differ": 0,
   "kinds": {}
  },
- "warnings": [],
+ "warnings": [
+  "net charge -0.0016 e (not neutralised; LAMMPS adds a uniform neutralising background for the long-range Coulomb)"
+ ],
  "roles": {
   "mineral": 168,
   "water": 0,
@@ -37,7 +41,7 @@
    ],
    "from_soap": 8,
    "fallback": 0,
-   "min_similarity": 1.0
+   "min_similarity": 0.9999998211860657
   },
   "at": {
    "atoms": 8,
@@ -46,7 +50,7 @@
    ],
    "from_soap": 8,
    "fallback": 0,
-   "min_similarity": 0.9999995231628418
+   "min_similarity": 0.9999991655349731
   },
   "ho": {
    "atoms": 16,
@@ -55,7 +59,7 @@
    ],
    "from_soap": 16,
    "fallback": 0,
-   "min_similarity": 0.9999993443489075
+   "min_similarity": 0.9999985694885254
   },
   "mgh": {
    "atoms": 24,
@@ -64,7 +68,7 @@
    ],
    "from_soap": 24,
    "fallback": 0,
-   "min_similarity": 0.9999997615814209
+   "min_similarity": 0.9999992251396179
   },
   "ob": {
    "atoms": 48,
@@ -73,7 +77,7 @@
    ],
    "from_soap": 48,
    "fallback": 0,
-   "min_similarity": 0.9999992847442627
+   "min_similarity": 0.9999983310699463
   },
   "obts": {
    "atoms": 32,
@@ -82,7 +86,7 @@
    ],
    "from_soap": 32,
    "fallback": 0,
-   "min_similarity": 0.9999993443489075
+   "min_similarity": 0.9999983310699463
   },
   "oh": {
    "atoms": 16,
@@ -91,7 +95,7 @@
    ],
    "from_soap": 16,
    "fallback": 0,
-   "min_similarity": 0.9999996423721313
+   "min_similarity": 0.9999980330467224
   },
   "st": {
    "atoms": 24,
@@ -100,7 +104,7 @@
    ],
    "from_soap": 24,
    "fallback": 0,
-   "min_similarity": 0.9999994039535522
+   "min_similarity": 0.9999980330467224
   }
  },
  "consistency": [],
@@ -108,9 +112,9 @@
   "temp": 300.0,
   "relax_ps": 10.0,
   "nvt_ps": 50.0,
-  "npt_ps": 0.0,
+  "npt_ps": 50.0,
   "press": 1.0,
-  "baro": "aniso",
+  "baro": "tri",
   "dump_ps": 1.0,
   "timestep_fs": 0.5
  }

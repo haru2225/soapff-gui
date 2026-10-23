@@ -1,8 +1,0 @@
-Analysis: MD 0-100.0 ps, first 20.0 ps excluded as equilibration (time step 0.5 fs). Trajectory for SOVA and XRD: traj.lammpstrj
-Diffusion coefficients: no msd_*.dat files. Add the catalog item 'MSD for diffusion' (soapff) before run
-PDF g(r) and RDF N(r) = 4πr²ρg(r) (SOVA 0.8.3, r ≤ 8.0 Å, 40 frames): sova_pdf.csv, sova_rdf.csv
-  water O-water O 1st peak 2.76 Å (g = 5.35), coordination number 8.40 (up to the minimum at 4.28 Å)
-  Na-water O   1st peak 2.38 Å (g = 17.17), coordination number 5.67 (up to the minimum at 3.16 Å)
-  21 more element pairs over all atoms (all:)
-X-ray structure factor S(Q) (SOVA, all atoms, g(r) used up to 12.8 Å, Q ≤ 12 Å⁻¹): sova_sq.csv
-  Q < 2π/12.8 Å = 0.49 Å⁻¹ is not determined because g(r) is truncated. In layered and interface systems g(r) does not approach 1, so do not use the low-Q values

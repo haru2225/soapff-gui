@@ -1,5 +1,5 @@
 Analysis: MD 0-100.0 ps, first 20.0 ps excluded as equilibration (time step 0.5 fs). Trajectory for SOVA and XRD: traj.lammpstrj
-Diffusion coefficients: no msd_*.dat files. Add the catalog item 'MSD for diffusion' (soapff) before run
+Diffusion coefficients: no msd_*.dat files. Add the catalog item 'MSD for the diffusion coefficient' (soapff) before run
 PDF g(r) and RDF N(r) = 4πr²ρg(r) (SOVA 0.8.3, r ≤ 5.4 Å, 40 frames): sova_pdf.csv, sova_rdf.csv
   3 more element pairs over all atoms (all:)
 X-ray structure factor S(Q) (SOVA, all atoms, g(r) used up to 5.4 Å, Q ≤ 12 Å⁻¹): sova_sq.csv

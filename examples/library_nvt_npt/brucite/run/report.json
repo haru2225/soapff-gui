@@ -1,5 +1,5 @@
 {
- "structure": "/Users/harutokono/clay/soapff-gui/examples/library_nvt_npt/brucite/brucite.extxyz",
+ "structure": "examples/library_nvt_npt/brucite/brucite.extxyz",
  "atoms": 240,
  "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
  "soap": {
@@ -14,6 +14,8 @@
   "kspace_style pppm 1.0e-5"
  ],
  "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
  "charge_sum_before": 1.021405182655144e-14,
  "charge_sum": 1.021405182655144e-14,
  "from_soap": 240,
@@ -37,7 +39,7 @@
    ],
    "from_soap": 96,
    "fallback": 0,
-   "min_similarity": 0.9999996423721313
+   "min_similarity": 0.9999997615814209
   },
   "mgh": {
    "atoms": 48,
@@ -63,9 +65,9 @@
   "temp": 300.0,
   "relax_ps": 10.0,
   "nvt_ps": 50.0,
-  "npt_ps": 0.0,
+  "npt_ps": 50.0,
   "press": 1.0,
-  "baro": "aniso",
+  "baro": "tri",
   "dump_ps": 1.0,
   "timestep_fs": 0.5
  }

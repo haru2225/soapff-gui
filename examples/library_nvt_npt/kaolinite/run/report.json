@@ -1,5 +1,5 @@
 {
- "structure": "/Users/harutokono/clay/soapff-gui/examples/library_nvt_npt/kaolinite/kaolinite.extxyz",
+ "structure": "examples/library_nvt_npt/kaolinite/kaolinite.extxyz",
  "atoms": 408,
  "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
  "soap": {
@@ -14,6 +14,8 @@
   "kspace_style pppm 1.0e-5"
  ],
  "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
  "charge_sum_before": 1.3322676295501878e-15,
  "charge_sum": 1.3322676295501878e-15,
  "from_soap": 408,
@@ -37,7 +39,7 @@
    ],
    "from_soap": 48,
    "fallback": 0,
-   "min_similarity": 0.999999463558197
+   "min_similarity": 0.9999995231628418
   },
   "ho": {
    "atoms": 96,
@@ -46,7 +48,7 @@
    ],
    "from_soap": 96,
    "fallback": 0,
-   "min_similarity": 0.9999995231628418
+   "min_similarity": 0.999999463558197
   },
   "ob": {
    "atoms": 120,
@@ -55,7 +57,7 @@
    ],
    "from_soap": 120,
    "fallback": 0,
-   "min_similarity": 0.9999998807907104
+   "min_similarity": 0.9999992251396179
   },
   "oh": {
    "atoms": 96,
@@ -64,7 +66,7 @@
    ],
    "from_soap": 96,
    "fallback": 0,
-   "min_similarity": 0.9999994039535522
+   "min_similarity": 0.9999990463256836
   },
   "st": {
    "atoms": 48,
@@ -73,7 +75,7 @@
    ],
    "from_soap": 48,
    "fallback": 0,
-   "min_similarity": 0.9999995231628418
+   "min_similarity": 0.9999988675117493
   }
  },
  "consistency": [],
@@ -81,9 +83,9 @@
   "temp": 300.0,
   "relax_ps": 10.0,
   "nvt_ps": 50.0,
-  "npt_ps": 0.0,
+  "npt_ps": 50.0,
   "press": 1.0,
-  "baro": "aniso",
+  "baro": "tri",
   "dump_ps": 1.0,
   "timestep_fs": 0.5
  }

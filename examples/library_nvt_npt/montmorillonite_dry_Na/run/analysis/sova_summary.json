@@ -1,7 +1,7 @@
 {
  "sovapy_version": "0.8.3",
  "frames": 40,
- "rmax": 4.613185362753395,
+ "rmax": 4.604075233456189,
  "dr": 0.02,
  "pairs": [
   "Na-O_min",
@@ -29,14 +29,14 @@
  ],
  "first_peaks": {
   "Na-O_min": {
-   "r_peak": 2.52,
-   "g_peak": 2.831371666379343
+   "r_peak": 2.5,
+   "g_peak": 2.395231308852004
   }
  },
  "coordination": {
   "Na-O_min": {
-   "r_min": 3.62,
-   "cn": 10.20325527177661
+   "r_min": 3.34,
+   "cn": 9.119822976178899
   }
  },
  "sq_xray": true,
