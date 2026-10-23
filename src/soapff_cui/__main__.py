@@ -24,7 +24,7 @@ def main():
     b.add_argument("--weight-m", type=float, default=4, help="exponent m of the radial weighting")
     b.add_argument("--species-weight", nargs="*", default=[], metavar="EL=W",
                    help="scale the SOAP components of every species pair (Z1, Z2) by w(Z1) w(Z2), e.g. Al=2 Si=2 Mg=2")
-    sf = sub.add_parser("make-surfaces", help="bulk reference data file -> slabs in vacuum of every face (h k l) of its unit "
+    sf = sub.add_parser("make-surfaces", help="bulk reference data file -> slabs in vacuum (pymatgen SlabGenerator) of every face (h k l) of its unit "
                                               "cell that cuts no cation-O bond, i.e. the basal plane (surface references for "
                                               "build-library); the faces that cut bonds (edges) are skipped")
     sf.add_argument("data", help="LAMMPS data file with charges and type names (water is left out)")
@@ -32,12 +32,6 @@ def main():
     sf.add_argument("--max-index", type=int, default=1, choices=[0, 1], help="faces with |h|, |k|, |l| <= this (1 is the largest that can be cut)")
     sf.add_argument("--thickness", type=float, default=16.0, help="minimum slab thickness (A)")
     sf.add_argument("--vacuum", type=float, default=16.0, help="vacuum along the normal (A)")
-    sf.add_argument("--keep-cell", action="store_true", help="add the vacuum along the lattice vector out of the plane, so that the "
-                                                             "cell keeps the shape of the input cell (default: along the normal)")
-    sf.add_argument("--periods", type=lambda x: x if x == "auto" else int(x), default=None, metavar="N|auto", help="cut inside the cell without changing it: the slab is this many unit "
-                    "cells thick, the rest of the cell is empty (--vacuum is then the extra length added to the cell)")
-    sf.add_argument("--repeat", type=int, nargs=3, default=[1, 1, 1], metavar=("NA", "NB", "NC"),
-                    help="repeat the bulk cell before the cut (the size of the cell)")
     aw = sub.add_parser("add-water", help="structure -> the same structure with water (and ions of ClayFF Table 1) added by packmol "
                                           "in the chosen regions (empty slices along z, or any box)")
     aw.add_argument("structure")
@@ -157,8 +151,7 @@ def main():
               + f"; charge of the ions {W.net_charge(ions):+d} e")
     elif a.cmd == "make-surfaces":
         from .surfaces import write_surfaces
-        write_surfaces(a.data, a.out, max_index=a.max_index, min_thickness=a.thickness, vacuum=a.vacuum, keep_cell=a.keep_cell,
-                       repeat=tuple(a.repeat), periods=a.periods)
+        write_surfaces(a.data, a.out, max_index=a.max_index, min_thickness=a.thickness, vacuum=a.vacuum)
     elif a.cmd == "build-library":
         build_library(a.data, a.frames, a.out, every=a.every, soap=dict(r_cut=a.r_cut, l_max=a.l_max, species_weights={x.split('=')[0]: float(x.split('=')[1]) for x in a.species_weight} or None, weighting=dict(function='pow', r0=a.weight_r0, m=a.weight_m, c=1, d=1) if a.weight_r0 else None), prune=a.prune,
                       water_in_soap=a.water_in_soap, protect=a.protect)

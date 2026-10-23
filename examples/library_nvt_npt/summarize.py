@@ -1,4 +1,4 @@
-"""Summary of the NVT and NPT runs of the 13 library minerals (each <name>/run, made with soapff-gui):
+"""Summary of the NVT and NPT runs of the 11 bulk library minerals (each <name>/run, made with soapff-gui):
 force field (fallback, type check), temperature, potential energy and volume of the NVT (50 ps) and the NPT (50 ps).
     python summarize.py   -> summary.csv and the table printed (as in README.md)"""
 import csv

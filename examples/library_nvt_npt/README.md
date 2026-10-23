@@ -1,6 +1,6 @@
-# Example: NVT and NPT of the 12 bulk library structures
+# Example: NVT and NPT of the 11 bulk library structures
 
-For each of the 12 bulk structures used to build the bundled SOAP library (`src/soapff_gui/data/library_clayff_bulk.npz`; the library also holds the (001) slab of each layered mineral), soapff-gui built a force field from the structure file (ClayFF Table 1 charges as they are, LJ parameters unrounded, flexible SPC water) and ran NVT and NPT. The Na montmorillonite with a 2-layer hydrate (JAEA structure) that was in the earlier 13-structure library is no longer a library structure and was removed from this example; see `examples/montmorillonite_2W/` for a 2-layer hydrate.
+For each of the 11 bulk structures used to build the bundled SOAP library (`src/soapff_gui/data/library_clayff_bulk.npz`; the library also holds the (001) slab of each layered mineral), soapff-gui built a force field from the structure file (ClayFF Table 1 charges as they are, LJ parameters unrounded, flexible SPC water) and ran NVT and NPT. The Na montmorillonite with a 2-layer hydrate (JAEA structure) that was in the earlier 13-structure library is no longer a library structure and was removed from this example; see `examples/montmorillonite_2W/` for a 2-layer hydrate.
 
 | Folder | Mineral |
 |---|---|
@@ -12,7 +12,6 @@ For each of the 12 bulk structures used to build the bundled SOAP library (`src/
 | `nanpingite/` | nanpingite (Cs mica) |
 | `phlogopite_1M/` | phlogopite 1M |
 | `pyrophyllite/`, `pyrophyllite_2/` | pyrophyllite (two sources) |
-| `quartz/` | quartz |
 | `talc/` | talc |
 
 In each folder, `<name>.extxyz` is the structure file (elements, coordinates, and box only; written from the library's reference LAMMPS data with the charges and types removed), and `run/` is the soapff-cui output.
@@ -46,12 +45,11 @@ The input is: minimization, initial velocities (300 K), a relaxation NVT of 10 p
 | phlogopite_1M | 176 | 0 | 0 | 300.4 | 301.8 | 64 | +0.85 | 2.766 | -0.0006 |
 | pyrophyllite | 320 | 0 | 0 | 301.1 | 297.0 | 687 | +2.03 | 2.759 | +0.0158 |
 | pyrophyllite_2 | 320 | 0 | 0 | 301.4 | 302.8 | -555 | +2.17 | 2.755 | -0.0028 |
-| quartz | 162 | 0 | 0 | 298.6 | 302.1 | -2190 | +5.00 | 2.524 | +0.0020 |
 | talc | 378 | 0 | 0 | 302.5 | 301.4 | -949 | +2.86 | 2.699 | +0.0037 |
 
 - For every mineral, all atoms were assigned by SOAP (fallback 0), and there were 0 mismatches between the SOAP types and the types from the bonding connectivity.
 - For every mineral, the temperature stayed within 300 K +/- 5 K, and the potential energy was almost constant in the second half of the NPT run (within about 0.03 kcal/mol/atom).
 - The NPT volume change is the difference between the input structure (experimental lattice or DFT structure) and the ClayFF equilibrium lattice. Brucite (+9 %) and muscovite 1M (-7 %) change a lot (the same trend as the 300 K MD in the paper).
-- Albite is outside the scope of ClayFF, so it was removed from the library and the examples.
+- Albite is outside the scope of ClayFF, so it was removed from the library and the examples. Quartz (a 3D framework: every face cuts Si-O bonds, so it has no interface that soapff-gui can make) was removed from the library and from this example too.
 - The charges are the values of Table 1 of Cygan et al. as they are, so the net charge is not exactly 0 for the minerals with substitutions (+0.0002 e for the dry Na montmorillonite, -0.0016 e for muscovite 1M and phlogopite, -0.0032 e for muscovite 2M1 and nanpingite; it is the rounding of the table, and LAMMPS neutralizes it with a uniform background).
 - The average pressure (P NPT) fluctuates by about +/- 1500 atm over 50 ps (more for smaller crystals).

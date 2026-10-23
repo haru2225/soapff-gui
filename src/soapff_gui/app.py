@@ -1456,7 +1456,7 @@ class App:
         w, f, bar = self._derived_dialog("Surface (slab in vacuum)", f"{os.path.basename(self.structure)}: {len(at)} atoms"
                                          + (" (its water is left out)" if not all(keep) else ""))
         ttk.Label(f, text="Face (h k l) of the unit cell. Only a face that cuts no cation-O bond can be cut: the basal plane between the "
-                          "layers of a layered mineral, (0 0 1) for the bundled minerals: montmorillonite, muscovite 1M/2M1, phlogopite, nanpingite, pyrophyllite, talc, kaolinite, lizardite, brucite. Every other face, and every face of quartz, cuts bonds: edges (O that would need H) are not supported", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
+                          "layers of a layered mineral, (0 0 1) for the bundled minerals: montmorillonite, muscovite 1M/2M1, phlogopite, nanpingite, pyrophyllite, talc, kaolinite, lizardite, brucite. Every other face cuts bonds: edges (O that would need H) are not supported", foreground=MUTED, wraplength=560, justify="left").grid(row=0, column=0, columnspan=6, sticky="w")
         hkl = []
         for k, (ax, v0) in enumerate(zip("hkl", (0, 0, 1))):
             ttk.Label(f, text=ax).grid(row=1, column=2 * k, sticky="e", pady=8)
@@ -1464,67 +1464,44 @@ class App:
             ttk.Spinbox(f, from_=-1, to=1, width=4, textvariable=sv).grid(row=1, column=2 * k + 1, sticky="w", padx=(4, 14))
             hkl.append(sv)
         SLAB_THICKNESS, SLAB_VACUUM = 16.0, 30.0           # fixed: at least 16 A of mineral, 30 A of vacuum (room for water)
-        ttk.Label(f, text="Repeat the cell (a b c) before the cut").grid(row=2, column=0, columnspan=3, sticky="w", pady=2)
-        rep = []
-        for k in range(3):
-            sv = tk.StringVar(value="1")
-            ttk.Spinbox(f, from_=1, to=8, width=4, textvariable=sv).grid(row=2, column=3 + k, sticky="w", padx=(4, 4))
-            rep.append(sv)
-        keepv = tk.BooleanVar(value=True)
-        ttk.Checkbutton(f, text="Cut inside the cell: the cell is not changed, the slab fills it except for one unit cell along the "
-                                "direction out of the plane (the empty part takes the water)", variable=keepv).grid(row=3, column=0, columnspan=6, sticky="w")
-        ttk.Label(f, text="Unit cells kept (blank: all but one)").grid(row=4, column=0, columnspan=3, sticky="w", pady=2)
-        perv = tk.StringVar(value="")
-        ttk.Entry(f, textvariable=perv, width=6, style="Field.TEntry").grid(row=4, column=3, sticky="w")
-        ttk.Label(f, text="Extra length of the cell (Å)").grid(row=5, column=0, columnspan=3, sticky="w", pady=2)
-        extv = tk.StringVar(value="0")
-        ttk.Entry(f, textvariable=extv, width=6, style="Field.TEntry").grid(row=5, column=3, sticky="w")
+        ttk.Label(f, text=f"The slab is cut by pymatgen (SlabGenerator): at least {SLAB_THICKNESS:g} Å of mineral and {SLAB_VACUUM:g} Å of "
+                          "vacuum, a termination that breaks no cation-O bond. The interlayer ions stay where the cut leaves them (on one face).",
+                  foreground=MUTED, wraplength=560, justify="left").grid(row=2, column=0, columnspan=6, sticky="w", pady=(2, 0))
         info = tk.StringVar(value="")
-        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=6, column=0, columnspan=6, sticky="w", pady=(10, 0))
+        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=3, column=0, columnspan=6, sticky="w", pady=(10, 0))
         made = {}
 
         def make_file():
             try:
                 m = tuple(int(x.get()) for x in hkl)
-                th, vac = SLAB_THICKNESS, SLAB_VACUUM
-                rp = tuple(max(1, int(x.get())) for x in rep)
-                per = (int(perv.get()) if perv.get().strip() else "auto") if keepv.get() else None
-                ext = float(extv.get())
             except ValueError:
-                info.set("Enter integers for h k l, the repeats and the unit cells, and a number for the extra length")
+                info.set("Enter integers for h k l")
                 return None
-            kc = True
-            if per is not None:
-                vac = ext                                   # inside the cell: the vacuum is only the extra length of the cell
             if m == (0, 0, 0):
                 info.set("(0 0 0) is not a face")
                 return None
-            key = (m, th, vac, rp, kc, per)
-            if key in made:
-                return made[key]
+            if m in made:
+                return made[m]
             w.config(cursor="watch"); w.update()
             try:
-                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=th, vacuum=vac, keep_cell=kc, repeat=rp, periods=per)
+                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=SLAB_THICKNESS, vacuum=SLAB_VACUUM)
             except Exception as e:
                 messagebox.showerror("soapff-GUI", f"Could not cut the surface: {e}", parent=w)
                 return None
             finally:
                 w.config(cursor="")
             stem = os.path.splitext(os.path.basename(self.structure))[0]
-            path = os.path.join(os.path.dirname(self.structure), f"{stem}_{surfaces.hkl_name(m)}"
-                                + ("" if rp == (1, 1, 1) else "_x" + "".join(map(str, rp))) + ".extxyz")
+            path = os.path.join(os.path.dirname(self.structure), f"{stem}_{surfaces.hkl_name(m)}.extxyz")
             import ase.io
             ase.io.write(path, slab, format="extxyz")
-            txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, basal cleavage (no bond cut, the interlayer ions shared by "
-                   f"the two faces); net formal charge {inf['formal_charge']:+d}")
-            if inf.get("cell_doubled"):
-                txt += (f"\nThe cell was lengthened to {inf['cell_length_periods']} times its length along the direction out of the plane, "
-                        "so that the empty part is at least 6 A wide (the two faces must not see each other)")
+            txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, {inf['thickness']:.1f} Å thick, no bond cut "
+                   f"({inf['terminations']} bond-free termination{'s' if inf['terminations'] > 1 else ''}), {inf['ions']} interlayer ions; "
+                   f"net formal charge {inf['formal_charge']:+d}")
             if inf["formal_charge"]:
-                txt += "\nThis slab is charged (the interlayer ions do not split evenly): the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
+                txt += "\nThis slab is charged: the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
             info.set(txt)
             self.log_add(f"Surface {m}: {path} ({inf['atoms']} atoms, formal charge {inf['formal_charge']:+d})\n", None)
-            made[key] = path
+            made[m] = path
             return path
 
         def preview():
@@ -1961,7 +1938,7 @@ class App:
                     if g["other"]:
                         txt.insert("end", f"  {m}: edge particle (JAEA), {g['other'][0][1]} atoms\n")
                         continue
-                    txt.insert("end", f"  {m}: bulk {g['bulk']}" + ((", 001 (a face with bonds cut, no layers) " if m.startswith("quartz") else ", 001 ") + str(g["basal"]) if g["basal"] is not None else "")
+                    txt.insert("end", f"  {m}: bulk {g['bulk']}" + ((", 001 " + str(g["basal"])) if g["basal"] is not None else "")
                                + (f", edges {len(g['edges'])} faces ({sum(n for _, n in g['edges'])} atoms)" if g["edges"] else "") + "\n")
                     if g["edges"]:
                         txt.insert("end", "      " + " ".join(f + ("" if n else "*") for f, n in g["edges"]) + "\n")

@@ -4,11 +4,11 @@ A GUI for clay minerals. You pick a structure file (elements, coordinates, and b
 
 ## Features
 
-- **Automatic force-field generation**: each atom gets the type and charge of the most similar atom in the bundled library (12 bulk crystals including dry Na montmorillonite, and the basal (0 0 1) slab in vacuum of the 11 layered ones: 23 structures, 3,453 rows after pruning duplicates; no edges). The GUI writes `system.data`, `system.settings` (bonds, angles, and LJ parameters), and an `in.lammps` that goes up to the minimization. If any atom has an environment that is not in the library (similarity below 0.95), it stops without building a force field.
+- **Automatic force-field generation**: each atom gets the type and charge of the most similar atom in the bundled library (11 bulk layered minerals including dry Na montmorillonite, and the basal (0 0 1) slab in vacuum of each: 22 structures, 3,265 rows after pruning duplicates; no edges). The GUI writes `system.data`, `system.settings` (bonds, angles, and LJ parameters), and an `in.lammps` that goes up to the minimization. If any atom has an environment that is not in the library (similarity below 0.95), it stops without building a force field.
 - **Charges and water model** (Calculation settings › Library and details, or `--water`): SOAP gives the type of every atom; its charge is the published value of ClayFF Table 1 for that type (Cygan et al. 2004; 4 decimals, the ions as in the table), with no other charge scheme. Water: the flexible SPC water of ClayFF (Tables 1 and 2), the only model. The charges are not shifted to make the system neutral: the net charge is reported; Table 1 leaves +0.0002 e per octahedral Mg and -0.0002 e per tetrahedral Al substitution.
 - **Adding MD steps**: after the minimization, choose from the lists of LAMMPS fix, compute, and other commands to add them (temperature, pressure, time step, and IDs are filled in automatically). Commands can also be entered by **copy and paste** (select a line and press Cmd+V, or use "Open as text (large, paste)" in the editor to edit the whole input in a large window and press "Apply"). The editor can be enlarged by dragging the border at the bottom or with "Expand".
 - **Supercell**: replicates the structure along a, b, and c with OVITO's Replicate, then builds the force field.
-- **Surface**: cuts the basal plane of a layered mineral from the current calculation (it uses the ClayFF types of the bulk): the cut goes through the interlayer, no cation-O bond is cut, and the interlayer ions are shared by the two faces. A face that would cut bonds (an edge, any face of quartz) is refused: edges, whose O would need H, are not supported. Then builds the force field.
+- **Surface**: cuts the basal plane of a layered mineral from the current calculation (it uses the ClayFF types of the bulk): you give only the face h k l; pymatgen (SlabGenerator) cuts a slab at least 16 Å thick with 30 Å of vacuum and keeps a termination that cuts no cation-O bond. The interlayer ions stay where the cut leaves them, on one face. A face that would cut bonds (an edge) is refused: edges, whose O would need H, are not supported. Then builds the force field.
 - **Add water**: lists the empty slices of the structure along z (the vacuum above a surface, an interlayer) with their thickness and area. Every region can be narrowed (edit z from/to), and a free box (any z range, and the fractions of a and b) can be added, e.g. only the upper 10 Å of a vacuum or half of the cell. Water is placed by packmol at a density (default 1.0 g/cm³) or a number of molecules, at least 2 Å from every atom. **Ions** of ClayFF Table 1 (Na⁺, K⁺, Cs⁺, Ca²⁺, Ba²⁺, Cl⁻) can be added in the same regions (shared in proportion to the water), with a button that sets the number of an ion to cancel the net charge. Then builds the force field (the water and the ions typed by rule, with the chosen water model). The recommended way to make hydrated or interfacial systems: give the dry structure and add the water here. The same from the command line: `soapff-cui add-water STRUCTURE --list`, then e.g. `soapff-cui add-water slab.extxyz --region 30 50 --x 0 0.5 --ion Ca:3 --neutralize Cl -o slab_water.extxyz`.
 - **Swelling curve**: runs NPT while adding water molecules to the interlayer, and records the box of each state in `swelling.dat` (same procedure as Cygan et al. 2004; the plot is made by `examples/montmorillonite_swelling/analyze_swelling.py`).
 - **Running**: LAMMPS runs on this computer or on another computer registered over SSH (just enter `user@host` to register it).
@@ -47,7 +47,7 @@ Passwords are not saved (you are asked each time you register, run, or press "Te
 
 | Folder | Contents |
 |---|---|
-| `library_nvt_npt/` | NVT and NPT of each of the 12 bulk library structures (soapff-cui `make` inputs, LAMMPS outputs, and analysis; summary table in its README) |
+| `library_nvt_npt/` | NVT and NPT of each of the 11 bulk library structures (soapff-cui `make` inputs, LAMMPS outputs, and analysis; summary table in its README) |
 | `montmorillonite_2W/` | Diffusion coefficients of Na montmorillonite with a 2-layer hydrate (1,554 atoms made from the 32-water state of the swelling example; 300, 330, and 366 K; compared with Greathouse et al. 2016) |
 | `montmorillonite_swelling/` | How to build the same Na montmorillonite structure as Cygan et al. 2004, and its swelling curve (10 water contents) |
 | `muscovite_2M1/` | 0 K elastic constants, tension, compression, and shear of muscovite 2M1 (the property commands of an earlier soapff-gui version, rerun with the current force field) |
@@ -56,9 +56,9 @@ All the examples use the current force field: the charges of Table 1 of Cygan et
 
 ## Supported structures and limits
 
-- Library: Na montmorillonite (dry), quartz, brucite, pyrophyllite, muscovite (2M1, 1M), phlogopite, nanpingite, kaolinite, lizardite, and talc. For these crystals, the types and charges of all atoms matched the correct answer, both for supercells of different sizes and for structures after MD at 300 K.
+- Library: Na montmorillonite (dry), brucite, pyrophyllite, muscovite (2M1, 1M), phlogopite, nanpingite, kaolinite, lizardite, and talc. For these crystals, the types and charges of all atoms matched the correct answer, both for supercells of different sizes and for structures after MD at 300 K.
 - Water is typed by rule (an O with two H in the shape of a water molecule; ClayFF SPC charges) and left out of the SOAP, in the library and in the structures: the ClayFF type of a mineral atom does not depend on the water around it, so the same library serves dry crystals, hydrated interlayers and mineral-water interfaces. The ions stay in the SOAP (their positions belong to the clay).
-- Surfaces: only interfaces that cut no bond, i.e. the basal plane of a layered mineral (cleaved in the interlayer, the ions shared by the two faces; the atoms keep the ClayFF types of the bulk). Edges (cation-O bonds cut, O protonated by bond valence) are not supported: the GUI and `soapff-cui make-surfaces` refuse those faces, the library has no edge references (no JAEA particle, no edge slabs), and a structure with edges is stopped by the similarity check. There are no edge types or edge charges: every atom has a ClayFF Table 1 type and its charge.
+- Surfaces: only interfaces that cut no bond, i.e. the basal plane of a layered mineral (cleaved in the interlayer by pymatgen, the interlayer ions left on one face; the atoms keep the ClayFF types of the bulk). Edges (cation-O bonds cut, O protonated by bond valence) are not supported: the GUI and `soapff-cui make-surfaces` refuse those faces, the library has no edge references (no JAEA particle, no edge slabs), and a structure with edges is stopped by the similarity check. There are no edge types or edge charges: every atom has a ClayFF Table 1 type and its charge.
 - Other minerals: make their bulk reference (LAMMPS data file with ClayFF type names), `soapff-cui make-surfaces` for the basal slab, and `soapff-cui build-library` with all of them.
 - The force field is ClayFF (Tables 1 and 2 of Cygan et al. 2004; ions as in Table 1) with its flexible SPC water.
 
@@ -72,12 +72,12 @@ examples/        the examples above
 
 ## Interfaces in the library
 
-Only interfaces that cut no bond: the basal plane (0 0 1) of the 11 layered minerals (pyrophyllite, pyrophyllite_2, talc, kaolinite, lizardite, brucite, muscovite 1M, muscovite 2M1, phlogopite 1M, nanpingite, montmorillonite (dry, Na)), as slabs in vacuum, with the 12 bulk references: 23 structures, 3,453 library rows. Every other face with |h|, |k|, |l| <= 1 (and every face of quartz) cuts cation-O bonds wherever it is placed and is refused.
+Only interfaces that cut no bond: the basal plane (0 0 1) of the 11 layered minerals (pyrophyllite, pyrophyllite_2, talc, kaolinite, lizardite, brucite, muscovite 1M, muscovite 2M1, phlogopite 1M, nanpingite, montmorillonite (dry, Na)), as slabs in vacuum, with the 11 bulk references: 22 structures, 3,265 library rows. Every other face with |h|, |k|, |l| <= 1 cuts cation-O bonds wherever it is placed and is refused.
 
 | kind | faces | bonds cut | charges |
 |---|---|---|---|
-| basal (layered minerals) | 001 | none; the interlayer ions shared by the two faces | the ClayFF types of the bulk |
-| edges, quartz surfaces | the others | cation-O bonds | not supported |
+| basal (layered minerals) | 001 | none; the interlayer ions on one face | the ClayFF types of the bulk |
+| edges | the others | cation-O bonds | not supported |
 
 Which mineral and which face (|h|, |k|, |l| <= 1; each was tested by cutting all 13 faces of the bulk reference):
 
@@ -90,18 +90,9 @@ Which mineral and which face (|h|, |k|, |l| <= 1; each was tested by cutting all
 | pyrophyllite (two sources), talc | none | yes | refused |
 | kaolinite, lizardite | none (1:1 layers) | yes | refused |
 | brucite | none | yes | refused |
-| quartz | none | no (Si-O bonds are cut by every face) | refused |
 
-Of the 156 slabs (12 minerals x 13 faces) only the 11 (001) slabs can be made (formal charge 0, no cation-O bond cut); the other 145 are refused. Water was added to all 11 and the minimization converged (fallback 0). Any other ClayFF mineral can be added with its own bulk reference (see above), and an interface with it follows the same rule.
+Of the 143 slabs (11 minerals x 13 faces, cut by pymatgen) only the 11 (001) slabs can be made (formal charge 0, no cation-O bond cut); the other 132 are refused. The 11 (001) slabs were also cut through the GUI Surface dialog from the examples in `library_nvt_npt/`, and cut again from the bulk doubled along a with 30 Å of vacuum: fallback 0 and no wrong type. Water was added to all 11 (122-281 molecules) and the minimization converged (fallback 0). Any other ClayFF mineral can be added with its own bulk reference (see above), and an interface with it follows the same rule.
 
 A mineral-water interface is the basal slab with water added in the empty part ("Add water").
 
-Slab cell (the three options of the Surface dialog, with their command-line names):
-
-| GUI | Command line | Meaning |
-|---|---|---|
-| Repeat the cell (a b c) before the cut | `--repeat NA NB NC` | the bulk cell is repeated before the cut, so the slab (and the cell) is larger in the plane and along the stacking direction, e.g. `3 2 1` for a 3x2 supercell |
-| Cut inside the cell / Unit cells kept (blank: all but one) | `--periods N\|auto` | the cell is not changed: the slab keeps N unit cells along the direction out of the plane (blank/auto: all but one, at least 10 Å thick) and the rest of the cell is empty (it takes the water). Off: a slab at least 16 Å thick with 30 Å of vacuum added along that direction (command line: `--thickness`, `--vacuum`) |
-| Extra length of the cell (Å) | `--vacuum` (with `--periods`) | with "Cut inside the cell" only: an extra length added to the cell along that direction (0: nothing). The cell is also lengthened by whole periods, automatically, when the empty part would be narrower than 6 Å (wider than the SOAP cut-off, so that the two faces do not see each other); the result says so |
-
-`--keep-cell` (GUI: always on) adds the vacuum along the lattice vector that leaves the plane, so the in-plane vectors and the shape of the input cell are kept.
+How the slab is cut: the Surface dialog asks only for the face h k l (of the unit cell; the structure may be a supercell of it, with ions or substitutions). pymatgen's `SlabGenerator` makes the slab of whole planes, at least 16 Å thick, with 30 Å of vacuum along the normal, and lists every termination of that face; `get_slabs(bonds=..., max_broken_bonds=0)` keeps those that break no cation-O bond (Si-O, Al-O, Mg-O, ...) and no O-H of a hydroxyl. If none is left the face is refused. The c axis of the slab cell is then made normal to the slab (`get_orthogonal_c_slab`), so that "Add water" can fill the vacuum. Nothing is added or moved: no H, no splitting of the interlayer ions (the cut goes through the interlayer, so its ions stay on one face and the other face is bare; the slab has the formula of the bulk and is neutral). The command line does the same: `soapff-cui make-surfaces bulk.data -o out/ [--thickness 16] [--vacuum 16]` (every face with |h|, |k|, |l| <= 1 is tried; those that cut bonds are skipped).
