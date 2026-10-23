@@ -28,47 +28,6 @@ ANGLE_HOH = (45.7696, 109.47)                   # h*-o*-h* (k2 kcal/mol/rad^2, t
 ANGLE_MOH = (30.0, 109.47)                      # Metal-oh-ho and Metal-ohs-ho
 WATER_Q = (Q["ow"], Q["hw"])                    # flexible SPC
 
-# ------------------------------------------------------------------------------------------ surface and edge types
-# Names of edge types (oe_<codes>: an O that lost bonded cations, codes = the cations and H it keeps; <metal>_e<n>: a metal
-# whose n OH2 were removed), only to recognise them: edges are not supported and these types get no charge (make_slab refuses
-# a structure that has them).
-BV_CODE = {"s": "st", "t": "at", "a": "ao", "m": "mgo", "g": "mgh", "c": "cao", "k": "cah", "f": "feo", "l": "lio", "h": "ho"}
-BV_ZCN = {"st": (4, 4), "at": (3, 4), "ao": (3, 6), "mgo": (2, 6), "mgh": (2, 6), "cao": (2, 6), "cah": (2, 6), "feo": (3, 6),
-          "lio": (1, 6), "ho": (1, 1)}
-# type names of the JAEA particle file (clay_montmorillonite.data) -> the names above
-EDGE_ALIAS = {"oed": "oe_sh", "oaa": "oe_sa", "oab": "oe_ah", "omb": "oe_mh", "oma": "oe_sm", "alb": "ao_e1", "ala": "ao_e1",
-              "mgb": "mgo_e1", "mga": "mgo_e1"}
-
-
-def edge_type(name):
-    """("O", [cation types kept]) for oe_<codes>, ("M", base, n) for <base>_e<n>, None otherwise"""
-    if name.startswith("oe_") and len(name) > 3 and all(c in BV_CODE for c in name[3:]):
-        return ("O", [BV_CODE[c] for c in name[3:]])
-    base, sep, n = name.rpartition("_e")
-    if sep and base in BV_ZCN and base != "ho" and n.isdigit():
-        return ("M", base, int(n))
-    return None
-
-
-def edge_parent(name):
-    e = edge_type(EDGE_ALIAS.get(name, name))
-    return None if e is None else ("ob" if e[0] == "O" else e[1])
-
-
-def is_edge_type(name):
-    return edge_parent(name) is not None
-
-
-def is_edge_metal(name):
-    e = edge_type(EDGE_ALIAS.get(name, name))
-    return e is not None and e[0] == "M"
-
-
-def is_edge_hydroxyl(name):
-    e = edge_type(EDGE_ALIAS.get(name, name))
-    return e is not None and e[0] == "O" and "ho" in e[1]
-
-
 # charges: only the values of ClayFF Table 1 as published (4 decimals; Cygan et al. 2004), one per type, the ions as in the table.
 # The charge of every atom is the charge of its type (the type comes from SOAP).  The net charge is not corrected: Table 1 leaves
 # +0.0002 e per octahedral Mg and -0.0002 e per tetrahedral Al substitution.

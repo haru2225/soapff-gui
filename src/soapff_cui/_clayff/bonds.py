@@ -1,10 +1,10 @@
-"""Bond graph (with periodic shifts), coordination, bond-valence sums and first-shell environment classes."""
+"""Bond graph (with periodic shifts), coordination and first-shell environment classes."""
 import collections
 
 import numpy as np
 from ase.neighborlist import neighbor_list
 
-from .chem import BV_B, BV_R0, CUT, EXCHANGEABLE, FORMAL, FRAMEWORK
+from .chem import CUT, EXCHANGEABLE, FORMAL, FRAMEWORK
 
 ORDER = ("H", "Si", "Al", "Mg", "Ca", "Na", "K", "Cs", "Ti", "Fe")
 
@@ -45,18 +45,6 @@ class Graph:
 
     def n_h(self, i):
         return sum(1 for j, _, _ in self.nb[i] if self.el[j] == "H")
-
-    def bvs(self):
-        """geometric bond-valence sums (Brese & O'Keeffe); O-H bonds count 1 v.u. on the O side."""
-        out = np.zeros(self.n)
-        for i, e in enumerate(self.el):
-            if e in BV_R0:
-                out[i] = sum(np.exp((BV_R0[e] - d) / BV_B) for j, _, d in self.nb[i] if self.el[j] == "O")
-            elif e == "O":
-                out[i] = sum((np.exp((BV_R0[self.el[j]] - d) / BV_B) if self.el[j] in BV_R0 else 1.0) for j, _, d in self.nb[i])
-            elif e == "H":
-                out[i] = 1.0 if self.nb[i] else 0.0
-        return out
 
     def pauling(self, i, cn_ref=None):
         """Pauling bond strength z/CN of cation i (cn_ref overrides the coordination number, e.g. the bulk one)."""

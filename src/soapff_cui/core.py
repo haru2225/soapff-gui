@@ -12,15 +12,15 @@ from ase.neighborlist import neighbor_list
 from ._clayff.chem import MASS
 from ._clayff.ff import ELEMENT, ff_types, lammps_frame
 
-from .clayff import (ANGLE_HOH, ANGLE_MOH, BOND_OH, CHARGE_SCHEMES, EDGE_ALIAS, LJ, WATER_LABELS,
-                     WATER_MODELS, WATER_Q, edge_parent, is_edge_hydroxyl, is_edge_metal, is_edge_type,
+from .clayff import (ANGLE_HOH, ANGLE_MOH, BOND_OH, CHARGE_SCHEMES, LJ, WATER_LABELS,
+                     WATER_MODELS, WATER_Q,
                      type_charges)
 from .clayff import Q as CLAYFF_Q
 
 SOAP_DEFAULT = dict(r_cut=5.0, n_max=4, l_max=3, sigma=0.4)
 THRESHOLD = 0.95
 FRAMEWORK = ("Si", "Al", "Mg", "Fe", "Ti")
-TYPE_ALIAS = {"OW": "ow", "HW": "hw", "OH": "oh", "HO": "ho", **EDGE_ALIAS}   # library type names -> ClayFF type names (clayff.py)
+TYPE_ALIAS = {"OW": "ow", "HW": "hw", "OH": "oh", "HO": "ho"}   # library type names -> ClayFF type names (clayff.py)
 TIMESTEP_FS = 0.5                                                  # flexible SPC water: 0.5 fs (as in ClayFF studies)
 IONS = ("Li", "Na", "K", "Rb", "Cs", "Ca", "Sr", "Ba", "Cl", "Br", "F", "I")
 FORMAL_ION = {"Li": 1, "Na": 1, "K": 1, "Rb": 1, "Cs": 1, "Ca": 2, "Sr": 2, "Ba": 2, "Cl": -1, "Br": -1, "F": -1, "I": -1}
@@ -47,11 +47,8 @@ def read_lammps_data(path):
         i += 1
     el_of = {}
     for t, m in mass.items():
-        if name[t] in ELEMENT:            # a known type name fixes the element (the particle-edge Al/Mg carry dummy masses 13 and 12)
+        if name[t] in ELEMENT:            # a known type name fixes the element
             el_of[t] = ELEMENT[name[t]]
-            continue
-        if name[t] and is_edge_type(name[t]):    # an edge type (not supported; recognised for the element only)
-            el_of[t] = ELEMENT[edge_parent(name[t])]
             continue
         el_of[t] = min(MASS, key=lambda e: abs(MASS[e] - m)) if min(abs(MASS[e] - m) for e in MASS) < 0.1 else _mass_to_el(m)
     i = [k for k, l in enumerate(L) if l.strip().startswith("Atoms")][0] + 2
@@ -359,14 +356,14 @@ FRAMEWORK_TYPES = ("ao", "at", "mgo", "mgh", "st", "cao", "cah", "feo", "lio")
 
 
 def hydroxyl_o(t, extra=()):
-    """mask of the hydroxyl O types (oh, ohs, the oe_ types with an H) among the type array t"""
-    return np.array([x in ("oh", "ohs", *extra) or is_edge_hydroxyl(x) for x in t], bool)
+    """mask of the hydroxyl O types (oh, ohs) among the type array t"""
+    return np.array([x in ("oh", "ohs", *extra) for x in t], bool)
 
 
 def framework_cation(t, si=True):
-    """mask of the framework cations (with the edge metals <metal>_e<n>); si=False leaves Si out"""
+    """mask of the framework cations; si=False leaves Si out"""
     base = FRAMEWORK_TYPES if si else tuple(x for x in FRAMEWORK_TYPES if x != "st")
-    return np.array([x in base or is_edge_metal(x) for x in t], bool)
+    return np.array([x in base for x in t], bool)
 
 
 def assign(at, lib, threshold=THRESHOLD, block=4000, exclude_types=(), only=None):
@@ -878,16 +875,7 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     geo = np.array([TYPE_ALIAS.get(str(t), str(t)) for t in types_geo])
     cls = lambda t: ("bridge" if t in ("ob", "obts", "obos", "obss") else "oh" if t in ("oh", "ohs") else
                      "water" if t in ("ow", "oaq", "hw") else "h" if t == "ho" else "cation")
-    # the surface/edge types (oe_, _e) are not ClayFF types: the bond graph cannot predict them, so they are not compared
-    same_class = np.array([not is_edge_type(a) and cls(a) == cls(b) and cls(a) in ("bridge", "oh", "cation")
-                           for a, b in zip(tarr, geo)])
-    # an atom bonded to an edge atom (an Al that lost its OH2 has 4 O and is read as tetrahedral by the bond graph, so the O around
-    # it are misread too) is not compared either: the bond graph cannot predict its type
-    from ase.neighborlist import neighbor_list
-    edge_atom = np.array([is_edge_type(a) for a in tarr])
-    if edge_atom.any():
-        I, J = neighbor_list("ij", at, 2.6)
-        same_class[np.unique(I[edge_atom[J]])] = False
+    same_class = np.array([cls(a) == cls(b) and cls(a) in ("bridge", "oh", "cation") for a, b in zip(tarr, geo)])
     differ = (~unknown) & same_class & (tarr != geo)
     type_check = dict(compared=int(((~unknown) & same_class).sum()), differ=int(differ.sum()),
                       kinds=dict(collections.Counter(f"{g}->{t}" for g, t in zip(geo[differ], tarr[differ]))))
