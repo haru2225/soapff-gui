@@ -14,8 +14,10 @@
   "kspace_style pppm 1.0e-5"
  ],
  "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
  "charge_sum_before": 0.0001999999999990898,
- "charge_sum": 6.217248937900877e-15,
+ "charge_sum": 0.0001999999999990898,
  "from_soap": 163,
  "fallback": 0,
  "type_check": {
@@ -23,7 +25,9 @@
   "differ": 0,
   "kinds": {}
  },
- "warnings": [],
+ "warnings": [
+  "net charge +0.0002 e (not neutralised; LAMMPS adds a uniform neutralising background for the long-range Coulomb)"
+ ],
  "roles": {
   "mineral": 160,
   "water": 0,
@@ -37,7 +41,7 @@
    ],
    "from_soap": 3,
    "fallback": 0,
-   "min_similarity": 0.9999997615814209
+   "min_similarity": 0.9999990463256836
   },
   "ao": {
    "atoms": 14,
@@ -46,7 +50,7 @@
    ],
    "from_soap": 14,
    "fallback": 0,
-   "min_similarity": 0.9999988079071045
+   "min_similarity": 0.9999988675117493
   },
   "at": {
    "atoms": 1,
@@ -55,7 +59,7 @@
    ],
    "from_soap": 1,
    "fallback": 0,
-   "min_similarity": 0.9999995231628418
+   "min_similarity": 0.9999992251396179
   },
   "ho": {
    "atoms": 16,
@@ -64,7 +68,7 @@
    ],
    "from_soap": 16,
    "fallback": 0,
-   "min_similarity": 0.9999988675117493
+   "min_similarity": 0.999998152256012
   },
   "mgo": {
    "atoms": 2,
@@ -73,7 +77,7 @@
    ],
    "from_soap": 2,
    "fallback": 0,
-   "min_similarity": 0.9999992847442627
+   "min_similarity": 0.9999988675117493
   },
   "ob": {
    "atoms": 68,
@@ -82,7 +86,7 @@
    ],
    "from_soap": 68,
    "fallback": 0,
-   "min_similarity": 0.9999988675117493
+   "min_similarity": 0.999998152256012
   },
   "obos": {
    "atoms": 8,
@@ -91,7 +95,7 @@
    ],
    "from_soap": 8,
    "fallback": 0,
-   "min_similarity": 0.999998927116394
+   "min_similarity": 0.9999980926513672
   },
   "obts": {
    "atoms": 4,
@@ -100,7 +104,7 @@
    ],
    "from_soap": 4,
    "fallback": 0,
-   "min_similarity": 0.9999991059303284
+   "min_similarity": 0.9999980926513672
   },
   "oh": {
    "atoms": 12,
@@ -109,7 +113,7 @@
    ],
    "from_soap": 12,
    "fallback": 0,
-   "min_similarity": 0.9999990463256836
+   "min_similarity": 0.9999983906745911
   },
   "ohs": {
    "atoms": 4,
@@ -118,7 +122,7 @@
    ],
    "from_soap": 4,
    "fallback": 0,
-   "min_similarity": 0.9999997019767761
+   "min_similarity": 0.9999991655349731
   },
   "st": {
    "atoms": 31,
@@ -127,14 +131,14 @@
    ],
    "from_soap": 31,
    "fallback": 0,
-   "min_similarity": 0.9999988675117493
+   "min_similarity": 0.999998152256012
   }
  },
  "consistency": [],
  "md": {
   "temp": 300.0,
   "relax_ps": 10.0,
-  "nvt_ps": 10.0,
+  "nvt_ps": 50.0,
   "npt_ps": 0.0,
   "press": 1.0,
   "baro": "aniso",

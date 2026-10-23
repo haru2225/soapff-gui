@@ -1,5 +1,6 @@
 # soapff-cui: ClayFF + SOAP charges.  lmp -in in.lammps
 include system.settings
+group water type 12 4
 neighbor 2.0 bin
 neigh_modify every 1 delay 0 check yes
 thermo_style custom step temp press pe ke etotal vol density lx ly lz
@@ -10,9 +11,7 @@ min_modify dmax 0.01
 minimize 1.0e-4 1.0e-6 1000 10000
 min_modify dmax 0.1
 minimize 1.0e-6 1.0e-6 5000 50000
-
-# Add the MD (fix, compute, run, etc.) below this line (+ fix / + compute / + Other)
-# swelling curve (soapff; Cygan et al. 2004): water added to the interlayer (10 states), each state NPT 30 ps + 20 ps (averaged); d001 = lz.  Read by soapff analyze (swelling.dat)
+# swelling curve (soapff; Cygan et al. 2004): water added to the interlayer (10 states), each state NPT 30 ps + 20 ps (recorded); d001 = lz in swelling.dat
 velocity all create 300 4928459 mom yes rot no dist gaussian
 timestep 0.5
 shell rm -f swelling_states.lammpstrj

@@ -12,9 +12,11 @@ Na⁺ in a dry interlayer is an environment that no other reference has, so this
 
 1. Choose `dry.extxyz` with "New calculation" (fallback 0, 0 mismatches in the type cross-check).
 2. With "+ other > soapff procedures > swelling curve", specify the numbers of water molecules as "4 8 12 16 20 25 32 40 48 59" (each state is equilibrated with NPT for 30 ps, and the following 20 ps are recorded). The structure has no water type, so a water type is added to `system.data` and `water.mol` is written.
-3. Press "Start calculation" (SSH computer, 4 MPI processes, about 15 minutes).
+3. Press "Start calculation" (SSH computer, 4 MPI processes, about 5 minutes).
 
 For each state, water molecules are inserted into the interlayer (the region between the clay and the box edge, on the side across the periodic boundary) with `create_atoms ... mol` (at least 2 Å from other atoms; if they do not fit, the box is stretched by 0.5 Å in z), the clay is moved back to the center of the box, and then a minimization, a 2 ps relaxation with damping, and NPT (300 K, 1 atm) are run. The NPT moves x, y, z, and the xy tilt, and keeps the tilts across the layer, xz and yz, fixed (when water enters, the layer slides and the tilt becomes large, which makes LAMMPS stop; d001 = lz does not depend on this).
+
+The charges are the values of Table 1 of Cygan et al. (2004) as they are, and the Lennard-Jones parameters are written without rounding. Because the O charges of the table are rounded to 4 decimals, the net charge of this system is +0.0002 e (LAMMPS neutralizes it with a uniform background). Water is the flexible ClayFF SPC water (timestep 0.5 fs, PPPM 1e-5).
 
 `gui_run/` contains the inputs (`in.lammps`, `system.data`, `system.settings`, `water.mol`) and the outputs (`log.lammps`, `swelling.dat`, and the last structure of each state `swelling_states.lammpstrj` (large, so it is not in git)).
 
@@ -24,15 +26,15 @@ From `swelling.dat`, the mean and standard deviation of lz (= d001) over the las
 
 | Water (molecules) | g/g | d001 (Å) |
 |---|---|---|
-| 4 | 0.024 | 11.35 |
+| 4 | 0.024 | 11.56 |
 | 8 | 0.049 | 12.03 |
-| 12 | 0.073 | 12.14 |
-| 16 | 0.098 | 12.27 |
-| 20 | 0.122 | 12.43 |
-| 25 | 0.153 | 14.17 |
-| 32 | 0.196 | 14.92 |
-| 40 | 0.245 | 15.95 |
-| 48 | 0.294 | 17.34 |
-| 59 | 0.361 | 18.92 |
+| 12 | 0.073 | 12.19 |
+| 16 | 0.098 | 12.29 |
+| 20 | 0.122 | 12.47 |
+| 25 | 0.153 | 13.66 |
+| 32 | 0.196 | 14.89 |
+| 40 | 0.245 | 15.69 |
+| 48 | 0.294 | 17.27 |
+| 59 | 0.361 | 19.05 |
 
-The 1-layer hydrate (about 12.0-12.4 Å at 0.05-0.12 g/g), the expansion to the 2-layer hydrate (about 14-15 Å at 0.15-0.2 g/g), and the continued swelling with more water were the same as in the MD of Fig. 8 of Cygan et al.
+The 1-layer hydrate (about 12.0-12.5 Å at 0.05-0.12 g/g), the expansion to the 2-layer hydrate (about 13.7-14.9 Å at 0.15-0.2 g/g), and the continued swelling with more water were the same as in the MD of Fig. 8 of Cygan et al.
