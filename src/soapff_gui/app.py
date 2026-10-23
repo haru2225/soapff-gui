@@ -1461,11 +1461,7 @@ class App:
             sv = tk.StringVar(value=str(v0))
             ttk.Spinbox(f, from_=-3, to=3, width=4, textvariable=sv).grid(row=1, column=2 * k + 1, sticky="w", padx=(4, 14))
             hkl.append(sv)
-        num = {}
-        for r, (key, lab, v0) in enumerate((("thick", "Slab thickness at least (Å)", "16"), ("vac", "Vacuum (Å; room for water)", "30")), start=2):
-            ttk.Label(f, text=lab).grid(row=r, column=0, columnspan=3, sticky="w", pady=2)
-            num[key] = tk.StringVar(value=v0)
-            ttk.Entry(f, textvariable=num[key], width=8, style="Field.TEntry").grid(row=r, column=3, sticky="w")
+        SLAB_THICKNESS, SLAB_VACUUM = 16.0, 30.0           # fixed: at least 16 A of mineral, 30 A of vacuum (room for water)
         info = tk.StringVar(value="")
         ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=4, column=0, columnspan=6, sticky="w", pady=(10, 0))
         made = {}
@@ -1473,9 +1469,9 @@ class App:
         def make_file():
             try:
                 m = tuple(int(x.get()) for x in hkl)
-                th, vac = float(num["thick"].get()), float(num["vac"].get())
+                th, vac = SLAB_THICKNESS, SLAB_VACUUM
             except ValueError:
-                info.set("Enter integers for h k l and numbers for the thickness and vacuum")
+                info.set("Enter integers for h k l")
                 return None
             if m == (0, 0, 0):
                 info.set("(0 0 0) is not a face")
