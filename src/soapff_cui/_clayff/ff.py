@@ -40,7 +40,7 @@ CLAYFF_Q = {"st": 2.1, "at": 1.575, "ao": 1.575, "mgo": 1.36, "mgh": 1.05, "cao"
             "ob": -1.05, "obos": -1.1808, "obts": -1.1688, "obss": -1.2996, "oh": -0.95, "ohs": -1.0808,
             "ow": -0.82, "hw": 0.41, "oaq": -0.82, "ho": 0.425}
 BOND_OH = (554.1349, 1.0)
-WATER_Q = {"spc": (-0.82, 0.41), "spce": (-0.8476, 0.4238)}
+WATER_Q = {"spc": (-0.82, 0.41)}
 ANGLE_HOH = (45.7696, 109.47)
 # (metal, "bulk" = OH bridging >= 2 framework cations, "surface" = terminal OH / OH2) -> (k kcal/mol/rad^2, theta0 deg)
 ANGLE_MOH = {("Al", "bulk"): (15.0, 116.0), ("Al", "surface"): (15.0, 110.0),
