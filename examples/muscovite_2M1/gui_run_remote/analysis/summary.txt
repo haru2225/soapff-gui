@@ -1,23 +1,23 @@
-Analysis: MD 0-160.0 ps, the first 32.0 ps skipped as equilibration (time step 0.5 fs)
+Analysis: properties only (the trajectories are not included; time step 0.5 fs)
 Properties (soapff-property calculations of in.lammps; earlier version of soapff-gui)
   Elastic constants 0 K (ELASTIC): C_ij (GPa, Voigt: 1 xx 2 yy 3 zz 4 yz 5 xz 6 xy)
-       263.8     68.1     23.8     -0.6     11.2     -0.4
-        68.1    233.9     22.1     -0.6      1.5     -0.4
-        23.8     22.1     66.5     -0.4      4.5      0.0
-        -0.6     -0.6     -0.4      8.5      0.5     -0.6
-        11.2      1.5      4.5      0.5     16.6      0.2
-        -0.4     -0.4      0.0     -0.6      0.2     95.2
-    Bulk modulus K (Hill) 71.2 GPa, shear modulus G (Hill) 37.9 GPa, Young's modulus E_x 233.6, E_y 212.0, E_z 62.4 GPa, Poisson ratio nu_xy 0.266
-  tension x: Young's modulus 223.9 GPa (slope up to strain 0.02), tensile strength 15.04 GPa (strain 0.096), Poisson ratio nu_y 0.416, Poisson ratio nu_z 0.248  strain rate 1e+09 /s, initial stress 0.01 GPa
-  compression x: Young's modulus 252.1 GPa (slope up to strain 0.02), compressive strength 29.31 GPa (strain 0.152), Poisson ratio nu_y 0.358, Poisson ratio nu_z 0.211  strain rate 1e+09 /s, initial stress 0.03 GPa
-  tension y: Young's modulus 225.2 GPa (slope up to strain 0.02), tensile strength 13.94 GPa (strain 0.072), Poisson ratio nu_x 0.371, Poisson ratio nu_z 0.236  strain rate 1e+09 /s, initial stress 0.03 GPa
-  compression y: Young's modulus 223.7 GPa (slope up to strain 0.02), compressive strength 35.02 GPa (strain 0.158), Poisson ratio nu_x 0.378, Poisson ratio nu_z 0.181  strain rate 1e+09 /s, initial stress 0.01 GPa
-  tension z: Young's modulus 55.8 GPa (slope up to strain 0.02), tensile strength 4.09 GPa (strain 0.094), Poisson ratio nu_x 0.077, Poisson ratio nu_y 0.109  strain rate 1e+09 /s, initial stress -0.02 GPa
-  compression z: Young's modulus 68.4 GPa (slope up to strain 0.02), compressive strength 28.33 GPa (strain 0.159), Poisson ratio nu_x 0.055, Poisson ratio nu_y 0.056  strain rate 1e+09 /s, initial stress 0.03 GPa
-  shear xy (solid): shear modulus 88.6 GPa, shear strength 12.09 GPa (strain 0.143)  strain rate 1e+09 /s, initial stress -0.03 GPa
-  shear xy (-) (solid): shear modulus 93.0 GPa, shear strength 11.97 GPa (strain 0.149)  strain rate 1e+09 /s, initial stress 0.05 GPa
-  shear xz (solid): shear modulus 12.5 GPa, shear strength 3.33 GPa (strain 0.142)  strain rate 1e+09 /s, initial stress 0.03 GPa
-  shear xz (-) (solid): shear modulus 16.2 GPa, shear strength 3.69 GPa (strain 0.131)  strain rate 1e+09 /s, initial stress -0.03 GPa
-  shear yz (solid): shear modulus 9.3 GPa, shear strength 2.42 GPa (strain 0.125)  strain rate 1e+09 /s, initial stress -0.02 GPa
-  shear yz (-) (solid): shear modulus 9.4 GPa, shear strength 2.48 GPa (strain 0.126)  strain rate 1e+09 /s, initial stress 0.03 GPa
-  Moduli from a linear fit of both directions together (tension and compression, + and - shear; |strain| <= 0.02 for x and y, 0.01 for z, 0.1 for shear; as in Teich-McGoldrick et al. 2012): tensile x 238.6 GPa, tensile y 224.6 GPa, tensile z 63.0 GPa, shear xy 88.5 GPa, shear xz 19.1 GPa, shear yz 13.8 GPa
+       262.2     66.8     23.5     -0.9     10.5     -0.2
+        66.8    233.2     21.6     -0.9      1.3     -0.2
+        23.5     21.6     66.4     -0.5      4.6      0.1
+        -0.9     -0.9     -0.5      8.4      0.6     -1.0
+        10.5      1.3      4.6      0.6     16.2     -0.0
+        -0.2     -0.2      0.1     -1.0     -0.0     95.4
+    Bulk modulus K (Hill) 70.6 GPa, shear modulus G (Hill) 37.7 GPa, Young's modulus E_x 233.3, E_y 212.1, E_z 62.2 GPa, Poisson ratio nu_xy 0.262
+  tension x: Young's modulus 220.1 GPa (slope up to strain 0.02), tensile strength 15.39 GPa (strain 0.099), Poisson ratio nu_y 0.420, Poisson ratio nu_z 0.215  strain rate 1e+09 /s, initial stress 0.05 GPa
+  compression x: Young's modulus 256.7 GPa (slope up to strain 0.02), compressive strength 27.68 GPa (strain 0.142), Poisson ratio nu_y 0.384, Poisson ratio nu_z 0.239  strain rate 1e+09 /s, initial stress -0.01 GPa
+  tension y: Young's modulus 220.9 GPa (slope up to strain 0.02), tensile strength 13.70 GPa (strain 0.071), Poisson ratio nu_x 0.370, Poisson ratio nu_z 0.207  strain rate 1e+09 /s, initial stress 0.15 GPa (warning: far from 0, make the equilibration (NPT) longer)
+  compression y: Young's modulus 225.5 GPa (slope up to strain 0.02), compressive strength 31.30 GPa (strain 0.145), Poisson ratio nu_x 0.391, Poisson ratio nu_z 0.224  strain rate 1e+09 /s, initial stress -0.11 GPa (warning: far from 0, make the equilibration (NPT) longer)
+  tension z: Young's modulus 53.8 GPa (slope up to strain 0.02), tensile strength 4.15 GPa (strain 0.099), Poisson ratio nu_x 0.049, Poisson ratio nu_y 0.067  strain rate 1e+09 /s, initial stress 0.12 GPa (warning: far from 0, make the equilibration (NPT) longer)
+  compression z: Young's modulus 72.3 GPa (slope up to strain 0.02), compressive strength 28.12 GPa (strain 0.159), Poisson ratio nu_x 0.057, Poisson ratio nu_y 0.064  strain rate 1e+09 /s, initial stress -0.11 GPa (warning: far from 0, make the equilibration (NPT) longer)
+  shear xy (solid): shear modulus 92.4 GPa, shear strength 11.70 GPa (strain 0.138)  strain rate 1e+09 /s, initial stress 0.01 GPa
+  shear xy (-) (solid): shear modulus 91.3 GPa, shear strength 12.10 GPa (strain 0.149)  strain rate 1e+09 /s, initial stress 0.01 GPa
+  shear xz (solid): shear modulus 13.2 GPa, shear strength 3.18 GPa (strain 0.135)  strain rate 1e+09 /s, initial stress -0.06 GPa
+  shear xz (-) (solid): shear modulus 16.5 GPa, shear strength 3.86 GPa (strain 0.136)  strain rate 1e+09 /s, initial stress 0.06 GPa
+  shear yz (solid): shear modulus 8.6 GPa, shear strength 2.53 GPa (strain 0.129)  strain rate 1e+09 /s, initial stress 0.00 GPa
+  shear yz (-) (solid): shear modulus 10.1 GPa, shear strength 2.51 GPa (strain 0.125)  strain rate 1e+09 /s, initial stress 0.00 GPa
+  Moduli from a linear fit of both directions together (tension and compression, + and - shear; |strain| <= 0.02 for x and y, 0.01 for z, 0.1 for shear; as in Teich-McGoldrick et al. 2012): tensile x 238.8 GPa, tensile y 224.8 GPa, tensile z 62.4 GPa, shear xy 88.5 GPa, shear xz 19.3 GPa, shear yz 14.0 GPa

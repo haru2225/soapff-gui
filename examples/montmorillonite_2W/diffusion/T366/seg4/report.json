@@ -1,0 +1,166 @@
+{
+ "structure": "/private/tmp/claude-501/-Users-harutokono-ScoreMD/64bceb4c-942b-429c-8731-e59ed7d791ef/scratchpad/redo/B/montmorillonite_2W/initial.xyz",
+ "atoms": 1554,
+ "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
+ "soap": {
+  "r_cut": 5.0,
+  "n_max": 4,
+  "l_max": 3,
+  "sigma": 0.4
+ },
+ "threshold": 0.95,
+ "boundary": "p p p",
+ "kspace": [
+  "kspace_style pppm 1.0e-5"
+ ],
+ "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
+ "charge_sum_before": 0.0011999999999972033,
+ "charge_sum": 0.0011999999999972033,
+ "from_soap": 1554,
+ "fallback": 0,
+ "type_check": {
+  "compared": 882,
+  "differ": 0,
+  "kinds": {}
+ },
+ "warnings": [
+  "net charge +0.0012 e (not neutralised; LAMMPS adds a uniform neutralising background for the long-range Coulomb)"
+ ],
+ "roles": {
+  "mineral": 960,
+  "water": 576,
+  "ion": 18
+ },
+ "per_type": {
+  "Na": {
+   "atoms": 18,
+   "charges": [
+    1.0
+   ],
+   "from_soap": 18,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "ao": {
+   "atoms": 84,
+   "charges": [
+    1.575
+   ],
+   "from_soap": 84,
+   "fallback": 0,
+   "min_similarity": 0.9977725148200989
+  },
+  "at": {
+   "atoms": 6,
+   "charges": [
+    1.575
+   ],
+   "from_soap": 6,
+   "fallback": 0,
+   "min_similarity": 0.9957831501960754
+  },
+  "ho": {
+   "atoms": 96,
+   "charges": [
+    0.425
+   ],
+   "from_soap": 96,
+   "fallback": 0,
+   "min_similarity": 0.9979360699653625
+  },
+  "hw": {
+   "atoms": 384,
+   "charges": [
+    0.41
+   ],
+   "from_soap": 384,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "mgo": {
+   "atoms": 12,
+   "charges": [
+    1.36
+   ],
+   "from_soap": 12,
+   "fallback": 0,
+   "min_similarity": 0.9994246959686279
+  },
+  "ob": {
+   "atoms": 408,
+   "charges": [
+    -1.05
+   ],
+   "from_soap": 408,
+   "fallback": 0,
+   "min_similarity": 0.9976286292076111
+  },
+  "obos": {
+   "atoms": 48,
+   "charges": [
+    -1.1808
+   ],
+   "from_soap": 48,
+   "fallback": 0,
+   "min_similarity": 0.9992176294326782
+  },
+  "obts": {
+   "atoms": 24,
+   "charges": [
+    -1.1688
+   ],
+   "from_soap": 24,
+   "fallback": 0,
+   "min_similarity": 0.9917115569114685
+  },
+  "oh": {
+   "atoms": 72,
+   "charges": [
+    -0.95
+   ],
+   "from_soap": 72,
+   "fallback": 0,
+   "min_similarity": 0.9970928430557251
+  },
+  "ohs": {
+   "atoms": 24,
+   "charges": [
+    -1.0808
+   ],
+   "from_soap": 24,
+   "fallback": 0,
+   "min_similarity": 0.9976674914360046
+  },
+  "ow": {
+   "atoms": 192,
+   "charges": [
+    -0.82
+   ],
+   "from_soap": 192,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "st": {
+   "atoms": 186,
+   "charges": [
+    2.1
+   ],
+   "from_soap": 186,
+   "fallback": 0,
+   "min_similarity": 0.9986639618873596
+  }
+ },
+ "consistency": [],
+ "md": {
+  "temp": 300.0,
+  "relax_ps": 10.0,
+  "nvt_ps": 10.0,
+  "npt_ps": 100.0,
+  "press": 1.0,
+  "baro": "z",
+  "dump_ps": 10.0,
+  "timestep_fs": 0.5
+ }
+}

@@ -1,12 +1,12 @@
 {
- "out_dir": "/Users/harutokono/clay/soapff-gui/examples/muscovite_2M1/gui_run_remote",
- "t_end_ps": 160.0,
- "skip_ps": 32.0,
+ "out_dir": "examples/muscovite_2M1/gui_run_remote",
+ "t_end_ps": 0.0,
+ "skip_ps": 0.0,
  "timestep_fs": 0.5,
  "what": [
   "props"
  ],
- "traj": "traj_compress_x.lammpstrj",
+ "traj": "traj.lammpstrj",
  "has_mineral": true,
  "tools": {
   "msd": "LAMMPS compute msd (Einstein relation)",
@@ -76,76 +76,76 @@
    "file": "elastic0.dat",
    "C": [
     [
-     263.772,
-     68.115,
-     23.751,
-     -0.647,
-     11.246,
-     -0.353
+     262.165,
+     66.835,
+     23.498,
+     -0.869,
+     10.491,
+     -0.18
     ],
     [
-     68.115,
-     233.905,
-     22.126,
-     -0.605,
-     1.527,
-     -0.373
+     66.835,
+     233.233,
+     21.581,
+     -0.865,
+     1.342,
+     -0.195
     ],
     [
-     23.751,
-     22.126,
-     66.515,
-     -0.416,
-     4.524,
-     0.022
+     23.498,
+     21.581,
+     66.36,
+     -0.474,
+     4.63,
+     0.076
     ],
     [
-     -0.647,
-     -0.605,
-     -0.416,
-     8.485,
-     0.45,
-     -0.64
+     -0.869,
+     -0.865,
+     -0.474,
+     8.367,
+     0.611,
+     -1.048
     ],
     [
-     11.246,
-     1.527,
-     4.524,
-     0.45,
-     16.64,
-     0.152
+     10.491,
+     1.342,
+     4.63,
+     0.611,
+     16.198,
+     -0.0
     ],
     [
-     -0.353,
-     -0.373,
-     0.022,
-     -0.64,
-     0.152,
-     95.221
+     -0.18,
+     -0.195,
+     0.076,
+     -1.048,
+     -0.0,
+     95.359
     ]
    ],
    "moduli": {
-    "K_Voigt": 88.01970398077273,
-    "G_Voigt": 54.08266881188013,
-    "K_Reuss": 54.3692486916333,
-    "G_Reuss": 21.80278374896361,
-    "K_Hill": 71.19447633620302,
-    "G_Hill": 37.94272628042187,
-    "E_x": 233.56228259063738,
-    "E_y": 212.01575703681786,
-    "E_z": 62.36415242608321,
-    "nu_xy": 0.26556720284899094,
-    "nu_xz": 0.22801940645441765,
-    "nu_yz": 0.25586605509795757
+    "K_Voigt": 87.2871877061267,
+    "G_Voigt": 53.97449371968566,
+    "K_Reuss": 54.01169474568639,
+    "G_Reuss": 21.45388593658712,
+    "K_Hill": 70.64944122590654,
+    "G_Hill": 37.71418982813639,
+    "E_x": 233.27981001684756,
+    "E_y": 212.0682271541403,
+    "E_z": 62.19032493010053,
+    "nu_xy": 0.2617409619254579,
+    "nu_xz": 0.2288454107705761,
+    "nu_yz": 0.2503818569187838
    },
    "directions": 6,
    "ref_stress_GPa": [
-    -0.0063522784860271225,
-    -0.005767413348518572,
-    -0.0028204892283586825,
-    -0.009332858772878158,
-    -0.00728017316240823,
-    -0.0029489801043565715
+    0.009091841307426221,
+    0.003244370655415691,
+    0.10667397091659797,
+    -0.024003547706428895,
+    0.009957136369338197,
+    0.0016381079193809548
    ],
    "png": "prop_elastic0.png"
   },
@@ -159,12 +159,12 @@
    "label": "tension x",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 223.91108621342616,
-   "poisson_y": 0.4158662715704937,
-   "poisson_z": 0.24824090256520315,
-   "peak": 15.040075049999999,
-   "peak_strain": 0.0956275,
-   "initial_stress": 0.005126572149999999,
+   "modulus": 220.1250798130336,
+   "poisson_y": 0.42018653537332806,
+   "poisson_z": 0.21458209285548532,
+   "peak": 15.386505224999999,
+   "peak_strain": 0.0986275,
+   "initial_stress": 0.0480638515,
    "png": "prop_mech_tensile_x.png"
   },
   {
@@ -177,12 +177,12 @@
    "label": "compression x",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 252.12093720697038,
-   "poisson_y": 0.35822248504849485,
-   "poisson_z": 0.210577340498745,
-   "peak": 29.305013849999998,
-   "peak_strain": 0.151578,
-   "initial_stress": 0.034435199925,
+   "modulus": 256.6659757468106,
+   "poisson_y": 0.3839354262012334,
+   "poisson_z": 0.23916572814438924,
+   "peak": 27.67611315,
+   "peak_strain": 0.141678,
+   "initial_stress": -0.008855940099999996,
    "png": "prop_mech_compress_x.png"
   },
   {
@@ -195,12 +195,12 @@
    "label": "tension y",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 225.1874293564979,
-   "poisson_x": 0.370707358508564,
-   "poisson_z": 0.23635474885033153,
-   "peak": 13.94211735,
-   "peak_strain": 0.0722275,
-   "initial_stress": 0.029324265599999993,
+   "modulus": 220.94934172626517,
+   "poisson_x": 0.3698026365143095,
+   "poisson_z": 0.20694540980708,
+   "peak": 13.69934265,
+   "peak_strain": 0.0711275,
+   "initial_stress": 0.145411473725,
    "png": "prop_mech_tensile_y.png"
   },
   {
@@ -213,12 +213,12 @@
    "label": "compression y",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 223.72382364207795,
-   "poisson_x": 0.37788853629643165,
-   "poisson_z": 0.18107711842208415,
-   "peak": 35.020655775,
-   "peak_strain": 0.157727,
-   "initial_stress": 0.007513856699999997,
+   "modulus": 225.50412053650405,
+   "poisson_x": 0.3907507320223624,
+   "poisson_z": 0.2238259307206099,
+   "peak": 31.3033455,
+   "peak_strain": 0.144828,
+   "initial_stress": -0.10890188085000001,
    "png": "prop_mech_compress_y.png"
   },
   {
@@ -231,12 +231,12 @@
    "label": "tension z",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 55.8380371541033,
-   "poisson_x": 0.07650629596503268,
-   "poisson_y": 0.10861066889460753,
-   "peak": 4.0902774675,
-   "peak_strain": 0.0939775,
-   "initial_stress": -0.016689578499999996,
+   "modulus": 53.83181265122357,
+   "poisson_x": 0.04884792352473056,
+   "poisson_y": 0.06664645127973293,
+   "peak": 4.14828603,
+   "peak_strain": 0.0994775,
+   "initial_stress": 0.12162073524999999,
    "png": "prop_mech_tensile_z.png"
   },
   {
@@ -249,12 +249,12 @@
    "label": "compression z",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 68.43217386025447,
-   "poisson_x": 0.055496523261353084,
-   "poisson_y": 0.055505762941297145,
-   "peak": 28.326417,
-   "peak_strain": 0.158978,
-   "initial_stress": 0.027532164100000006,
+   "modulus": 72.25516879894343,
+   "poisson_x": 0.05672000350798802,
+   "poisson_y": 0.06391237802665865,
+   "peak": 28.119004725,
+   "peak_strain": 0.159177,
+   "initial_stress": -0.11090831849999999,
    "png": "prop_mech_compress_z.png"
   },
   {
@@ -268,10 +268,10 @@
    "label": "shear xy (solid)",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 88.64707059245997,
-   "peak": 12.08827515,
-   "peak_strain": 0.143327,
-   "initial_stress": -0.032493677825,
+   "modulus": 92.43412435357284,
+   "peak": 11.701517625,
+   "peak_strain": 0.137827,
+   "initial_stress": 0.005674335100000001,
    "png": "prop_mech_shear_xy.png"
   },
   {
@@ -285,10 +285,10 @@
    "label": "shear xy (-) (solid)",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 93.01703264272886,
-   "peak": 11.972258025,
-   "peak_strain": 0.148528,
-   "initial_stress": 0.046803300949999994,
+   "modulus": 91.28634622283838,
+   "peak": 12.096077175,
+   "peak_strain": 0.149428,
+   "initial_stress": 0.008649561339999999,
    "png": "prop_mech_shear_xy_neg.png"
   },
   {
@@ -302,10 +302,10 @@
    "label": "shear xz (solid)",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 12.545224723867099,
-   "peak": 3.3270367725,
-   "peak_strain": 0.141577,
-   "initial_stress": 0.034344480275,
+   "modulus": 13.24036360398166,
+   "peak": 3.184948725,
+   "peak_strain": 0.134527,
+   "initial_stress": -0.059330516,
    "png": "prop_mech_shear_xz.png"
   },
   {
@@ -319,10 +319,10 @@
    "label": "shear xz (-) (solid)",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 16.153828671834063,
-   "peak": 3.6857171399999995,
-   "peak_strain": 0.131178,
-   "initial_stress": -0.029616655774999986,
+   "modulus": 16.48959078478918,
+   "peak": 3.859651635,
+   "peak_strain": 0.136028,
+   "initial_stress": 0.06412724149999999,
    "png": "prop_mech_shear_xz_neg.png"
   },
   {
@@ -336,10 +336,10 @@
    "label": "shear yz (solid)",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 9.25496892195754,
-   "peak": 2.4191039775,
-   "peak_strain": 0.125427,
-   "initial_stress": -0.023655871522499997,
+   "modulus": 8.629879461135156,
+   "peak": 2.5264882125,
+   "peak_strain": 0.128627,
+   "initial_stress": 0.003036000974999999,
    "png": "prop_mech_shear_yz.png"
   },
   {
@@ -353,37 +353,37 @@
    "label": "shear yz (-) (solid)",
    "fit_max": 0.02,
    "points": 3200,
-   "modulus": 9.404763263753413,
-   "peak": 2.4820572,
-   "peak_strain": 0.126227,
-   "initial_stress": 0.027945262747499994,
+   "modulus": 10.073320480674628,
+   "peak": 2.5065069225,
+   "peak_strain": 0.124828,
+   "initial_stress": 0.001220088099999998,
    "png": "prop_mech_shear_yz_neg.png"
   },
   {
    "property": "both_ways",
    "moduli": {
     "tensile x": {
-     "modulus": 238.63993081570192,
+     "modulus": 238.83130521564436,
      "fit_range": 0.02
     },
     "tensile y": {
-     "modulus": 224.55808641318794,
+     "modulus": 224.78319088634504,
      "fit_range": 0.02
     },
     "tensile z": {
-     "modulus": 63.02678398667239,
+     "modulus": 62.37183472811322,
      "fit_range": 0.01
     },
     "shear xy": {
-     "modulus": 88.51534334564802,
+     "modulus": 88.54363922744335,
      "fit_range": 0.1
     },
     "shear xz": {
-     "modulus": 19.144349225579766,
+     "modulus": 19.333998426161667,
      "fit_range": 0.1
     },
     "shear yz": {
-     "modulus": 13.84535612670119,
+     "modulus": 14.036804456056185,
      "fit_range": 0.1
     }
    }
