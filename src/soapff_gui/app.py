@@ -1646,6 +1646,7 @@ class App:
             cons = [tuple(c) for c in items[k]["constraints"]] if k is not None else []
             items.append(dict(molecule="water", number="0", constraints=cons))   # the region of the selected item, to start with
             refill(len(items) - 1)
+            auto_number(len(items) - 1)
             draw()
 
         def remove_item():
@@ -1673,10 +1674,34 @@ class App:
         est = tk.StringVar(value="")
         loading = [False]
 
+        def set_number(k, n):
+            """the number of item k from the program (not typed): the item keeps following its region"""
+            items[k]["number"] = str(n)
+            if cur() == k:
+                loading[0] = True
+                num.set(str(n))
+                loading[0] = False
+            if tv.exists(str(k)):
+                tv.item(str(k), values=(items[k]["molecule"], str(n), tv.item(str(k), "values")[2]))
+            charge_text()
+
+        def auto_number(k):
+            """water: the number that fills the region of item k at the density (free volume by Monte Carlo); an item whose number
+            was typed by hand keeps it"""
+            it = items[k]
+            if it["molecule"] != "water" or not it.get("auto", True) or not it["constraints"]:
+                return
+            try:
+                set_number(k, W.estimate(at, it["constraints"], density=float(dens.get()), n_points=60000)["n_water"])
+            except ValueError:
+                pass                                             # a region without an inside bound, or no density yet
+
         def item_changed(*_):
             k = cur()
             if k is None or loading[0]:
                 return
+            if num.get().strip() != items[k]["number"]:
+                items[k]["auto"] = False                         # typed: the number no longer follows the region
             items[k]["molecule"], items[k]["number"] = mol.get(), num.get().strip()
             tv.item(str(k), values=(mol.get(), num.get().strip(), tv.item(str(k), "values")[2]))
             charge_text()
@@ -1695,7 +1720,8 @@ class App:
             est.set(f"region {r_['volume']:.0f} Å³, outside the van der Waals spheres of the atoms {r_['free_volume']:.0f} Å³ "
                     f"→ {r_['n_water']} water molecules at {float(dens.get()):g} g/cm³ (Monte Carlo)")
             if items[k]["molecule"] == "water":
-                num.set(str(r_["n_water"]))
+                items[k]["auto"] = True
+                set_number(k, r_["n_water"])
         ttk.Button(ef2, text="Number from density", style="Ghost.TButton", command=from_density).pack(side="left")
         ttk.Label(left, textvariable=est, foreground=MUTED, wraplength=520, justify="left").pack(anchor="w")
 
@@ -1772,6 +1798,7 @@ class App:
             tv.item(str(k), values=(items[k]["molecule"], items[k]["number"],
                                     "; ".join(con_text(c) for c in items[k]["constraints"]) or "(none)"))
             fill_cons(k)
+            auto_number(k)                                       # the water of a changed region: its number follows
             draw()
 
         def add_con():
@@ -1827,11 +1854,7 @@ class App:
                 return
             g = gl[gap_names.index(gsel.get())]
             items[k]["constraints"] = [c for c in items[k]["constraints"] if not (c[0] == "inside" and c[1] == "box")] + [gap_box(g)]
-            if items[k]["molecule"] == "water":
-                try:
-                    num.set(str(W.n_water(g["area"] * g["thickness"], float(dens.get()))))
-                except ValueError:
-                    pass
+            items[k]["auto"] = True                              # con_changed sets the number from the region
             con_changed(k)
         ttk.Label(gf, text="Empty region").pack(side="left")
         ttk.Combobox(gf, textvariable=gsel, values=gap_names, state="readonly", width=36).pack(side="left", padx=6)
@@ -2010,8 +2033,20 @@ class App:
         ttk.Button(rb, text="Show packmol input", style="Ghost.TButton", command=show_input).pack(side="left", padx=6)
         rinfo.pack(fill="x", pady=(8, 0))
         made = {}
+        run = dict(proc=None, busy=False)
+
+        def stop():
+            if run["proc"] is not None and run["proc"].poll() is None:
+                run["proc"].kill()
+
+        stop_b = ttk.Button(rb, text="Stop packmol", style="Ghost.TButton", command=stop, state="disabled")
+        stop_b.pack(side="left")
+        w.bind("<Destroy>", lambda e: stop() if e.widget is w else None)     # closing the dialog stops a running packmol
 
         def make_file(then):
+            if run["busy"]:
+                status.set("packmol is running: press Stop packmol to cancel it")
+                return
             try:
                 its, t_, sd = collect()
                 W.packmol_input(at, its, tolerance=t_, seed=sd)      # checks the items (regions, numbers) before packmol runs
@@ -2022,14 +2057,18 @@ class App:
             if key in made:
                 then(made[key])
                 return
-            status.set("packmol: placing " + ", ".join(f"{it['number']} {it['molecule']}" for it in its if it["number"] > 0) + "…")
+            status.set("packmol: placing " + ", ".join(f"{it['number']} {it['molecule']}" for it in its if it["number"] > 0)
+                       + "… (Stop packmol cancels it)")
             w.config(cursor="watch")
+            run["busy"] = True
+            stop_b.configure(state="normal")
             stem = os.path.splitext(os.path.basename(p))[0]
             wd = os.path.join(os.path.dirname(p), f"{stem}_water_packmol")
 
             def work():
                 try:
-                    new, rep = W.pack(at, its, tolerance=t_, seed=sd, workdir=wd, log=lambda m: self.q.put(("log", m + "\n", None)))
+                    new, rep = W.pack(at, its, tolerance=t_, seed=sd, workdir=wd, log=lambda m: self.q.put(("log", m + "\n", None)),
+                                    on_start=lambda pr: run.update(proc=pr))
                     out = os.path.join(os.path.dirname(p), f"{stem}_water.extxyz")
                     import ase.io
                     ase.io.write(out, new, format="extxyz")
@@ -2038,13 +2077,16 @@ class App:
                     res = (None, None, e)
 
                 def done():
+                    run["busy"] = False
+                    run["proc"] = None
                     if not w.winfo_exists():
                         return
                     w.config(cursor="")
+                    stop_b.configure(state="disabled")
                     out, rep, err = res
                     logt.delete("1.0", "end")
                     if err:
-                        status.set(f"packmol failed: {err}")
+                        status.set("packmol stopped" if "was stopped" in str(err) else f"packmol failed: {err}")
                         logt.insert("1.0", str(err))
                         return
                     logt.insert("1.0", rep["log"])

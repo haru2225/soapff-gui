@@ -298,6 +298,23 @@ def estimate(at, constraints, density=1.0, n_points=200000, seed=0):
     return dict(volume=vol, free_volume=vfree, n_water=n_water(vfree, density), z=(lo, hi), points=pts)
 
 
+MAX_DENSITY = 1.2        # g/cm3: packmol cannot put more water than this in a region (tolerance 2 A); it would run on without converging
+
+
+def check_capacity(at, items, max_density=MAX_DENSITY):
+    """messages (list of str) for the water items whose number does not fit in their region: more than `max_density` g/cm3 of the
+    free volume of the region (estimate()); empty when every item fits"""
+    out = []
+    for k, it in enumerate(items):
+        if it["molecule"] != "water" or int(it["number"]) <= 0:
+            continue
+        e = estimate(at, it["constraints"], density=max_density, n_points=60000)
+        if int(it["number"]) > e["n_water"]:
+            out.append(f"item {k + 1} (water): {int(it['number'])} molecules do not fit in its region (free volume {e['free_volume']:.0f} A3: "
+                       f"at most {e['n_water']} molecules at {max_density:g} g/cm3, about {n_water(e['free_volume'], 1.0)} at 1 g/cm3)")
+    return out
+
+
 def _molecule_file(m):
     return "water.xyz" if m == "water" else f"ion_{m}.xyz"
 
@@ -345,14 +362,20 @@ def packmol_input(at, items, tolerance=2.0, seed=1):
     return _prepare(at, items, tolerance, seed)["input"]
 
 
-def pack(at, items, tolerance=2.0, seed=1, packmol=None, workdir=None, log=print):
+def pack(at, items, tolerance=2.0, seed=1, packmol=None, workdir=None, log=print, on_start=None, check=True):
     """at + molecules placed by packmol.  items: [dict(molecule="water" or an ion of ION_CHARGE, number=N,
     constraints=[(location, shape, parameters), ...]), ...] (frame coordinates, see the module).  Every item needs an inside
     constraint that bounds it (box, cube, sphere, ellipsoid, cylinder).  workdir: keep packmol's files there (pack.inp, the
     xyz files, packed.xyz, packmol.log).  Returns the new Atoms (standard orientation, the molecules appended in the order of
-    the items) and a report: converged, per item the number placed and the nearest atom of the structure, the input."""
+    the items) and a report: converged, per item the number placed and the nearest atom of the structure, the input.
+    check: refuse (ValueError) a number of water molecules that does not fit in its region, before packmol runs (see
+    check_capacity).  on_start(process): called with the packmol subprocess, so that it can be killed (then RuntimeError)."""
     exe = find_packmol(packmol)
     pr = _prepare(at, items, tolerance, seed)
+    if check:
+        bad = check_capacity(at, pr["items"])
+        if bad:
+            raise ValueError("; ".join(bad))
     s, f, c, shear, fixed = pr["s"], pr["f"], pr["c"], pr["shear"], pr["fixed"]
     h = np.radians(HOH / 2)
     template = np.array([[0, 0, 0], [OH * np.sin(h), OH * np.cos(h), 0], [-OH * np.sin(h), OH * np.cos(h), 0]])
@@ -369,7 +392,14 @@ def pack(at, items, tolerance=2.0, seed=1, packmol=None, workdir=None, log=print
         for old in ("packed.xyz", "packed.xyz_FORCED"):
             if os.path.isfile(os.path.join(tmp, old)):
                 os.remove(os.path.join(tmp, old))
-        r = subprocess.run([exe], stdin=open(os.path.join(tmp, "pack.inp")), cwd=tmp, capture_output=True, text=True)
+        proc = subprocess.Popen([exe], stdin=open(os.path.join(tmp, "pack.inp")), cwd=tmp, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True)
+        if on_start:
+            on_start(proc)
+        out_txt = proc.communicate()[0]
+        r = subprocess.CompletedProcess(proc.args, proc.returncode, out_txt, "")
+        if proc.returncode < 0:
+            raise RuntimeError("packmol was stopped")
         if workdir:
             open(os.path.join(tmp, "packmol.log"), "w").write(r.stdout + r.stderr)
         out = os.path.join(tmp, "packed.xyz")
