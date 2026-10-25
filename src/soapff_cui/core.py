@@ -12,8 +12,8 @@ from ase.neighborlist import neighbor_list
 from ._clayff.chem import MASS
 from ._clayff.ff import ELEMENT, ff_types, lammps_frame
 
-from .clayff import (ANGLE_HOH, ANGLE_MOH, BOND_OH, CHARGE_SCHEMES, LJ, WATER_LABELS,
-                     WATER_MODELS, WATER_Q,
+from .clayff import (ANGLE_HOH, ANGLE_MOH, ANGLE_MOM_EDGE, BOND_OH, CHARGE_SCHEMES, EDGE_HYDROXYL_O, EDGE_METALS, EDGE_PARENT,
+                     LJ, WATER_LABELS, WATER_MODELS, WATER_Q,
                      type_charges)
 from .clayff import Q as CLAYFF_Q
 
@@ -28,16 +28,22 @@ FORMAL_ION = {"Li": 1, "Na": 1, "K": 1, "Rb": 1, "Cs": 1, "Ca": 2, "Sr": 2, "Ba"
 
 # ------------------------------------------------------------------------------------------------- reading structures
 def read_lammps_data(path):
-    """atom_style full data file -> (Atoms, charges, type names or None).  Elements from the masses."""
+    """atom_style full (or charge) data file -> (Atoms, charges, type names or None).  Elements from the type names, else the
+    masses."""
     L = open(path).read().splitlines()
     box = {}
     tilt = (0.0, 0.0, 0.0)
+    vec, origin = {}, np.zeros(3)
     for l in L[:60]:
         p = l.split()
         if len(p) >= 4 and p[2] in ("xlo", "ylo", "zlo"):
             box[p[2][0]] = (float(p[0]), float(p[1]))
         if len(p) >= 6 and p[3] == "xy":
             tilt = tuple(map(float, p[:3]))
+        if len(p) >= 4 and p[3] in ("avec", "bvec", "cvec"):              # the general triclinic box (LAMMPS, OVITO)
+            vec[p[3][0]] = np.array(p[:3], float)
+        if len(p) >= 5 and p[3:5] == ["abc", "origin"]:
+            origin = np.array(p[:3], float)
     i = L.index(next(l for l in L if l.strip().startswith("Masses"))) + 2
     mass, name = {}, {}
     while L[i].strip():
@@ -51,16 +57,25 @@ def read_lammps_data(path):
             el_of[t] = ELEMENT[name[t]]
             continue
         el_of[t] = min(MASS, key=lambda e: abs(MASS[e] - m)) if min(abs(MASS[e] - m) for e in MASS) < 0.1 else _mass_to_el(m)
-    i = [k for k, l in enumerate(L) if l.strip().startswith("Atoms")][0] + 2
+    head = [k for k, l in enumerate(L) if l.strip().startswith("Atoms")][0]
+    i = head + 2
+    style = L[head].split("#")[1].strip() if "#" in L[head] else ""
     rows = []
     while i < len(L) and L[i].strip():
-        p = L[i].split()
-        rows.append((int(p[0]), int(p[2]), float(p[3]), float(p[4]), float(p[5]), float(p[6])))
+        p = L[i].split("#")[0].split()
+        if style == "charge" or (not style and len(p) in (6, 9)):        # atom_style charge: id type q x y z [ix iy iz]
+            rows.append((int(p[0]), int(p[1]), float(p[2]), float(p[3]), float(p[4]), float(p[5])))
+        else:                                                           # atom_style full: id mol type q x y z [ix iy iz]
+            rows.append((int(p[0]), int(p[2]), float(p[3]), float(p[4]), float(p[5]), float(p[6])))
         i += 1
     rows.sort()
-    lx = box["x"][1] - box["x"][0]; ly = box["y"][1] - box["y"][0]; lz = box["z"][1] - box["z"][0]
-    cell = [[lx, 0, 0], [tilt[0], ly, 0], [tilt[1], tilt[2], lz]]
-    lo = np.array([box["x"][0], box["y"][0], box["z"][0]])
+    if len(vec) == 3:
+        cell = [vec["a"], vec["b"], vec["c"]]
+        lo = origin
+    else:
+        lx = box["x"][1] - box["x"][0]; ly = box["y"][1] - box["y"][0]; lz = box["z"][1] - box["z"][0]
+        cell = [[lx, 0, 0], [tilt[0], ly, 0], [tilt[1], tilt[2], lz]]
+        lo = np.array([box["x"][0], box["y"][0], box["z"][0]])
     at = Atoms([el_of[r[1]] for r in rows], positions=np.array([r[3:6] for r in rows]) - lo, cell=cell, pbc=True)
     names = [name[r[1]] for r in rows] if all(name.values()) else None
     return at, np.array([r[2] for r in rows]), names
@@ -352,12 +367,12 @@ def load_library(path):
 
 
 WATER_TYPES = ("ow", "hw", "OW", "HW")
-FRAMEWORK_TYPES = ("ao", "at", "mgo", "mgh", "st", "cao", "cah", "feo", "lio")
+FRAMEWORK_TYPES = ("ao", "at", "mgo", "mgh", "st", "cao", "cah", "feo", "lio") + EDGE_METALS
 
 
 def hydroxyl_o(t, extra=()):
-    """mask of the hydroxyl O types (oh, ohs) among the type array t"""
-    return np.array([x in ("oh", "ohs", *extra) for x in t], bool)
+    """mask of the hydroxyl O types (oh, ohs, and the edge O with one H of the optional edge library) among the type array t"""
+    return np.array([x in ("oh", "ohs", *EDGE_HYDROXYL_O, *extra) for x in t], bool)
 
 
 def framework_cation(t, si=True):
@@ -482,6 +497,19 @@ def topology_from_types(at, types):
         site = "bulk" if len(cat) >= 2 else "surface"
         for m in cat:
             angles.append((m, o, h, ("MOH", ELEMENT[t[m]], site)))
+    # edge model (optional library): each edge octahedral metal - O - octahedral metal angle (O within 2.5 A of Al, 2.6 A of Mg)
+    em = np.nonzero(np.isin(t, EDGE_METALS))[0]
+    if len(em):
+        octa = np.nonzero(framework_cation(t, si=False))[0]
+        oxy = np.nonzero(np.array([ELEMENT.get(x) == "O" for x in t]))[0]
+        rmax = lambda m: {"Al": 2.5, "Mg": 2.6}[ELEMENT[t[m]]]
+        seen = set()
+        for m in em:
+            for o in oxy[d(m, oxy) < rmax(m)]:
+                for c in octa:
+                    if c != m and d(o, [c])[0] < rmax(c) and (min(m, c), o, max(m, c)) not in seen:
+                        seen.add((min(m, c), o, max(m, c)))
+                        angles.append((m, o, c, ("MOMe",)))
     unbonded = [int(h) for h in free] + [int(o) for o, hs in nh.items() if len(hs) != 2]
     return bonds, angles, unbonded
 
@@ -595,8 +623,9 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     for k in bkeys:
         S.append(f"bond_coeff {bid[k]} {BOND_OH[0]} {BOND_OH[1]}  # {'O-H (water)' if k == 'OHw' else 'O-H'}")
     for k in akeys:
-        K, th = ANGLE_HOH if k[0] in ("HOH", "HOHw") else ANGLE_MOH
-        S.append(f"angle_coeff {aid[k]} {K} {th}  # {'-'.join(map(str, k))}")
+        K, th = ANGLE_HOH if k[0] in ("HOH", "HOHw") else ANGLE_MOM_EDGE if k[0] == "MOMe" else ANGLE_MOH
+        S.append(f"angle_coeff {aid[k]} {K} {th}  # {'-'.join(map(str, k))}"
+                 + ("  (edge metal-O-metal of the edge model, JAEA file)" if k[0] == "MOMe" else ""))
     S += kspace_lines
     open(os.path.join(out_dir, "system.settings"), "w").write("\n".join(S) + "\n")
     return dict(type_ids=tid, water_bond=bid.get("OHw"), water_angle=aid.get(("HOHw",)), nbonds=len(bonds),
@@ -876,7 +905,8 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     geo = np.array([TYPE_ALIAS.get(str(t), str(t)) for t in types_geo])
     cls = lambda t: ("bridge" if t in ("ob", "obts", "obos", "obss") else "oh" if t in ("oh", "ohs") else
                      "water" if t in ("ow", "oaq", "hw") else "h" if t == "ho" else "cation")
-    same_class = np.array([cls(a) == cls(b) and cls(a) in ("bridge", "oh", "cation") for a, b in zip(tarr, geo)])
+    same_class = np.array([cls(a) == cls(b) and cls(a) in ("bridge", "oh", "cation") and a not in EDGE_PARENT
+                           for a, b in zip(tarr, geo)])            # edge types (optional library): no geometric rule to compare
     differ = (~unknown) & same_class & (tarr != geo)
     type_check = dict(compared=int(((~unknown) & same_class).sum()), differ=int(differ.sum()),
                       kinds=dict(collections.Counter(f"{g}->{t}" for g, t in zip(geo[differ], tarr[differ]))))

@@ -10,6 +10,23 @@ import sys
 from soapff_cui import core
 
 LIBRARY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "library_clayff_bulk.npz")
+LIBRARY_EDGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "library_clayff_edge.npz")
+# the bundled libraries: name shown -> (file, description, source)
+LIBRARIES = {
+    "Basic (ClayFF Table 1 only)": (
+        LIBRARY,
+        "The 11 bulk layered minerals and their basal (0 0 1) slabs (22 structures). Every type and charge is the published "
+        "ClayFF Table 1 value. No edges: a structure with edges stops with fallback atoms.",
+        "R. T. Cygan, J.-J. Liang, A. G. Kalinichev, J. Phys. Chem. B 108, 1255 (2004)"),
+    "With montmorillonite edges (JAEA charges)": (
+        LIBRARY_EDGE,
+        "The basic library + the JAEA montmorillonite particle (a single layer with edges on every side; 24 structures). The edge "
+        "types (oed, oab, omb, oaa, oma, alb, ala, mgb, mga) keep the charges of the JAEA file, which are not in Table 1, and "
+        "the LJ of their parent ClayFF type; their edge metal-O-metal angles are bent (800 kcal/mol/rad2, 100 deg, JAEA file). "
+        "The other types keep Table 1. Montmorillonite edges only.",
+        "Edge model: T. R. Underwood, I. C. Bourg, J. Phys. Chem. C 124, 3702 (2020) (after Lammers et al.); edge charges: the JAEA "
+        "particle clay_montmorillonite.data; other types: Cygan et al. 2004, Table 1"),
+}
 
 
 def import_soapff():

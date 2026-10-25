@@ -91,11 +91,12 @@ def load_settings():
     lib = s.get("library") or ""
     if not os.path.isfile(lib):
         s["library"] = runner.default_library()
-    elif (os.path.basename(lib) == os.path.basename(runner.default_library())
-          and os.path.abspath(lib) != os.path.abspath(runner.default_library())):
-        # an older copy of the bundled library (it has fewer structures: e.g. no micas, so a mica gets fallback atoms):
-        # the bundled one is used; a library with another name stays as the user chose it
-        s["library"] = runner.default_library()
+    else:
+        # an older copy of a bundled library (it has fewer structures: e.g. no micas, so a mica gets fallback atoms): the bundled
+        # one is used; a library with another name stays as the user chose it
+        for f, _, _ in runner.LIBRARIES.values():
+            if os.path.basename(lib) == os.path.basename(f) and os.path.abspath(lib) != os.path.abspath(f):
+                s["library"] = f
     if s.get("charges") not in CHARGES:              # a charge scheme of an earlier version (Underwood & Bourg, library)
         s["charges"] = "clayff2004"
     if s.get("water") not in WATERS:                  # the rigid SPC/E of earlier versions
@@ -1497,9 +1498,11 @@ class App:
             sv = tk.StringVar(value=str(v0))
             ttk.Spinbox(f, from_=-1, to=1, width=4, textvariable=sv).grid(row=1, column=2 * k + 1, sticky="w", padx=(4, 14))
             hkl.append(sv)
-        SLAB_THICKNESS, SLAB_VACUUM = 16.0, 30.0           # fixed: at least 16 A of mineral, 30 A of vacuum (room for water)
-        ttk.Label(f, text=f"The slab is cut by pymatgen (SlabGenerator): at least {SLAB_THICKNESS:g} Å of mineral and {SLAB_VACUUM:g} Å of "
-                          "vacuum, a termination that breaks no cation-O bond. The interlayer ions stay where the cut leaves them (on one face).",
+        SLAB_THICKNESS = 16.0                              # fixed: at least 16 A of mineral
+        vac = tk.StringVar(value="30")                     # vacuum (A): room for water; a large droplet needs more
+        ttk.Label(f, text=f"The slab is cut by pymatgen (SlabGenerator): at least {SLAB_THICKNESS:g} Å of mineral and the vacuum below "
+                          "(at least; rounded up to whole planes), a termination that breaks no cation-O bond. The interlayer ions stay "
+                          "where the cut leaves them (on one face).",
                   foreground=MUTED, wraplength=560, justify="left").grid(row=2, column=0, columnspan=6, sticky="w", pady=(2, 0))
         SIDES = {"above and below the slab (slab in the middle)": "both", "above the slab only": "above",
                  "below the slab only": "below"}
@@ -1509,8 +1512,14 @@ class App:
         side = tk.StringVar(value=next(iter(SIDES)))
         ttk.Combobox(vrow, textvariable=side, values=list(SIDES), state="readonly", width=40).pack(side="left", padx=6)
         ttk.Label(vrow, text="(the cell is periodic along c: above and below are one region either way)", foreground=MUTED).pack(side="left")
+        vrow2 = ttk.Frame(f)
+        vrow2.grid(row=4, column=0, columnspan=6, sticky="w", pady=(6, 0))
+        ttk.Label(vrow2, text="Vacuum thickness (Å)").pack(side="left")
+        ttk.Spinbox(vrow2, from_=10, to=500, increment=10, width=6, textvariable=vac).pack(side="left", padx=6)
+        ttk.Label(vrow2, text="30 Å leaves room for a water film; a droplet of diameter D needs more than D (e.g. 183 Å for a "
+                              "c of 201 Å)", foreground=MUTED, wraplength=440, justify="left").pack(side="left")
         info = tk.StringVar(value="")
-        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=4, column=0, columnspan=6, sticky="w", pady=(10, 0))
+        ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=5, column=0, columnspan=6, sticky="w", pady=(10, 0))
         made = {}
 
         def make_file():
@@ -1523,11 +1532,18 @@ class App:
                 info.set("(0 0 0) is not a face")
                 return None
             vs = SIDES[side.get()]
-            if (m, vs) in made:
-                return made[(m, vs)]
+            try:
+                vv = float(vac.get())
+                if not 5.0 <= vv <= 1000.0:
+                    raise ValueError
+            except ValueError:
+                info.set("Enter a vacuum thickness between 5 and 1000 Å")
+                return None
+            if (m, vs, vv) in made:
+                return made[(m, vs, vv)]
             w.config(cursor="watch"); w.update()
             try:
-                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=SLAB_THICKNESS, vacuum=SLAB_VACUUM, vacuum_side=vs)
+                slab, typ, inf = surfaces.make_slab(at, types, m, min_thickness=SLAB_THICKNESS, vacuum=vv, vacuum_side=vs)
             except Exception as e:
                 messagebox.showerror("soapff-GUI", f"Could not cut the surface: {e}", parent=w)
                 return None
@@ -1535,7 +1551,8 @@ class App:
                 w.config(cursor="")
             stem = os.path.splitext(os.path.basename(self.structure))[0]
             path = os.path.join(os.path.dirname(self.structure),
-                                f"{stem}_{surfaces.hkl_name(m)}" + ("" if vs == "both" else f"_vac{vs}") + ".extxyz")
+                                f"{stem}_{surfaces.hkl_name(m)}" + ("" if vs == "both" else f"_vac{vs}")
+                                + ("" if vv == 30.0 else f"_vac{vv:g}A") + ".extxyz")
             import ase.io
             ase.io.write(path, slab, format="extxyz")
             txt = (f"→ {os.path.basename(path)}: {inf['atoms']} atoms, {inf['thickness']:.1f} Å thick, no bond cut "
@@ -1547,7 +1564,7 @@ class App:
                 txt += "\nThis slab is charged: the charges are not shifted; the net charge is reported and LAMMPS adds a uniform neutralising background (a warning)"
             info.set(txt)
             self.log_add(f"Surface {m}: {path} ({inf['atoms']} atoms, formal charge {inf['formal_charge']:+d})\n", None)
-            made[(m, vs)] = path
+            made[(m, vs, vv)] = path
             return path
 
         def preview():
@@ -2278,7 +2295,26 @@ class App:
         self._nav_select("library")
         w = tk.Toplevel(self.root)
         w.title("Structure library")
-        w.geometry("760x520")
+        w.geometry("860x680")
+        # the bundled libraries: what each holds and its source; the one used for the force field is chosen here
+        top = ttk.LabelFrame(w, text="Force field (the library used to type the atoms)", padding=10)
+        top.pack(fill="x", padx=10, pady=(10, 0))
+        cur_name = tk.StringVar()
+
+        def current():
+            return next((n for n, (f_, _, _) in runner.LIBRARIES.items()
+                         if os.path.abspath(f_) == os.path.abspath(self.s["library"])), "")
+
+        def use():
+            n = cur_name.get()
+            if n in runner.LIBRARIES:
+                self.s["library"] = runner.LIBRARIES[n][0]
+                save_settings(self.s)
+                fill()
+        for n, (f_, desc, src) in runner.LIBRARIES.items():
+            ttk.Radiobutton(top, text=n, value=n, variable=cur_name, command=use).pack(anchor="w", pady=(4, 0))
+            ttk.Label(top, text=desc, foreground=TEXT, wraplength=800, justify="left").pack(anchor="w", padx=(24, 0))
+            ttk.Label(top, text="Source: " + src, foreground=MUTED, wraplength=800, justify="left").pack(anchor="w", padx=(24, 0))
         txt = scrolledtext.ScrolledText(w, font=self.f_mono_s, height=20)
         txt.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -2286,12 +2322,15 @@ class App:
             txt.config(state="normal")
             txt.delete("1.0", "end")
             p = self.s["library"]
-            txt.insert("end", f"Library: {p}\n\n")
+            cur_name.set(current())
+            txt.insert("end", f"Library: {p}" + (f"  ({current()})" if current() else "  (not a bundled library)") + "\n\n")
             try:
                 import numpy as np
                 import collections
                 d = np.load(p, allow_pickle=False)
                 el, ty, q = d["element"], d["type"], d["q"]
+                if "citation" in d.files:
+                    txt.insert("end", f"Source: {d['citation']}\n\n")
                 org = d["origin"] if "origin" in d.files else []
                 txt.insert("end", f"{len(el)} rows (1 row = 1 atom of a reference structure: SOAP vector of {d['X'].shape[1]} components, charge, type)\n")
                 txt.insert("end", f"Elements: {' '.join(d['species'])}\n\nReference structures\n")
@@ -2316,10 +2355,16 @@ class App:
                     else:                                       # a bulk reference without "_bulk" in its name
                         groups.setdefault(stem, dict(bulk=None, basal=None, edges=[], other=[]))["bulk"] = n
                 txt.insert("end", "  Atoms kept in the library (an environment already present is not stored twice)\n"
-                                  "  bulk: the crystal; 001: basal plane (no bond cut; the only kind of surface supported, no edges)\n\n")
+                                  "  bulk: the crystal; 001: basal plane (no bond cut)"
+                                  + ("; the montmorillonite edges come only from the JAEA particle\n\n" if "citation" in d.files
+                                     else "; no edges in this library\n\n"))
                 for m, g in groups.items():
                     if g["other"]:
                         txt.insert("end", f"  {m}: edge particle (JAEA), {g['other'][0][1]} atoms\n")
+                        continue
+                    if m.startswith("clay_montmorillonite"):           # the JAEA particle of the edge library
+                        txt.insert("end", f"  {m}: montmorillonite particle with edges (JAEA), {g['bulk']} atoms kept"
+                                          + (" (every environment already present)" if not g["bulk"] else "") + "\n")
                         continue
                     txt.insert("end", f"  {m}: bulk {g['bulk']}" + ((", 001 " + str(g["basal"])) if g["basal"] is not None else "")
                                + (f", edges {len(g['edges'])} faces ({sum(n for _, n in g['edges'])} atoms)" if g["edges"] else "") + "\n")
@@ -2497,8 +2542,19 @@ class App:
         nb.add(de, text="Library and details")
         de.columnconfigure(1, weight=1)
         entry(de, 0, "library", "SOAP library", width=50, browse="file")
+        libsel = ttk.Frame(de)
+        libsel.grid(row=5, column=0, columnspan=4, sticky="w", pady=(10, 0))
+        ttk.Label(libsel, text="Bundled library").pack(side="left", padx=(0, 10))
+        libname = tk.StringVar(value=next((n for n, (f_, _, _) in runner.LIBRARIES.items()
+                                           if os.path.abspath(f_) == os.path.abspath(self.s["library"])), ""))
+        cb_lib = ttk.Combobox(libsel, textvariable=libname, values=list(runner.LIBRARIES), width=42, state="readonly")
+        cb_lib.pack(side="left")
+        cb_lib.bind("<<ComboboxSelected>>", lambda e: v["library"].set(runner.LIBRARIES[libname.get()][0]))
+        ttk.Label(libsel, text="(sets the SOAP library above; the Structure library window shows what each holds and its source)",
+                  foreground=MUTED).pack(side="left", padx=6)
         ttk.Button(de, text="Restore bundled", style="Ghost.TButton",
-                   command=lambda: v["library"].set(runner.default_library())).grid(row=0, column=3, padx=(0, 6))
+                   command=lambda: (v["library"].set(runner.default_library()),
+                                    libname.set(next(iter(runner.LIBRARIES))))).grid(row=0, column=3, padx=(0, 6))
         entry(de, 1, "threshold", "Similarity threshold", width=8)
         entry(de, 2, "cutoff", "Cutoff (Å)", width=8)
         for row, key, lab, names, note in ((3, "charges", "Charges", CHARGES, "the type of each atom comes from SOAP, its charge from this scheme"),
