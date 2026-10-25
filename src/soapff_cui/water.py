@@ -42,11 +42,13 @@ SHAPES = {
 
 
 def standard(at):
-    """the same structure with the cell in the standard orientation (a along x, b in the xy plane)"""
+    """the same structure with the cell in the standard orientation (a along x, b in the xy plane), the atoms wrapped into the
+    box at the origin 0 (an extxyz box origin, "Origin" of OVITO Replicate, is dropped: ASE ignores it, so the atoms are not at it)"""
     s = at.copy()
     s.set_cell(cellpar_to_cell(at.cell.cellpar()), scale_atoms=True)
     s.pbc = True
     s.wrap()
+    s.info.pop("Origin", None)       # the box origin of an extxyz (e.g. OVITO Replicate); the atoms are now in the box at the origin 0
     return s
 
 
