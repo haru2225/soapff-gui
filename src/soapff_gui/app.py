@@ -1516,8 +1516,9 @@ class App:
         vrow2.grid(row=4, column=0, columnspan=6, sticky="w", pady=(6, 0))
         ttk.Label(vrow2, text="Vacuum thickness (Å)").pack(side="left")
         ttk.Spinbox(vrow2, from_=10, to=500, increment=10, width=6, textvariable=vac).pack(side="left", padx=6)
-        ttk.Label(vrow2, text="30 Å leaves room for a water film; a droplet of diameter D needs more than D (e.g. 183 Å for a "
-                              "c of 201 Å)", foreground=MUTED, wraplength=440, justify="left").pack(side="left")
+        ttk.Label(vrow2, text="30 Å leaves room for a water film; a droplet of diameter D needs more than D. pymatgen rounds "
+                              "the cell up to whole layers, so the vacuum made can be larger (shown below; e.g. dry Na "
+                              "montmorillonite: 183 → c = 204.4 Å)", foreground=MUTED, wraplength=440, justify="left").pack(side="left")
         info = tk.StringVar(value="")
         ttk.Label(f, textvariable=info, wraplength=560, justify="left").grid(row=5, column=0, columnspan=6, sticky="w", pady=(10, 0))
         made = {}
