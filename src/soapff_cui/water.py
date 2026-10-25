@@ -22,7 +22,7 @@ import tempfile
 
 import numpy as np
 from ase import Atoms
-from ase.geometry import cellpar_to_cell, get_distances
+from ase.geometry import cellpar_to_cell
 
 AVOGADRO = 6.02214076e23
 M_WATER = 18.01528
@@ -261,6 +261,17 @@ def _arrange(items, cz):
     return ks, zlo, zhi
 
 
+def _nearest(X, P, cell, cut=10.0):
+    """the smallest distance (A) from the points X to the atoms P of the periodic cell (their 27 images), with a k-d tree (a
+    full distance matrix of a large structure does not fit in memory); `cut` when none is closer"""
+    from scipy.spatial import cKDTree
+    if not len(X) or not len(P):
+        return cut
+    shifts = np.array([i * cell[0] + j * cell[1] + k * cell[2] for i in (-1, 0, 1) for j in (-1, 0, 1) for k in (-1, 0, 1)])
+    d, _ = cKDTree((P[None, :, :] + shifts[:, None, :]).reshape(-1, 3)).query(X, distance_upper_bound=cut)
+    return float(min(d.min(), cut))
+
+
 def _vdw(el):
     from ase.data import atomic_numbers, vdw_radii
     r = vdw_radii[atomic_numbers[el]]
@@ -424,7 +435,7 @@ def pack(at, items, tolerance=2.0, seed=1, packmol=None, workdir=None, log=print
         M[:, :, 0] += shear * M[:, :1, 1]                    # back to Cartesian: each molecule rigidly, by the shear of its first atom
         sym = ["O", "H", "H"] if na == 3 else [it["molecule"]]
         new = Atoms(sym * len(M), positions=M.reshape(-1, 3), cell=s.cell, pbc=True)
-        dmin = float(get_distances(new.positions, s.positions[:n0], cell=s.cell, pbc=True)[1].min()) if len(new) else 9.9
+        dmin = _nearest(new.positions, s.positions[:n0], np.array(s.cell)) if len(new) else 9.9
         rep.append(dict(molecule=it["molecule"], n=len(M), min_distance=round(dmin, 2)))
         s += new
     s.positions -= f * c
