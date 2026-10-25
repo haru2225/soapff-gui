@@ -20,9 +20,10 @@ LIBRARIES = {
         "R. T. Cygan, J.-J. Liang, A. G. Kalinichev, J. Phys. Chem. B 108, 1255 (2004)"),
     "Montmorillonite edge (Underwood & Bourg 2020)": (
         LIBRARY_EDGE,
-        "ClayFF + the edges of montmorillonite: the edge types (oed, oab, omb, oaa, oma, alb, ala, mgb, mga), their charges "
-        "and the metal-O-metal angle at the edges. Montmorillonite edges only.",
-        "T. R. Underwood, I. C. Bourg, J. Phys. Chem. C 124, 3702 (2020); other types: Cygan et al. 2004"),
+        "A montmorillonite particle with edges on every side. Every parameter is that of this model (charges, LJ, O-H bond, "
+        "M-O-H and edge metal-O-metal angles), also for the types it shares with ClayFF, whose values differ slightly. "
+        "Montmorillonite only (other minerals stop); added water and ions: ClayFF.",
+        "T. R. Underwood, I. C. Bourg, J. Phys. Chem. C 124, 3702 (2020)"),
 }
 
 

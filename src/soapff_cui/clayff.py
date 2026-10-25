@@ -28,15 +28,15 @@ ANGLE_HOH = (45.7696, 109.47)                   # h*-o*-h* (k2 kcal/mol/rad^2, t
 ANGLE_MOH = (30.0, 109.47)                      # Metal-oh-ho and Metal-ohs-ho
 WATER_Q = (Q["ow"], Q["hw"])                    # flexible SPC
 
-# montmorillonite edges: only with the optional library built with the JAEA particle (clay_montmorillonite.data, the edge model
-# that Underwood & Bourg, J. Phys. Chem. C 124, 3702 (2020) take from Lammers et al.).  The edge types take the LJ of their parent
-# ClayFF type (as the JAEA settings file); their charges are not in Table 1: they are those of the JAEA file, kept from the
-# library (type_charges() leaves them out).  The edge model adds a bending of each edge octahedral metal - O - octahedral metal
-# angle (the JAEA file, angle type 2).
+# montmorillonite edges: only with the optional library of the particle with edges (clay_montmorillonite.data, the edge model
+# of Underwood & Bourg, J. Phys. Chem. C 124, 3702 (2020), after Lammers et al.).  That library carries its own force field
+# (core.read_forcefield: charges, LJ, O-H bond, M-O-H and edge metal-O-metal angles of every one of its types), which make() and
+# write_system() use in place of the values below.  These are only the defaults of the edge types without it: the LJ of their
+# parent ClayFF type and the edge metal - O - octahedral metal angle of the model.
 EDGE_PARENT = {"oed": "ob", "oab": "ob", "omb": "ob", "oaa": "ob", "oma": "ob", "alb": "ao", "ala": "ao", "mgb": "mgo", "mga": "mgo"}
 EDGE_HYDROXYL_O = ("oed", "oab", "omb")         # edge O carrying one H (Si-OH, Al-OH, Mg-OH at the edge)
 EDGE_METALS = ("alb", "ala", "mgb", "mga")       # octahedral Al, Mg at the edge
-ANGLE_MOM_EDGE = (800.0, 100.0)                 # edge metal - O - octahedral metal (k2 kcal/mol/rad^2, theta0 deg; JAEA file)
+ANGLE_MOM_EDGE = (800.0, 100.0)                 # edge metal - O - octahedral metal (k2 kcal/mol/rad^2, theta0 deg)
 LJ.update({t: LJ[p] for t, p in EDGE_PARENT.items()})
 
 # charges: only the values of ClayFF Table 1 as published (4 decimals; Cygan et al. 2004), one per type, the ions as in the table.

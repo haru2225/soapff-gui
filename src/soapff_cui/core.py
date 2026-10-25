@@ -81,6 +81,59 @@ def read_lammps_data(path):
     return at, np.array([r[2] for r in rows]), names
 
 
+def _section(L, head, raw=False):
+    """the lines of a LAMMPS data file section (after its header and any blank lines, up to the next blank line), split
+    without their comments (raw: as they are)"""
+    i = next(k for k, l in enumerate(L) if l.strip().startswith(head)) + 1
+    while i < len(L) and not L[i].strip():
+        i += 1
+    out = []
+    while i < len(L) and L[i].strip():
+        out.append(L[i] if raw else L[i].split("#")[0].split())
+        i += 1
+    return out
+
+
+def read_forcefield(data, settings, name, source):
+    """the force field of a reference given as LAMMPS files, to be used whole instead of ClayFF for its types (build_library
+    forcefield=): data with type names in the Masses comments, charges in Atoms, Bond Coeffs (one bond type: the hydroxyl
+    O-H), Angle Coeffs and Angles; settings with pair_coeff i i epsilon sigma.  Returns {name, source, charge {type: q},
+    lj {type: [epsilon, sigma]}, bond_oh [k, r0], angle_moh [k, theta0], angle_mom_edge [k, theta0]}: the angle type with
+    an H at an end is M-O-H, the other one the edge metal-O-metal.  Every atom of a type must carry the same charge."""
+    L = open(data).read().splitlines()
+    tname = {int(l.split()[0]): l.split("#")[1].strip() for l in _section(L, "Masses", raw=True)}
+    at, q, names = read_lammps_data(data)
+    charge = {}
+    for t, x in zip(names, q):
+        if t in charge and abs(charge[t] - x) > 1e-9:
+            raise ValueError(f"{data}: type {t} carries the charges {charge[t]} and {x}")
+        charge[t] = float(x)
+    head = next(l for l in L if l.strip().startswith("Atoms"))
+    full = "full" in head or "charge" not in head
+    atype = {int(p[0]): tname[int(p[2] if full else p[1])] for p in _section(L, "Atoms")}
+    bc = _section(L, "Bond Coeffs")
+    if len(bc) != 1:
+        raise ValueError(f"{data}: {len(bc)} bond types; only the hydroxyl O-H is expected")
+    acoef = {int(p[0]): [float(p[1]), float(p[2])] for p in _section(L, "Angle Coeffs")}
+    kind = {}
+    for p in _section(L, "Angles"):
+        ends = (atype[int(p[2])], atype[int(p[4])])
+        kind.setdefault(int(p[1]), set()).add("moh" if any(ELEMENT.get(e) == "H" for e in ends) else "mom_edge")
+    if any(len(v) != 1 for v in kind.values()) or sorted(x for v in kind.values() for x in v) != ["moh", "mom_edge"]:
+        raise ValueError(f"{data}: the angle types are not one M-O-H and one metal-O-metal type ({kind})")
+    ang = {next(iter(v)): acoef[k] for k, v in kind.items()}
+    lj = {}
+    for l in open(settings).read().splitlines():
+        p = l.split("#")[0].split()
+        if len(p) >= 5 and p[0] == "pair_coeff" and p[1] == p[2]:
+            lj[tname[int(p[1])]] = [float(p[3]), float(p[4])]
+    missing = sorted(set(tname.values()) - set(lj))
+    if missing:
+        raise ValueError(f"{settings}: no pair_coeff for {missing}")
+    return dict(name=name, source=source, charge=charge, lj=lj, bond_oh=[float(bc[0][1]), float(bc[0][2])],
+                angle_moh=ang["moh"], angle_mom_edge=ang["mom_edge"])
+
+
 def _mass_to_el(m):
     from ase.data import atomic_masses, chemical_symbols
     k = int(np.argmin(np.abs(atomic_masses[1:] - m))) + 1
@@ -251,7 +304,7 @@ def prune_entries(X, q, types, elements, threshold, log=print, protect=0):
 
 
 def build_library(ref_data, frame_files=(), out="library.npz", every=1, soap=None, prune=None, water_in_soap=False,
-                  protect=0, log=print):
+                  protect=0, forcefield=None, log=print):
     """reference LAMMPS data file(s) (charges and type names in the Masses comments) + optional MD dump frames of any
     of them -> library of (element, SOAP vector, charge, type) for every atom of every structure.  With several reference
     systems the SOAP species are the union of their elements, so that all vectors are comparable.
@@ -260,7 +313,9 @@ def build_library(ref_data, frame_files=(), out="library.npz", every=1, soap=Non
     water_in_soap=False: the water molecules (types ow/hw) are left out of every reference before the SOAP (no water entries,
     and the water is not part of the environment of the other atoms); make() then types water by rule and leaves it out of the
     SOAP too.  The ions stay (their positions belong to the mineral).
-    protect: with prune, the first `protect` references are never pruned (only later ones, e.g. slabs, lose duplicates)."""
+    protect: with prune, the first `protect` references are never pruned (only later ones, e.g. slabs, lose duplicates).
+    forcefield: a force field of read_forcefield() stored with the library; make() then takes the charges, LJ, O-H bond and
+    angles of its types from it instead of ClayFF Table 1 (the water and the ions it does not have stay ClayFF)."""
     soap = dict(SOAP_DEFAULT, **(soap or {}))
     for k in ("weighting", "species_weights"):
         if not soap.get(k):
@@ -316,7 +371,8 @@ def build_library(ref_data, frame_files=(), out="library.npz", every=1, soap=Non
                         species=np.array(species), source=np.array([os.path.abspath(r) for r in refs]),
                         n_structures=len(structs), weighting=json.dumps(soap.get("weighting") or {}), water_in_soap=water_in_soap,
                         species_weights=json.dumps(soap.get("species_weights") or {}),
-                        **{k: v for k, v in soap.items() if k not in ("weighting", "species_weights")})
+                        **{k: v for k, v in soap.items() if k not in ("weighting", "species_weights")},
+                        **({"forcefield": json.dumps(forcefield)} if forcefield else {}))
     log(f"library: {len(Q)} entries from {len(structs)} structures, species {species} -> {out}")
     return out
 
@@ -363,7 +419,8 @@ def load_library(path):
     if sw:
         soap["species_weights"] = sw
     return dict(X=d["X"], q=d["q"], type=d["type"], element=d["element"], species=list(d["species"]), soap=soap,
-                water_in_soap=bool(d["water_in_soap"]) if "water_in_soap" in d.files else True)
+                water_in_soap=bool(d["water_in_soap"]) if "water_in_soap" in d.files else True,
+                forcefield=json.loads(str(d["forcefield"])) if "forcefield" in d.files else None)
 
 
 WATER_TYPES = ("ow", "hw", "OW", "HW")
@@ -564,9 +621,11 @@ def check_consistency(at, q, types):
 
 
 def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", boundary="p p p", reserve_water=False,
-                 charges="clayff2004", water="spc"):
+                 charges="clayff2004", water="spc", ff=None):
     """reserve_water: the water types (ow, hw), the water O-H bond and H-O-H angle types and room for their bonds are
-    written even when the structure has no water, so that water can be added in LAMMPS (swelling curve)."""
+    written even when the structure has no water, so that water can be added in LAMMPS (swelling curve).
+    ff: the force field of the library (read_forcefield), whose LJ, hydroxyl O-H bond, M-O-H and edge M-O-M angles replace
+    ClayFF's for its types; the water and the types it does not have keep ClayFF."""
     bnd, periodic = parse_boundary(boundary)
     bonds, angles, unbonded = topology_from_types(at, types)
     tnames = sorted(set(types) | ({"ow", "hw"} if reserve_water else set()), key=lambda x: (ELEMENT[x], x))
@@ -611,21 +670,32 @@ def write_system(at, q, types, out_dir, cutoff=10.0, kspace="pppm 1.0e-5", bound
     if angles:
         L += ["", "Angles", ""] + [f"{k + 1} {aid[a[3]]} {a[0] + 1} {a[1] + 1} {a[2] + 1}" for k, a in enumerate(angles)]
     open(os.path.join(out_dir, "system.data"), "w").write("\n".join(L) + "\n")
-    S = [f"# soapff-cui settings: ClayFF (Cygan et al. 2004, Tables 1 and 2) with {WATER_LABELS[water]} water; types in system.data "
-         f"from SOAP, charges: {charges}",
+    S = [(f"# soapff-cui settings: {ff['name']} ({ff['source']}) for its types; the other types and the {WATER_LABELS[water]} "
+          f"water: ClayFF (Cygan et al. 2004, Tables 1 and 2); types in system.data from SOAP" if ff else
+          f"# soapff-cui settings: ClayFF (Cygan et al. 2004, Tables 1 and 2) with {WATER_LABELS[water]} water; types in system.data "
+          f"from SOAP, charges: {charges}"),
          "units real", "atom_style full", f"boundary {' '.join(bnd)}",
          "bond_style harmonic", "angle_style harmonic", f"pair_style lj/cut/coul/{coul} {cutoff}", "pair_modify mix arithmetic tail no",
          "special_bonds lj/coul 0.0 0.0 0.0", "read_data system.data"]
+    own = ff["lj"] if ff else {}
     for x in tnames:
-        e, sg = LJ[x]
-        # Table 1 as published: epsilon = D0, sigma = R0 / 2^(1/6) written in full double precision (not rounded)
-        S.append(f"pair_coeff {tid[x]} {tid[x]} {e!r} {sg!r}  # {x}")
+        # Table 1 as published: epsilon = D0, sigma = R0 / 2^(1/6) written in full double precision (not rounded); the types of
+        # the library's force field: its own values
+        e, sg = own[x] if x in own else LJ[x]
+        S.append(f"pair_coeff {tid[x]} {tid[x]} {e!r} {sg!r}  # {x}" + (f" ({ff['name']})" if x in own else ""))
     for k in bkeys:
-        S.append(f"bond_coeff {bid[k]} {BOND_OH[0]} {BOND_OH[1]}  # {'O-H (water)' if k == 'OHw' else 'O-H'}")
+        K, r0 = ff["bond_oh"] if (ff and k != "OHw") else BOND_OH
+        S.append(f"bond_coeff {bid[k]} {K} {r0}  # {'O-H (water)' if k == 'OHw' else 'O-H'}"
+                 + (f" ({ff['name']})" if ff and k != "OHw" else ""))
     for k in akeys:
-        K, th = ANGLE_HOH if k[0] in ("HOH", "HOHw") else ANGLE_MOM_EDGE if k[0] == "MOMe" else ANGLE_MOH
+        if k[0] in ("HOH", "HOHw"):
+            K, th = ANGLE_HOH
+        elif k[0] == "MOMe":
+            K, th = ff["angle_mom_edge"] if ff else ANGLE_MOM_EDGE
+        else:
+            K, th = ff["angle_moh"] if ff else ANGLE_MOH
         S.append(f"angle_coeff {aid[k]} {K} {th}  # {'-'.join(map(str, k))}"
-                 + ("  (edge metal-O-metal of the edge model, JAEA file)" if k[0] == "MOMe" else ""))
+                 + ("  (edge metal-O-metal)" if k[0] == "MOMe" else "") + (f" ({ff['name']})" if ff and k[0] not in ("HOH", "HOHw") else ""))
     S += kspace_lines
     open(os.path.join(out_dir, "system.settings"), "w").write("\n".join(S) + "\n")
     return dict(type_ids=tid, water_bond=bid.get("OHw"), water_angle=aid.get(("HOHw",)), nbonds=len(bonds),
@@ -704,7 +774,8 @@ def reserve_water_types(out_dir, log=print):
     types = [r["clayff_type"] for r in rows]
     kspace = " ".join(rep.get("kspace", [""])[0].split()[1:]) if rep.get("kspace") else "pppm 1.0e-5"
     info = write_system(at, q, types, out_dir, kspace=kspace or "pppm 1.0e-5", boundary=rep.get("boundary", "p p p"),
-                        reserve_water=True, charges=rep.get("charges", "clayff2004"), water=rep.get("water_model", "spc"))
+                        reserve_water=True, charges=rep.get("charges", "clayff2004"), water=rep.get("water_model", "spc"),
+                        ff=rep.get("forcefield"))
     log(f"system.data / system.settings rewritten with the water types reserved (ow {info['type_ids']['ow']}, "
         f"hw {info['type_ids']['hw']}, O-H bond {info['water_bond']}, H-O-H angle {info['water_angle']})")
     return info
@@ -895,6 +966,9 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     # charge of every atom from its type: ClayFF Table 1 and the water model (atoms of a type the table does not list keep the
     # library / fallback charge)
     tq = type_charges(charges, water, types=types)
+    ff = lib["forcefield"]
+    if ff:                                                   # the library's own force field: its charges for its types
+        tq.update(ff["charge"])
     q = np.array([tq.get(t, q[i]) for i, t in enumerate(types)], float)
     # cross-check: the type found by SOAP against the bond-graph ClayFF type of the same atom (the rule used for
     # fallback).  A library without the environment can give a similar but wrong type (e.g. obts -> ob) at a
@@ -945,7 +1019,7 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
                             f"the two faces interacted through the periodic boundary of the given structure, now they do not")
                 log("WARNING " + warn[-1])
     info = write_system(at, q, types, out_dir, cutoff=cutoff, kspace=kspace, boundary=" ".join(bnd), reserve_water=reserve_water,
-                        charges=charges, water=water)
+                        charges=charges, water=water, ff=ff)
     if info["kspace_note"]:
         log(f"boundary {' '.join(bnd)}: long-range Coulomb by {info['kspace_note']}")
     # atoms reaching a fixed ('f') face would be lost: reflect them there
@@ -1002,7 +1076,7 @@ write_data final.data
                       from_soap=int((m & ~unknown).sum()), fallback=int((m & unknown).sum()), min_similarity=float(sim[m].min()))
     rep = dict(structure=structure if isinstance(structure, str) else "Atoms", atoms=len(at), library=os.path.abspath(library),
                soap=lib["soap"], threshold=threshold, boundary=" ".join(bnd), kspace=info["kspace"], vacuum_gap=gaps,
-               charges=charges, water_model=water, charge_sum_before=total, charge_sum=float(q.sum()),
+               charges=charges, water_model=water, forcefield=ff, charge_sum_before=total, charge_sum=float(q.sum()),
                from_soap=int((~unknown).sum()), fallback=int(unknown.sum()), type_check=type_check, warnings=warn,
                roles={r: int((role == r).sum()) for r in ("mineral", "water", "ion")}, per_type=per,
                consistency=problems, md=dict(temp=temp, relax_ps=relax_ps, nvt_ps=nvt_ps, npt_ps=npt_ps, press=press, baro=baro, dump_ps=dump_ps, timestep_fs=timestep_fs))
