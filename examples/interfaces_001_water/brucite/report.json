@@ -1,0 +1,93 @@
+{
+ "structure": "/Users/harutokono/clay/soapff-gui/examples/interfaces_001_water/brucite/structure.extxyz",
+ "atoms": 885,
+ "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
+ "soap": {
+  "r_cut": 5.0,
+  "n_max": 4,
+  "l_max": 3,
+  "sigma": 0.4
+ },
+ "threshold": 0.95,
+ "boundary": "p p p",
+ "kspace": [
+  "kspace_style pppm 1.0e-5"
+ ],
+ "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
+ "forcefield": null,
+ "charge_sum_before": 2.098321516541546e-14,
+ "charge_sum": 2.098321516541546e-14,
+ "from_soap": 885,
+ "fallback": 0,
+ "type_check": {
+  "compared": 288,
+  "differ": 0,
+  "kinds": {}
+ },
+ "warnings": [],
+ "roles": {
+  "mineral": 480,
+  "water": 405,
+  "ion": 0
+ },
+ "per_type": {
+  "ho": {
+   "atoms": 192,
+   "charges": [
+    0.425
+   ],
+   "from_soap": 192,
+   "fallback": 0,
+   "min_similarity": 0.9999887943267822
+  },
+  "hw": {
+   "atoms": 270,
+   "charges": [
+    0.41
+   ],
+   "from_soap": 270,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "mgh": {
+   "atoms": 96,
+   "charges": [
+    1.05
+   ],
+   "from_soap": 96,
+   "fallback": 0,
+   "min_similarity": 0.9999995827674866
+  },
+  "oh": {
+   "atoms": 192,
+   "charges": [
+    -0.95
+   ],
+   "from_soap": 192,
+   "fallback": 0,
+   "min_similarity": 0.9994560480117798
+  },
+  "ow": {
+   "atoms": 135,
+   "charges": [
+    -0.82
+   ],
+   "from_soap": 135,
+   "fallback": 0,
+   "min_similarity": 1.0
+  }
+ },
+ "consistency": [],
+ "md": {
+  "temp": 300.0,
+  "relax_ps": 10.0,
+  "nvt_ps": 50.0,
+  "npt_ps": 0.0,
+  "press": 1.0,
+  "baro": "aniso",
+  "dump_ps": 1.0,
+  "timestep_fs": 0.5
+ }
+}

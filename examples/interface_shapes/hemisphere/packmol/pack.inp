@@ -1,0 +1,18 @@
+# soapff-cui (soapff_cui.water.pack): the structure (2016 atoms) fixed, with its images along c
+# frame: x' = x - y cot(gamma) (shear 0.000000); structure and regions moved by +0.2391 c along c (the coordinates below are moved)
+tolerance 2
+filetype xyz
+output packed.xyz
+seed 1
+pbc 0.0 0.0 -70.2808 31.059000 35.948800 127.8248
+
+structure solid.xyz
+  number 1
+  fixed 0. 0. 0. 0. 0. 0.
+end structure
+
+structure water.xyz
+  number 151
+  inside sphere 15.5295 17.9744 39.9416 13.0000
+  over plane 0.0000 0.0000 1.0000 39.9416
+end structure

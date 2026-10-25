@@ -1,0 +1,250 @@
+{
+ "sphere": {
+  "atoms": 2373,
+  "packmol_converged": true,
+  "placed": {
+   "water": 139
+  },
+  "nearest_atom": 4.92,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0024,
+  "constraints": [
+   [
+    "inside",
+    "sphere",
+    [
+     15.519984405,
+     17.96078294,
+     30.989397660000005,
+     10.0
+    ]
+   ]
+  ],
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -468026.955050809,
+    -471583.826155177
+   ]
+  }
+ },
+ "hemisphere": {
+  "atoms": 2469,
+  "packmol_converged": true,
+  "placed": {
+   "water": 151
+  },
+  "nearest_atom": 2.23,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": -0.0192,
+  "constraints": [
+   [
+    "inside",
+    "sphere",
+    [
+     15.529499999999999,
+     17.9744,
+     20.839183250000005,
+     13.0
+    ]
+   ],
+   [
+    "over",
+    "plane",
+    [
+     0.0,
+     0.0,
+     1.0,
+     20.839183250000005
+    ]
+   ]
+  ],
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -436755.139960739,
+    -459663.299225123
+   ]
+  }
+ },
+ "cylinder": {
+  "atoms": 2829,
+  "packmol_converged": true,
+  "placed": {
+   "water": 291
+  },
+  "nearest_atom": 3.12,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0024,
+  "constraints": [
+   [
+    "inside",
+    "cylinder",
+    [
+     15.519984405,
+     17.96078294,
+     19.989397660000005,
+     0.0,
+     0.0,
+     1.0,
+     8.0,
+     43.54861475
+    ]
+   ]
+  ],
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -466392.768740204,
+    -473570.120374956
+   ]
+  }
+ },
+ "cavity": {
+  "atoms": 4047,
+  "packmol_converged": true,
+  "placed": {
+   "water": 697
+  },
+  "nearest_atom": 3.3,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0024,
+  "constraints": [
+   [
+    "inside",
+    "box",
+    [
+     0.0,
+     0.0,
+     19.989397660000005,
+     31.03996881,
+     35.92156588,
+     39.98939766000001
+    ]
+   ],
+   [
+    "outside",
+    "sphere",
+    [
+     15.519984405,
+     17.96078294,
+     29.989397660000005,
+     7.0
+    ]
+   ]
+  ],
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -460423.066372235,
+    -478882.472328278
+   ]
+  }
+ },
+ "xygauss": {
+  "atoms": 3159,
+  "packmol_converged": true,
+  "placed": {
+   "water": 401
+  },
+  "nearest_atom": 3.13,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0024,
+  "constraints": [
+   [
+    "inside",
+    "box",
+    [
+     0.0,
+     0.0,
+     19.989397660000005,
+     31.03996881,
+     35.92156588,
+     43.98939766000001
+    ]
+   ],
+   [
+    "below",
+    "xygauss",
+    [
+     15.519984405,
+     17.96078294,
+     6.0,
+     6.0,
+     27.989397660000005,
+     14.0
+    ]
+   ]
+  ],
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -464824.205928318,
+    -475121.591096779
+   ]
+  }
+ },
+ "ions": {
+  "atoms": 4249,
+  "packmol_converged": true,
+  "placed": {
+   "water": 739,
+   "Na": 8,
+   "Cl": 8
+  },
+  "nearest_atom": 2.21,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": -0.0192,
+  "constraints": [
+   [
+    "inside",
+    "box",
+    [
+     0.0,
+     0.0,
+     20.839183250000005,
+     31.058999999999997,
+     35.9488,
+     40.839183250000005
+    ]
+   ]
+  ],
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -426101.032088011,
+    -468863.352520904
+   ]
+  }
+ }
+}

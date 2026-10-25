@@ -1,0 +1,111 @@
+{
+ "structure": "/Users/harutokono/clay/soapff-gui/examples/interfaces_001_water/pyrophyllite/structure.extxyz",
+ "atoms": 710,
+ "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
+ "soap": {
+  "r_cut": 5.0,
+  "n_max": 4,
+  "l_max": 3,
+  "sigma": 0.4
+ },
+ "threshold": 0.95,
+ "boundary": "p p p",
+ "kspace": [
+  "kspace_style pppm 1.0e-5"
+ ],
+ "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
+ "forcefield": null,
+ "charge_sum_before": -3.7192471324942744e-15,
+ "charge_sum": -3.7192471324942744e-15,
+ "from_soap": 710,
+ "fallback": 0,
+ "type_check": {
+  "compared": 288,
+  "differ": 0,
+  "kinds": {}
+ },
+ "warnings": [],
+ "roles": {
+  "mineral": 320,
+  "water": 390,
+  "ion": 0
+ },
+ "per_type": {
+  "ao": {
+   "atoms": 32,
+   "charges": [
+    1.575
+   ],
+   "from_soap": 32,
+   "fallback": 0,
+   "min_similarity": 1.000000238418579
+  },
+  "ho": {
+   "atoms": 32,
+   "charges": [
+    0.425
+   ],
+   "from_soap": 32,
+   "fallback": 0,
+   "min_similarity": 0.9998244047164917
+  },
+  "hw": {
+   "atoms": 260,
+   "charges": [
+    0.41
+   ],
+   "from_soap": 260,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "ob": {
+   "atoms": 160,
+   "charges": [
+    -1.05
+   ],
+   "from_soap": 160,
+   "fallback": 0,
+   "min_similarity": 0.9993602633476257
+  },
+  "oh": {
+   "atoms": 32,
+   "charges": [
+    -0.95
+   ],
+   "from_soap": 32,
+   "fallback": 0,
+   "min_similarity": 0.9999967813491821
+  },
+  "ow": {
+   "atoms": 130,
+   "charges": [
+    -0.82
+   ],
+   "from_soap": 130,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "st": {
+   "atoms": 64,
+   "charges": [
+    2.1
+   ],
+   "from_soap": 64,
+   "fallback": 0,
+   "min_similarity": 0.999744713306427
+  }
+ },
+ "consistency": [],
+ "md": {
+  "temp": 300.0,
+  "relax_ps": 10.0,
+  "nvt_ps": 50.0,
+  "npt_ps": 0.0,
+  "press": 1.0,
+  "baro": "aniso",
+  "dump_ps": 1.0,
+  "timestep_fs": 0.5
+ }
+}

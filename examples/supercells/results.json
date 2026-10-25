@@ -1,0 +1,22 @@
+{
+ "brucite_5x5x4": {
+  "atoms": 500,
+  "wrong": 0,
+  "wrong_atoms": [],
+  "fallback": 0,
+  "min_similarity": 1.0,
+  "type_check_differ": 0,
+  "consistency": [],
+  "charge_sum": 0.0
+ },
+ "pyrophyllite_3x2x3": {
+  "atoms": 720,
+  "wrong": 0,
+  "wrong_atoms": [],
+  "fallback": 0,
+  "min_similarity": 1.0,
+  "type_check_differ": 0,
+  "consistency": [],
+  "charge_sum": -0.0
+ }
+}

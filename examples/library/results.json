@@ -1,0 +1,237 @@
+{
+ "default": {
+  "rows": 3265,
+  "same_charge": 3265,
+  "confusions": {},
+  "structures": 22,
+  "same_as_bundled": true
+ },
+ "basal_recut": {
+  "brucite": {
+   "atoms": 480,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "none"
+  },
+  "kaolinite": {
+   "atoms": 816,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "none"
+  },
+  "lizerdite": {
+   "atoms": 648,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "none"
+  },
+  "muscovite_1M": {
+   "atoms": 336,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "top"
+  },
+  "muscovite_2M1": {
+   "atoms": 336,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "top"
+  },
+  "nanpingite": {
+   "atoms": 336,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "bottom"
+  },
+  "phlogopite_1M": {
+   "atoms": 352,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "top"
+  },
+  "pyrophyllite_2": {
+   "atoms": 320,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "none"
+  },
+  "pyrophyllite": {
+   "atoms": 320,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "none"
+  },
+  "talc": {
+   "atoms": 378,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "none"
+  },
+  "montmorillonite_dry_Na": {
+   "atoms": 326,
+   "same_atoms": true,
+   "same_types": true,
+   "formal_charge": 0,
+   "ions_face": "top"
+  }
+ },
+ "edge": {
+  "rows": 2292,
+  "same_charge": 2292,
+  "confusions": {},
+  "structures": 2,
+  "same_as_bundled": true,
+  "forcefield": {
+   "name": "Montmorillonite edge",
+   "source": "T. R. Underwood, I. C. Bourg, J. Phys. Chem. C 124, 3702 (2020)",
+   "charge": {
+    "oed": -0.95,
+    "oab": -1.1875,
+    "omb": -1.3185,
+    "oaa": -1.2875,
+    "oma": -1.4185,
+    "alb": 1.8125,
+    "mgb": 1.4675,
+    "ala": 1.8125,
+    "mga": 1.4675,
+    "ho": 0.425,
+    "oh": -0.95,
+    "ohs": -1.081,
+    "ob": -1.05,
+    "obos": -1.181,
+    "ao": 1.575,
+    "st": 2.1,
+    "mgo": 1.361,
+    "Na": 1.0
+   },
+   "lj": {
+    "oed": [
+     0.1554,
+     3.1655
+    ],
+    "oab": [
+     0.1554,
+     3.1655
+    ],
+    "omb": [
+     0.1554,
+     3.1655
+    ],
+    "oaa": [
+     0.1554,
+     3.1655
+    ],
+    "oma": [
+     0.1554,
+     3.1655
+    ],
+    "alb": [
+     1.3298e-06,
+     4.2713
+    ],
+    "mgb": [
+     9.0298e-07,
+     5.2643
+    ],
+    "ala": [
+     1.3298e-06,
+     4.2713
+    ],
+    "mga": [
+     9.0298e-07,
+     5.2643
+    ],
+    "ho": [
+     0.0,
+     0.0
+    ],
+    "oh": [
+     0.1554,
+     3.1655
+    ],
+    "ohs": [
+     0.1554,
+     3.1655
+    ],
+    "ob": [
+     0.1554,
+     3.1655
+    ],
+    "obos": [
+     0.1554,
+     3.1655
+    ],
+    "ao": [
+     1.3298e-06,
+     4.2713
+    ],
+    "st": [
+     1.8405e-06,
+     3.302
+    ],
+    "mgo": [
+     9.0298e-07,
+     5.2643
+    ],
+    "Na": [
+     0.1301,
+     2.6378
+    ]
+   },
+   "bond_oh": [
+    553.935,
+    1.0
+   ],
+   "angle_moh": [
+    30.0191,
+    109.47
+   ],
+   "angle_mom_edge": [
+    800.0,
+    100.0
+   ]
+  }
+ },
+ "initial": {
+  "hydrate_lmax3": {
+   "rows": 2502,
+   "same_charge": 2502,
+   "confusions": {}
+  },
+  "library_12_lmax3": {
+   "rows": 5671,
+   "same_charge": 5671,
+   "confusions": {}
+  },
+  "hydrate_lmax4": {
+   "rows": 2502,
+   "same_charge": 2502,
+   "confusions": {}
+  },
+  "library_12_lmax4": {
+   "rows": 5671,
+   "same_charge": 5671,
+   "confusions": {}
+  },
+  "hydrate_lmax5": {
+   "rows": 2502,
+   "same_charge": 2502,
+   "confusions": {}
+  },
+  "library_12_lmax5": {
+   "rows": 5671,
+   "same_charge": 5671,
+   "confusions": {}
+  }
+ }
+}

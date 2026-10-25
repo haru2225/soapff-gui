@@ -1,0 +1,48 @@
+{
+ "paper": {
+  "slab_atoms": 78240,
+  "atoms": 105977,
+  "cell": [
+   206.93,
+   215.53,
+   201.0
+  ],
+  "sphere_radius": 40.31,
+  "packmol_converged": true,
+  "placed": {
+   "water": 9171,
+   "Na": 112,
+   "Cl": 112
+  },
+  "nearest_atom": 6.38,
+  "droplet_bottom_above_surface": 5.28,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.096,
+  "seconds_packmol": 33,
+  "seconds_total": 361
+ },
+ "gui": {
+  "slab_atoms": 78240,
+  "atoms": 105977,
+  "cell": [
+   206.93,
+   215.53,
+   204.41
+  ],
+  "sphere_radius": 40.31,
+  "packmol_converged": true,
+  "placed": {
+   "water": 9171,
+   "Na": 112,
+   "Cl": 112
+  },
+  "nearest_atom": 5.58,
+  "droplet_bottom_above_surface": 5.28,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.096,
+  "seconds_packmol": 6263,
+  "seconds_total": 27855
+ }
+}

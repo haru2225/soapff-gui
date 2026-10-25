@@ -1,0 +1,212 @@
+{
+ "montmorillonite_dry_Na": {
+  "slab_atoms": 326,
+  "water": 122,
+  "atoms": 692,
+  "packmol_converged": true,
+  "nearest_atom": 2.33,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0004,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -76179.0170594745,
+    -80028.790777085
+   ]
+  }
+ },
+ "muscovite_2M1": {
+  "slab_atoms": 336,
+  "water": 134,
+  "atoms": 738,
+  "packmol_converged": true,
+  "nearest_atom": 2.87,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": -0.0032,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -70940.5550696346,
+    -78900.4909178198
+   ]
+  }
+ },
+ "muscovite_1M": {
+  "slab_atoms": 336,
+  "water": 141,
+  "atoms": 759,
+  "packmol_converged": true,
+  "nearest_atom": 2.2,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": -0.0032,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -71808.5219445218,
+    -79173.3916183561
+   ]
+  }
+ },
+ "phlogopite_1M": {
+  "slab_atoms": 352,
+  "water": 144,
+  "atoms": 784,
+  "packmol_converged": true,
+  "nearest_atom": 2.2,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": -0.0032,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -66324.1278649287,
+    -74439.3000804316
+   ]
+  }
+ },
+ "nanpingite": {
+  "slab_atoms": 336,
+  "water": 146,
+  "atoms": 774,
+  "packmol_converged": true,
+  "nearest_atom": 2.36,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": -0.0032,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -71228.6222086241,
+    -78926.1345100456
+   ]
+  }
+ },
+ "pyrophyllite": {
+  "slab_atoms": 320,
+  "water": 130,
+  "atoms": 710,
+  "packmol_converged": true,
+  "nearest_atom": 2.2,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": -0.0,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -74033.0420860813,
+    -79071.5611460433
+   ]
+  }
+ },
+ "kaolinite": {
+  "slab_atoms": 816,
+  "water": 281,
+  "atoms": 1659,
+  "packmol_converged": true,
+  "nearest_atom": 2.16,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -130398.938565537,
+    -142020.968448856
+   ]
+  }
+ },
+ "lizerdite": {
+  "slab_atoms": 648,
+  "water": 229,
+  "atoms": 1335,
+  "packmol_converged": true,
+  "nearest_atom": 2.68,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -74404.4810259104,
+    -96059.0923069794
+   ]
+  }
+ },
+ "talc": {
+  "slab_atoms": 378,
+  "water": 157,
+  "atoms": 849,
+  "packmol_converged": true,
+  "nearest_atom": 2.36,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -72881.5250684865,
+    -83995.2245829812
+   ]
+  }
+ },
+ "brucite": {
+  "slab_atoms": 480,
+  "water": 135,
+  "atoms": 885,
+  "packmol_converged": true,
+  "nearest_atom": 2.19,
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": 0.0,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -13747.1850288414,
+    -21866.4576473714
+   ]
+  }
+ }
+}

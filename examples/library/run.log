@@ -1,0 +1,9 @@
+default library {'rows': 3265, 'same_charge': 3265, 'confusions': {}, 'structures': 22, 'same_as_bundled': True}
+basal slabs cut again True
+edge library {'rows': 2292, 'same_charge': 2292, 'confusions': {}, 'structures': 2, 'same_as_bundled': True}
+hydrate l_max 3 {'rows': 2502, 'same_charge': 2502, 'confusions': {}}
+library_12 l_max 3 {'rows': 5671, 'same_charge': 5671, 'confusions': {}}
+hydrate l_max 4 {'rows': 2502, 'same_charge': 2502, 'confusions': {}}
+library_12 l_max 4 {'rows': 5671, 'same_charge': 5671, 'confusions': {}}
+hydrate l_max 5 {'rows': 2502, 'same_charge': 2502, 'confusions': {}}
+library_12 l_max 5 {'rows': 5671, 'same_charge': 5671, 'confusions': {}}

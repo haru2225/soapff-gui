@@ -1,0 +1,98 @@
+{
+ "structure": "Atoms",
+ "atoms": 544,
+ "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
+ "soap": {
+  "r_cut": 5.0,
+  "n_max": 4,
+  "l_max": 3,
+  "sigma": 0.4
+ },
+ "threshold": 0.95,
+ "boundary": "p p p",
+ "kspace": [
+  "kspace_style pppm 1.0e-5"
+ ],
+ "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
+ "forcefield": null,
+ "charge_sum_before": 1.7763568394002505e-15,
+ "charge_sum": 1.7763568394002505e-15,
+ "from_soap": 544,
+ "fallback": 0,
+ "type_check": {
+  "compared": 416,
+  "differ": 2,
+  "kinds": {
+   "at->ao": 1,
+   "obts->ob": 1
+  }
+ },
+ "warnings": [
+  "2 atoms: the SOAP type differs from the bond-graph ClayFF type (at->ao x1, obts->ob x1); the library may lack these environments - see charges.csv (column bond_type)"
+ ],
+ "roles": {
+  "mineral": 544,
+  "water": 0,
+  "ion": 0
+ },
+ "per_type": {
+  "ao": {
+   "atoms": 64,
+   "charges": [
+    1.575
+   ],
+   "from_soap": 64,
+   "fallback": 0,
+   "min_similarity": 0.9848861694335938
+  },
+  "ho": {
+   "atoms": 128,
+   "charges": [
+    0.425
+   ],
+   "from_soap": 128,
+   "fallback": 0,
+   "min_similarity": 0.9618414044380188
+  },
+  "ob": {
+   "atoms": 160,
+   "charges": [
+    -1.05
+   ],
+   "from_soap": 160,
+   "fallback": 0,
+   "min_similarity": 0.9829795360565186
+  },
+  "oh": {
+   "atoms": 128,
+   "charges": [
+    -0.95
+   ],
+   "from_soap": 128,
+   "fallback": 0,
+   "min_similarity": 0.9855725765228271
+  },
+  "st": {
+   "atoms": 64,
+   "charges": [
+    2.1
+   ],
+   "from_soap": 64,
+   "fallback": 0,
+   "min_similarity": 0.9926255345344543
+  }
+ },
+ "consistency": [],
+ "md": {
+  "temp": 300.0,
+  "relax_ps": 10.0,
+  "nvt_ps": 50.0,
+  "npt_ps": 0.0,
+  "press": 1.0,
+  "baro": "aniso",
+  "dump_ps": 1.0,
+  "timestep_fs": 0.5
+ }
+}
