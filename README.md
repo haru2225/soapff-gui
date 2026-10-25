@@ -97,7 +97,7 @@ A mineral-water interface is the basal slab with water added in the empty part (
 
 ## Optional library: montmorillonite edges
 
-`src/soapff_gui/data/library_clayff_edge.npz` (Calculation settings › Library and details › Bundled library: "With montmorillonite edges (JAEA charges)"; or the Structure library window). The default library ("Basic (ClayFF Table 1 only)") is unchanged and stays the default.
+`src/soapff_gui/data/library_clayff_edge.npz` (Calculation settings › Library and details › Bundled library: "Montmorillonite edge (Underwood & Bourg 2020)"; or the Structure library window). The default library ("ClayFF (Cygan et al. 2004)") is unchanged and stays the default.
 
 - References: the 22 structures of the default library and the JAEA montmorillonite particle (`clay_montmorillonite.data`, a single layer with edges on every side, 2,292 atoms, and `clay_montmorillonite_2.data`): 24 structures, 3,603 rows.
 - Edge types: the edge hydroxyl O (oed, oab, omb), the edge O bound to two metals (oaa, oma), the edge octahedral Al (alb, ala) and Mg (mgb, mga). Their charges are those of the JAEA file (e.g. oed -0.95, oab -1.1875, omb -1.3185, oaa -1.2875, oma -1.4185, alb/ala +1.8125, mgb/mga +1.4675); their LJ is that of the parent ClayFF type (O: ob, Al: ao, Mg: mgo). Every other type keeps its ClayFF Table 1 charge. An extra angle, edge metal-O-octahedral metal, 800 kcal/mol/rad² at 100° (angle type 2 of the JAEA settings), is added with the M-O-H of the edge hydroxyls.

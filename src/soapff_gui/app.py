@@ -2330,8 +2330,8 @@ class App:
                 import collections
                 d = np.load(p, allow_pickle=False)
                 el, ty, q = d["element"], d["type"], d["q"]
-                if "citation" in d.files:
-                    txt.insert("end", f"Source: {d['citation']}\n\n")
+                if current():
+                    txt.insert("end", f"Source: {runner.LIBRARIES[current()][2]}\n\n")
                 org = d["origin"] if "origin" in d.files else []
                 txt.insert("end", f"{len(el)} rows (1 row = 1 atom of a reference structure: SOAP vector of {d['X'].shape[1]} components, charge, type)\n")
                 txt.insert("end", f"Elements: {' '.join(d['species'])}\n\nReference structures\n")
@@ -2357,14 +2357,14 @@ class App:
                         groups.setdefault(stem, dict(bulk=None, basal=None, edges=[], other=[]))["bulk"] = n
                 txt.insert("end", "  Atoms kept in the library (an environment already present is not stored twice)\n"
                                   "  bulk: the crystal; 001: basal plane (no bond cut)"
-                                  + ("; the montmorillonite edges come only from the JAEA particle\n\n" if "citation" in d.files
+                                  + ("; the montmorillonite edges come from a particle with edges on every side\n\n" if "citation" in d.files
                                      else "; no edges in this library\n\n"))
                 for m, g in groups.items():
                     if g["other"]:
-                        txt.insert("end", f"  {m}: edge particle (JAEA), {g['other'][0][1]} atoms\n")
+                        txt.insert("end", f"  {m}: edge particle, {g['other'][0][1]} atoms\n")
                         continue
-                    if m.startswith("clay_montmorillonite"):           # the JAEA particle of the edge library
-                        txt.insert("end", f"  {m}: montmorillonite particle with edges (JAEA), {g['bulk']} atoms kept"
+                    if m.startswith("clay_montmorillonite"):           # the particle of the edge library
+                        txt.insert("end", f"  {m}: montmorillonite particle with edges, {g['bulk']} atoms kept"
                                           + (" (every environment already present)" if not g["bulk"] else "") + "\n")
                         continue
                     txt.insert("end", f"  {m}: bulk {g['bulk']}" + ((", 001 " + str(g["basal"])) if g["basal"] is not None else "")
