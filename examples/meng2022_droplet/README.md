@@ -9,7 +9,7 @@ The initial structure of Meng et al., Appl. Clay Sci. 224, 106513 (2022), their 
 ~/.soapff-gui/venv/bin/python run.py [paper|gui]     # packmol must be installed; ~5 minutes each
 ```
 
-Each folder keeps `structure.extxyz.gz` (the structure, 105,977 atoms), `system.settings`, `in.lammps`, `report.json` and packmol's `pack.inp` and `packmol.log`. The large files (`structure.extxyz`, `system.data`, `charges.csv`, packmol's xyz files) are written by `run.py` but not kept in the repository. The structure is large, so it was not minimized.
+Each folder keeps the structure `structure.extxyz` (105,977 atoms), the files soapff-gui writes for it (`system.data`, `system.settings`, `in.lammps`, `charges.csv`, `report.json`; `in.lammps` is the GUI's, up to the minimisation) and packmol's input and log (`packmol/`); packmol's xyz files are written by `run.py` but not kept in the repository. The structure is large, so no LAMMPS calculation was run for this test.
 
 ## Results (`results.json`)
 

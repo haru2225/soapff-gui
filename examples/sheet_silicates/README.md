@@ -3,7 +3,8 @@
 For each of the 8 sheet silicates of the library (muscovite 2M1 and 1M, phlogopite 1M, nanpingite, kaolinite, lizardite, talc, pyrophyllite from a second source):
 
 - `<mineral>.extxyz`: a supercell one unit cell longer along a than the library reference (elements, coordinates, and box only);
-- `md_<mineral>/`: soapff-gui's force field for it and a 300 K MD with LAMMPS (`in.lammps`: minimization, 10 ps NVT relaxation, 10 ps NVT, 40 ps NPT with all cell lengths and tilts at 1 atm, 0.5 fs, frames every 1 ps; `log.lammps`, `traj.lammpstrj`, `final.data`; run with Open MPI, 2 processes, PPPM 1e-5); `supercell.json`: the repeats of the unit cell and the input cell.
+- `md_<mineral>/`: soapff-gui's force field for it and a 300 K MD with LAMMPS (`in.lammps`: minimization, 10 ps NVT relaxation, 10 ps NVT, 40 ps NPT with all cell lengths and tilts at 1 atm, 0.5 fs, frames every 1 ps; `log.lammps`, `traj.lammpstrj`, `final.data`; run with Open MPI, 2 processes, PPPM 1e-5); `supercell.json`: the repeats of the unit cell and the input cell. `traj.lammpstrj` is not kept in the repository (re-run the MD with `in.lammps` to get it).
+- `out_<mineral>/`, `out_<mineral>_md/`: the structure typed (`structure.extxyz`: the supercell, the last MD frame) and the files soapff-gui writes for it, as the GUI writes them (`system.data`, `system.settings`, `in.lammps` up to the minimization, `charges.csv`, `report.json`).
 
 `run.py` types the supercell and the last MD frame (the same atoms, disordered by 300 K and with the box changed by the NPT) with the bundled library and compares them with the truth: the ClayFF type from the bond graph of the supercell (`soapff_cui._clayff.ff.ff_types`, same atom order) and its Table 1 charge ("wrong": a different type or a charge more than 0.01 e off). It also averages the lattice parameters over the last 30 ps of the NPT (per unit cell, against the input), and reads the temperatures from `log.lammps`.
 

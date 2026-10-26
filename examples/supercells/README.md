@@ -5,7 +5,7 @@ Two crystals in supercells that differ from the library references, as elements,
 - `brucite_5x5x4.extxyz`: brucite Mg(OH)₂, 5 x 5 x 4 unit cells, 500 atoms (the structure of Fig. 1, the workflow);
 - `pyrophyllite_3x2x3.extxyz`: pyrophyllite Al₂Si₄O₁₀(OH)₂ (COD 9000809), 3 x 2 x 3 unit cells, 720 atoms.
 
-`run.py` builds soapff-gui's force field for each (bundled library, `out_<name>/`) and compares it with the truth: the ClayFF type from the bond graph (`soapff_cui._clayff.ff.ff_types`) and its Table 1 charge ("wrong": a different type or a charge more than 0.01 e off). `md.py` runs soapff-gui's MD input with LAMMPS (minimization, 10 ps NVT relaxation, 10 ps NVT, 40 ps NPT with all cell lengths and tilts at 1 atm; 300 K, 0.5 fs; `md_<name>/`).
+`run.py` builds soapff-gui's force field for each (bundled library; `out_<name>/`: `structure.extxyz` and the files the GUI writes for it, `system.data`, `system.settings`, `in.lammps` up to the minimization, `charges.csv`, `report.json`) and compares it with the truth: the ClayFF type from the bond graph (`soapff_cui._clayff.ff.ff_types`) and its Table 1 charge ("wrong": a different type or a charge more than 0.01 e off). `md.py` runs soapff-gui's MD input with LAMMPS (minimization, 10 ps NVT relaxation, 10 ps NVT, 40 ps NPT with all cell lengths and tilts at 1 atm; 300 K, 0.5 fs; `md_<name>/`: the input `in.lammps` with `system.data`, `system.settings`, and `log.lammps`, `final.data`; `traj.lammpstrj` is not kept in the repository).
 
 ```
 ~/.soapff-gui/venv/bin/python run.py                      # -> out_<name>/, results.json

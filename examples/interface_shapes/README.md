@@ -6,7 +6,7 @@ Six initial structures of water on a basal (0 0 1) surface, each made with the c
 ~/.soapff-gui/venv/bin/python run.py [lmp]     # lmp default lmp_serial; packmol must be installed
 ```
 
-Each folder holds `structure.extxyz`, the force field (`system.data`, `system.settings`, `in.lammps`, `charges.csv`, `report.json`), `log.min`, and packmol's input and log (`packmol/pack.inp`, `packmol/packmol.log`; the large xyz files packmol writes are not kept). The constraints of each case are in `results.json`.
+Each folder holds `structure.extxyz`, the files soapff-gui writes for it, as the GUI writes them (`system.data`, `system.settings`, `in.lammps` up to the minimization, `charges.csv`, `report.json`), the LAMMPS input and log of the minimization (`in.min`: `in.lammps` with `kspace_style ewald 1.0e-4` after the `include`; `log.min`), and packmol's input and log (`packmol/pack.inp`, `packmol/packmol.log`; the large xyz files packmol writes are not kept). The constraints of each case are in `results.json`.
 
 ## Results (`results.json`)
 

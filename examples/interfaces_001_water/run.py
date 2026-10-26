@@ -2,10 +2,11 @@
 minerals of the figure (../library/refs_basal/; the second pyrophyllite source is left out, as in the paper) with its
 widest empty slice filled with water by packmol at 1 g/cm3 (soapff_cui.water, the GUI's "Add water": tolerance 2 A, seed 1),
 the force field of soapff-gui (bundled library, flexible SPC water) and a LAMMPS minimisation.  The minimisation uses Ewald
-(1e-4) instead of PPPM, as in the paper (PPPM stopped at the start of the minimisation on the LAMMPS used there).
+(1e-4) instead of PPPM, as in the paper (PPPM stopped at the start of the minimisation on the LAMMPS used there): in.min.
 
     python run.py [lmp]      (with the Python of soapff-gui; lmp: the LAMMPS executable, default lmp_serial)
-                              ->  <mineral>/ (structure.extxyz, system.data, system.settings, in.lammps, log.min), results.json"""
+                              ->  <mineral>/ (structure.extxyz; the GUI's system.data, system.settings, in.lammps, charges.csv,
+                                  report.json; the minimisation in.min, log.min), results.json"""
 import json
 import os
 import shutil
@@ -20,15 +21,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REFS = os.path.join(HERE, "..", "library", "refs_basal")
 LIB = os.path.join(HERE, "..", "..", "src", "soapff_gui", "data", "library_clayff_bulk.npz")
 LMP = sys.argv[1] if len(sys.argv) > 1 else "lmp_serial"
+EWALD = "kspace_style ewald 1.0e-4  # this test: Ewald 1e-4 instead of the PPPM of system.settings\n"
 MINERALS = ["montmorillonite_dry_Na", "muscovite_2M1", "muscovite_1M", "phlogopite_1M", "nanpingite", "pyrophyllite",
             "kaolinite", "lizerdite", "talc", "brucite"]
 
 
 def minimize(d, lmp=LMP):
-    """the minimisation of in.lammps (make md=False) with Ewald 1e-4; returns the stopping criteria and the energies"""
-    s = open(os.path.join(d, "system.settings")).read().replace("kspace_style pppm 1.0e-5", "kspace_style ewald 1.0e-4")
-    open(os.path.join(d, "system.settings"), "w").write(s)
-    p = subprocess.run([lmp, "-in", "in.lammps", "-log", "log.min"], cwd=d, capture_output=True, text=True)
+    """the minimisation of in.lammps (make md=False, as the GUI writes it) with Ewald 1e-4: in.min, in.lammps with the kspace
+    style replaced after the include (system.settings is kept as written); returns the stopping criteria and the energies"""
+    s = open(os.path.join(d, "in.lammps")).read().replace("include system.settings\n", "include system.settings\n" + EWALD, 1)
+    open(os.path.join(d, "in.min"), "w").write(s)
+    p = subprocess.run([lmp, "-in", "in.min", "-log", "log.min"], cwd=d, capture_output=True, text=True)
     L = open(os.path.join(d, "log.min")).read().splitlines()
     k = [i for i, l in enumerate(L) if "Energy initial, next-to-last, final" in l]
     return dict(returncode=p.returncode, stop=[l.split("=")[1].strip() for l in L if "Stopping criterion" in l],

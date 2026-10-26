@@ -1,12 +1,12 @@
 # Example: water on the basal (0 0 1) slabs (paper: test (4), Fig. "interfaces")
 
-The library slab of each of the 10 layered minerals of the figure (`../library/refs_basal/`; the second pyrophyllite source is left out, as in the paper) with its widest empty slice (the vacuum above the slab) filled with water by packmol at 1 g/cm³: `soapff_cui.water`, the same as the GUI's "Add water" (tolerance 2 Å, seed 1). Then soapff-gui's force field (bundled library, flexible SPC water) and the LAMMPS minimization of `in.lammps`.
+The library slab of each of the 10 layered minerals of the figure (`../library/refs_basal/`; the second pyrophyllite source is left out, as in the paper) with its widest empty slice (the vacuum above the slab) filled with water by packmol at 1 g/cm³: `soapff_cui.water`, the same as the GUI's "Add water" (tolerance 2 Å, seed 1). Then soapff-gui's force field (bundled library, flexible SPC water) and a LAMMPS minimization.
 
 ```
 ~/.soapff-gui/venv/bin/python run.py [lmp]     # lmp: the LAMMPS executable (default lmp_serial); packmol must be installed
 ```
 
-Each `<mineral>/` holds `structure.extxyz` (slab + water), the force field (`system.data`, `system.settings`, `in.lammps`, `charges.csv`, `report.json`) and `log.min`. The minimization uses Ewald (1e-4) instead of PPPM, as in the paper: with the LAMMPS on the machine used there, PPPM stopped at the start of the minimization.
+Each `<mineral>/` holds `structure.extxyz` (slab + water), the files soapff-gui writes for it, as the GUI writes them (`system.data`, `system.settings`, `in.lammps` up to the minimization, `charges.csv`, `report.json`), and the LAMMPS input and log of the minimization (`in.min`, `log.min`). `in.min` is `in.lammps` with `kspace_style ewald 1.0e-4` after the `include`: the minimization uses Ewald (1e-4) instead of the PPPM of `system.settings`, as in the paper (with the LAMMPS on the machine used there, PPPM stopped at the start of the minimization). Run it in the folder with `lmp -in in.min`.
 
 ## Results (`results.json`)
 

@@ -22,4 +22,4 @@ bond_coeff 1 554.1349 1.0  # O-H
 bond_coeff 2 554.1349 1.0  # O-H (water)
 angle_coeff 1 45.7696 109.47  # HOHw
 angle_coeff 2 30.0 109.47  # MOH-Al-bulk
-kspace_style ewald 1.0e-4
+kspace_style pppm 1.0e-5

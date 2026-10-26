@@ -8,7 +8,8 @@ order) and its Table 1 charge.  The lattice parameters averaged over the last 30
 with the input structure; from log.lammps: the temperature range of the production and the mean temperature of the NVT; the
 layer spacing d001 of the two muscovites (the unit-cell height normal to the a-b face per layer: 2 layers in 2M1, 1 in 1M).
 
-    python run.py            (with the Python of soapff-gui)  ->  out_<mineral>/, out_<mineral>_md/, results.json"""
+    python run.py            (with the Python of soapff-gui)  ->  out_<mineral>/, out_<mineral>_md/ (structure.extxyz and the
+                                                                GUI's files for it), results.json"""
 import csv
 import json
 import os
@@ -28,6 +29,7 @@ MINERALS = ["muscovite_2M1", "muscovite_1M", "phlogopite_1M", "nanpingite", "kao
 
 def compare(at, truth, out):
     rep = core.make(at, out, LIB, md=False, stop_on_fallback=True, log=lambda *a: None)
+    at.write(os.path.join(out, "structure.extxyz"), format="extxyz")
     rows = list(csv.DictReader(open(os.path.join(out, "charges.csv"))))
     wrong = [i + 1 for i, (r, t) in enumerate(zip(rows, truth)) if r["clayff_type"] != t or abs(float(r["charge"]) - Q[t]) > 0.01]
     return dict(atoms=len(rows), wrong=len(wrong), fallback=rep["fallback"],

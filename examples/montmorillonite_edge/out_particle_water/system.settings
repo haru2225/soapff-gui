@@ -38,4 +38,4 @@ angle_coeff 4 30.0191 109.47  # MOH-Mg-bulk (Montmorillonite edge)
 angle_coeff 5 30.0191 109.47  # MOH-Mg-surface (Montmorillonite edge)
 angle_coeff 6 30.0191 109.47  # MOH-Si-surface (Montmorillonite edge)
 angle_coeff 7 800.0 100.0  # MOMe  (edge metal-O-metal) (Montmorillonite edge)
-kspace_style ewald 1.0e-4
+kspace_style pppm 1.0e-5

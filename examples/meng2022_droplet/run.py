@@ -6,11 +6,11 @@ made with soapff-gui (paper: test (6) and Fig. "Meng").
           molecules at 1 g/cm3 (radius 40.3 A), its bottom 5 A above the surface; the force field (bundled library).
   gui/    the same with the GUI's steps only: Surface with the vacuum above the slab, 183 A thick (pymatgen rounds the cell up
           to whole layers: c = 204.4 A), Supercell 20 x 12 x 1, Add water with the same sphere.
-The structures are large (105,977 atoms): the force field files (system.data, charges.csv) and packmol's xyz files are written
-but not kept in the repository; structure.extxyz.gz is.
+The structures are large (105,977 atoms); packmol's xyz files are written but not kept in the repository.
 
-    python run.py [paper|gui]   (with the Python of soapff-gui; packmol must be installed; ~5 minutes each)  ->  results.json"""
-import gzip
+    python run.py [paper|gui]   (with the Python of soapff-gui; packmol must be installed; ~5 minutes each)
+                                ->  <variant>/ (structure.extxyz; the GUI's system.data, system.settings, in.lammps, charges.csv,
+                                    report.json; packmol/), results.json"""
 import json
 import os
 import shutil
@@ -51,8 +51,6 @@ def build(variant):
     ase.io.write(f, new, format="extxyz")
     t_pack = time.time() - t0
     r = core.make(f, d, LIB, md=False, stop_on_fallback=True, log=lambda *a: None)
-    with open(f, "rb") as a, gzip.open(f + ".gz", "wb") as b:
-        shutil.copyfileobj(a, b)
     O = new.positions[len(slab):len(slab) + 3 * N_WATER:3]
     return dict(slab_atoms=len(slab), atoms=len(new), cell=[round(x, 2) for x in new.cell.cellpar()[:3]],
                 sphere_radius=round(float(R), 2), packmol_converged=rep["converged"],

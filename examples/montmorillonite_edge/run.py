@@ -10,7 +10,9 @@ clay_montmorillonite_2.data, the particle twice along c).
   4. minimisations (Ewald 1e-4): the particle, the particle twice, and the particle with a water film (1 g/cm3, 2-12 A above it)
      and 4 Na+ + 4 Cl- (packmol): the water and Cl- take ClayFF (flexible SPC), the particle and Na+ the edge model.
 
-    python run.py [lmp]      (with the Python of soapff-gui; lmp default lmp_serial)  ->  out_*/, results.json"""
+    python run.py [lmp]      (with the Python of soapff-gui; lmp default lmp_serial)
+                              ->  out_*/ (structure.extxyz; the GUI's system.data, system.settings, in.lammps, charges.csv,
+                                  report.json; the minimisation in.min, log.min), single_point/, results.json"""
 import csv
 import json
 import os
@@ -28,6 +30,7 @@ REFS = os.path.join(HERE, "..", "library", "refs_edge")
 DATA = os.path.join(HERE, "..", "..", "src", "soapff_gui", "data")
 EDGE, BASIC = os.path.join(DATA, "library_clayff_edge.npz"), os.path.join(DATA, "library_clayff_bulk.npz")
 LMP = sys.argv[1] if len(sys.argv) > 1 else "lmp_serial"
+EWALD = "kspace_style ewald 1.0e-4  # this test: Ewald 1e-4 instead of the PPPM of system.settings\n"
 quiet = lambda *a: None
 
 
@@ -45,9 +48,10 @@ def lammps(d, inp, log):
 
 
 def minimize(d):
-    s = open(os.path.join(d, "system.settings")).read().replace("kspace_style pppm 1.0e-5", "kspace_style ewald 1.0e-4")
-    open(os.path.join(d, "system.settings"), "w").write(s)
-    rc, L = lammps(d, "in.lammps", "log.min")
+    """in.min: the GUI's in.lammps with Ewald 1e-4 after the include (system.settings is kept as written)"""
+    s = open(os.path.join(d, "in.lammps")).read().replace("include system.settings\n", "include system.settings\n" + EWALD, 1)
+    open(os.path.join(d, "in.min"), "w").write(s)
+    rc, L = lammps(d, "in.min", "log.min")
     k = [i for i, l in enumerate(L) if "Energy initial, next-to-last, final" in l]
     return dict(returncode=rc, stop=[l.split("=")[1].strip() for l in L if "Stopping criterion" in l],
                 energy_initial_final=[float(L[k[0] + 1].split()[0]), float(L[k[-1] + 1].split()[2])] if k else None)
@@ -61,6 +65,7 @@ for name in ("clay_montmorillonite", "clay_montmorillonite_2"):
     d = os.path.join(HERE, "out_" + name)
     shutil.rmtree(d, ignore_errors=True)
     rep = core.make(f, d, EDGE, md=False, stop_on_fallback=True, log=quiet)
+    shutil.copy(f, os.path.join(d, "structure.extxyz"))
     rows = list(csv.DictReader(open(os.path.join(d, "charges.csv"))))
     D = open(os.path.join(d, "system.data")).read().splitlines()
     S = open(os.path.join(d, "system.settings")).read().splitlines()
@@ -92,7 +97,7 @@ s = open(os.path.join(REFS, "clay_montmorillonite.data")).read().replace("Angle 
 open(os.path.join(sp, "original.data"), "w").write(s)
 shutil.copy(os.path.join(REFS, "clay_montmorillonite.settings"), os.path.join(sp, "original.settings"))
 shutil.copy(os.path.join(HERE, "out_clay_montmorillonite", "system.data"), os.path.join(sp, "system.data"))
-s = open(os.path.join(HERE, "out_clay_montmorillonite", "system.settings")).read().replace("kspace_style ewald 1.0e-4", "kspace_style ewald 1.0e-5")
+s = open(os.path.join(HERE, "out_clay_montmorillonite", "system.settings")).read().replace("kspace_style pppm 1.0e-5", "kspace_style ewald 1.0e-5")
 open(os.path.join(sp, "written.settings"), "w").write(s)
 tail = "thermo_style custom pe ebond eangle evdwl ecoul elong\nthermo_modify format float %.6f\nrun 0\n"
 open(os.path.join(sp, "in.original"), "w").write(
@@ -117,6 +122,7 @@ ase.io.write(f, s, format="extxyz")
 d = os.path.join(HERE, "out_particle_water")
 shutil.rmtree(d, ignore_errors=True)
 rep = core.make(f, d, EDGE, md=False, stop_on_fallback=True, log=quiet)
+shutil.copy(f, os.path.join(d, "structure.extxyz"))
 res["particle_water"] = dict(atoms=rep["atoms"], placed={x["molecule"]: x["n"] for x in rp["items"]}, roles=rep["roles"],
                              fallback=rep["fallback"], type_check_differ=rep["type_check"]["differ"],
                              charge_sum=round(rep["charge_sum"], 4), minimization=minimize(d))

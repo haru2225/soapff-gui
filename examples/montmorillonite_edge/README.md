@@ -6,10 +6,10 @@ The montmorillonite particle with edges on every side (`../library/refs_edge/`: 
 ~/.soapff-gui/venv/bin/python run.py [lmp]     # lmp default lmp_serial; packmol must be installed
 ```
 
-1. `clay_montmorillonite.extxyz`, `clay_montmorillonite_2.extxyz`: the particle files reduced to elements, coordinates, and box; their force field (`out_*/`) against the files: types, charges, every pair_coeff, the bond and angle coefficients, the numbers of bonds and angles.
+1. `clay_montmorillonite.extxyz`, `clay_montmorillonite_2.extxyz`: the particle files reduced to elements, coordinates, and box; soapff-gui's files for them (`out_clay_montmorillonite*/`: `structure.extxyz`, `system.data`, `system.settings`, `in.lammps`, `charges.csv`, `report.json`, as the GUI writes them) against the files: types, charges, every pair_coeff, the bond and angle coefficients, the numbers of bonds and angles.
 2. The same particle with the default library (ClayFF): it stops, since its edge atoms are not in that library.
-3. `single_point/`: a LAMMPS single point (Ewald 1e-5, cutoff 10 Å, special_bonds 0 0 0) of the original files (`original.data`: a copy with a blank line added after "Angle Coeffs", which LAMMPS needs) and of the written `system.data` / `system.settings`.
-4. Minimizations (Ewald 1e-4) of the particle, the particle twice, and the particle with a water film 2-12 Å above it with 4 Na⁺ and 4 Cl⁻ (`particle_water.extxyz`, packmol): the water and Cl⁻ take ClayFF (flexible SPC), the particle and Na⁺ the edge model.
+3. `single_point/`: a LAMMPS single point (Ewald 1e-5, cutoff 10 Å, special_bonds 0 0 0) of the original files (`original.data`: a copy with a blank line added after "Angle Coeffs", which LAMMPS needs) and of the written `system.data` / `system.settings` (`written.settings`: `system.settings` with Ewald 1e-5); inputs `in.original`, `in.written`, logs `log.original`, `log.written`.
+4. Minimizations (Ewald 1e-4) of the particle, the particle twice, and the particle with a water film 2-12 Å above it with 4 Na⁺ and 4 Cl⁻ (`particle_water.extxyz`, packmol): the water and Cl⁻ take ClayFF (flexible SPC), the particle and Na⁺ the edge model (`out_particle_water/`). The LAMMPS input of each minimization is `in.min` in its folder (`in.lammps` with `kspace_style ewald 1.0e-4` after the `include`; `system.settings` keeps the GUI's PPPM), its log `log.min`.
 
 ## Results (`results.json`)
 

@@ -3,10 +3,12 @@
 bundled library) is compared with the truth: the ClayFF type from the bond graph (soapff_cui._clayff.ff.ff_types) and its
 ClayFF Table 1 charge.  "wrong": an atom whose type differs or whose charge differs by more than 0.01 e.
 
-    python run.py            (with the Python of soapff-gui)  ->  out_<name>/ (the force field), results.json"""
+    python run.py            (with the Python of soapff-gui)  ->  out_<name>/ (structure.extxyz and the GUI's files: system.data,
+                                                                system.settings, in.lammps, charges.csv, report.json), results.json"""
 import csv
 import json
 import os
+import shutil
 
 from ase.io import read
 
@@ -23,6 +25,7 @@ def compare(structure, out):
     at = read(structure)
     truth = ff_types(at)
     rep = core.make(structure, out, LIB, md=False, stop_on_fallback=True, log=lambda *a: None)
+    shutil.copy(structure, os.path.join(out, "structure.extxyz"))
     rows = list(csv.DictReader(open(os.path.join(out, "charges.csv"))))
     wrong = [i + 1 for i, (r, t) in enumerate(zip(rows, truth))
              if r["clayff_type"] != t or abs(float(r["charge"]) - Q[t]) > 0.01]

@@ -12,7 +12,9 @@ by soapff_cui.water.pack (the GUI's "Add water", tolerance 2 A, seed 1) in a reg
 The number of water molecules: 1 g/cm3 in the free volume of the region (water.estimate, the GUI's "Number from density").
 Then the force field of soapff-gui (bundled library) and a LAMMPS minimisation (Ewald 1e-4, as in ../interfaces_001_water).
 
-    python run.py [lmp]      (with the Python of soapff-gui; packmol must be installed)  ->  <case>/, results.json"""
+    python run.py [lmp]      (with the Python of soapff-gui; packmol must be installed)
+                              ->  <case>/ (structure.extxyz; the GUI's system.data, system.settings, in.lammps, charges.csv,
+                                  report.json; packmol/; the minimisation in.min, log.min), results.json"""
 import json
 import os
 import shutil
@@ -27,6 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REFS = os.path.join(HERE, "..", "library", "refs_bulk")
 LIB = os.path.join(HERE, "..", "..", "src", "soapff_gui", "data", "library_clayff_bulk.npz")
 LMP = sys.argv[1] if len(sys.argv) > 1 else "lmp_serial"
+EWALD = "kspace_style ewald 1.0e-4  # this test: Ewald 1e-4 instead of the PPPM of system.settings\n"
 
 
 def slab_of(name, reps):
@@ -62,9 +65,10 @@ def case(slab, kind):
 
 
 def minimize(d, lmp=LMP):
-    s = open(os.path.join(d, "system.settings")).read().replace("kspace_style pppm 1.0e-5", "kspace_style ewald 1.0e-4")
-    open(os.path.join(d, "system.settings"), "w").write(s)
-    p = subprocess.run([lmp, "-in", "in.lammps", "-log", "log.min"], cwd=d, capture_output=True, text=True)
+    """in.min: the GUI's in.lammps with Ewald 1e-4 after the include (system.settings is kept as written)"""
+    s = open(os.path.join(d, "in.lammps")).read().replace("include system.settings\n", "include system.settings\n" + EWALD, 1)
+    open(os.path.join(d, "in.min"), "w").write(s)
+    p = subprocess.run([lmp, "-in", "in.min", "-log", "log.min"], cwd=d, capture_output=True, text=True)
     L = open(os.path.join(d, "log.min")).read().splitlines()
     k = [i for i, l in enumerate(L) if "Energy initial, next-to-last, final" in l]
     return dict(returncode=p.returncode, stop=[l.split("=")[1].strip() for l in L if "Stopping criterion" in l],
