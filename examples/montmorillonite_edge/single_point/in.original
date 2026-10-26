@@ -1,0 +1,11 @@
+units real
+atom_style full
+bond_style harmonic
+angle_style harmonic
+pair_style lj/cut/coul/long 10.0
+special_bonds lj/coul 0.0 0.0 0.0
+read_data original.data
+include original.settings
+thermo_style custom pe ebond eangle evdwl ecoul elong
+thermo_modify format float %.6f
+run 0

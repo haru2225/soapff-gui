@@ -1,0 +1,319 @@
+{
+ "structure": "/Users/harutokono/clay/soapff-gui/examples/montmorillonite_edge/clay_montmorillonite.extxyz",
+ "atoms": 2292,
+ "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_edge.npz",
+ "soap": {
+  "r_cut": 5.0,
+  "n_max": 4,
+  "l_max": 3,
+  "sigma": 0.4
+ },
+ "threshold": 0.95,
+ "boundary": "p p p",
+ "kspace": [
+  "kspace_style pppm 1.0e-5"
+ ],
+ "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
+ "forcefield": {
+  "name": "Montmorillonite edge",
+  "source": "T. R. Underwood, I. C. Bourg, J. Phys. Chem. C 124, 3702 (2020)",
+  "charge": {
+   "oed": -0.95,
+   "oab": -1.1875,
+   "omb": -1.3185,
+   "oaa": -1.2875,
+   "oma": -1.4185,
+   "alb": 1.8125,
+   "mgb": 1.4675,
+   "ala": 1.8125,
+   "mga": 1.4675,
+   "ho": 0.425,
+   "oh": -0.95,
+   "ohs": -1.081,
+   "ob": -1.05,
+   "obos": -1.181,
+   "ao": 1.575,
+   "st": 2.1,
+   "mgo": 1.361,
+   "Na": 1.0
+  },
+  "lj": {
+   "oed": [
+    0.1554,
+    3.1655
+   ],
+   "oab": [
+    0.1554,
+    3.1655
+   ],
+   "omb": [
+    0.1554,
+    3.1655
+   ],
+   "oaa": [
+    0.1554,
+    3.1655
+   ],
+   "oma": [
+    0.1554,
+    3.1655
+   ],
+   "alb": [
+    1.3298e-06,
+    4.2713
+   ],
+   "mgb": [
+    9.0298e-07,
+    5.2643
+   ],
+   "ala": [
+    1.3298e-06,
+    4.2713
+   ],
+   "mga": [
+    9.0298e-07,
+    5.2643
+   ],
+   "ho": [
+    0.0,
+    0.0
+   ],
+   "oh": [
+    0.1554,
+    3.1655
+   ],
+   "ohs": [
+    0.1554,
+    3.1655
+   ],
+   "ob": [
+    0.1554,
+    3.1655
+   ],
+   "obos": [
+    0.1554,
+    3.1655
+   ],
+   "ao": [
+    1.3298e-06,
+    4.2713
+   ],
+   "st": [
+    1.8405e-06,
+    3.302
+   ],
+   "mgo": [
+    9.0298e-07,
+    5.2643
+   ],
+   "Na": [
+    0.1301,
+    2.6378
+   ]
+  },
+  "bond_oh": [
+   553.935,
+   1.0
+  ],
+  "angle_moh": [
+   30.0191,
+   109.47
+  ],
+  "angle_mom_edge": [
+   800.0,
+   100.0
+  ]
+ },
+ "charge_sum_before": 0.0,
+ "charge_sum": 0.0,
+ "from_soap": 2292,
+ "fallback": 0,
+ "type_check": {
+  "compared": 1860,
+  "differ": 0,
+  "kinds": {}
+ },
+ "warnings": [],
+ "roles": {
+  "mineral": 2268,
+  "water": 0,
+  "ion": 24
+ },
+ "per_type": {
+  "Na": {
+   "atoms": 24,
+   "charges": [
+    1.0
+   ],
+   "from_soap": 24,
+   "fallback": 0,
+   "min_similarity": 0.9999997019767761
+  },
+  "ala": {
+   "atoms": 20,
+   "charges": [
+    1.8125
+   ],
+   "from_soap": 20,
+   "fallback": 0,
+   "min_similarity": 0.9999986290931702
+  },
+  "alb": {
+   "atoms": 10,
+   "charges": [
+    1.8125
+   ],
+   "from_soap": 10,
+   "fallback": 0,
+   "min_similarity": 0.9999991655349731
+  },
+  "ao": {
+   "atoms": 162,
+   "charges": [
+    1.575
+   ],
+   "from_soap": 162,
+   "fallback": 0,
+   "min_similarity": 0.9999989867210388
+  },
+  "ho": {
+   "atoms": 288,
+   "charges": [
+    0.425
+   ],
+   "from_soap": 288,
+   "fallback": 0,
+   "min_similarity": 0.9999977946281433
+  },
+  "mga": {
+   "atoms": 4,
+   "charges": [
+    1.4675
+   ],
+   "from_soap": 4,
+   "fallback": 0,
+   "min_similarity": 0.9999994039535522
+  },
+  "mgb": {
+   "atoms": 2,
+   "charges": [
+    1.4675
+   ],
+   "from_soap": 2,
+   "fallback": 0,
+   "min_similarity": 0.9999995827674866
+  },
+  "mgo": {
+   "atoms": 18,
+   "charges": [
+    1.361
+   ],
+   "from_soap": 18,
+   "fallback": 0,
+   "min_similarity": 0.9999992847442627
+  },
+  "oaa": {
+   "atoms": 20,
+   "charges": [
+    -1.2875
+   ],
+   "from_soap": 20,
+   "fallback": 0,
+   "min_similarity": 0.9999988675117493
+  },
+  "oab": {
+   "atoms": 10,
+   "charges": [
+    -1.1875
+   ],
+   "from_soap": 10,
+   "fallback": 0,
+   "min_similarity": 0.9999990463256836
+  },
+  "ob": {
+   "atoms": 932,
+   "charges": [
+    -1.05
+   ],
+   "from_soap": 932,
+   "fallback": 0,
+   "min_similarity": 0.9999977946281433
+  },
+  "obos": {
+   "atoms": 88,
+   "charges": [
+    -1.181
+   ],
+   "from_soap": 88,
+   "fallback": 0,
+   "min_similarity": 0.9999982118606567
+  },
+  "oed": {
+   "atoms": 72,
+   "charges": [
+    -0.95
+   ],
+   "from_soap": 72,
+   "fallback": 0,
+   "min_similarity": 0.9999979138374329
+  },
+  "oh": {
+   "atoms": 160,
+   "charges": [
+    -0.95
+   ],
+   "from_soap": 160,
+   "fallback": 0,
+   "min_similarity": 0.9999985694885254
+  },
+  "ohs": {
+   "atoms": 44,
+   "charges": [
+    -1.081
+   ],
+   "from_soap": 44,
+   "fallback": 0,
+   "min_similarity": 0.9999985098838806
+  },
+  "oma": {
+   "atoms": 4,
+   "charges": [
+    -1.4185
+   ],
+   "from_soap": 4,
+   "fallback": 0,
+   "min_similarity": 0.9999991655349731
+  },
+  "omb": {
+   "atoms": 2,
+   "charges": [
+    -1.3185
+   ],
+   "from_soap": 2,
+   "fallback": 0,
+   "min_similarity": 0.9999991059303284
+  },
+  "st": {
+   "atoms": 432,
+   "charges": [
+    2.1
+   ],
+   "from_soap": 432,
+   "fallback": 0,
+   "min_similarity": 0.9999980926513672
+  }
+ },
+ "consistency": [],
+ "md": {
+  "temp": 300.0,
+  "relax_ps": 10.0,
+  "nvt_ps": 50.0,
+  "npt_ps": 0.0,
+  "press": 1.0,
+  "baro": "aniso",
+  "dump_ps": 1.0,
+  "timestep_fs": 0.5
+ }
+}

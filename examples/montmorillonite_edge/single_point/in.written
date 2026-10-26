@@ -1,0 +1,4 @@
+include written.settings
+thermo_style custom pe ebond eangle evdwl ecoul elong
+thermo_modify format float %.6f
+run 0

@@ -1,0 +1,36 @@
+# soapff-cui settings: Montmorillonite edge (T. R. Underwood, I. C. Bourg, J. Phys. Chem. C 124, 3702 (2020)) for its types; the other types and the flexible SPC (ClayFF) water: ClayFF (Cygan et al. 2004, Tables 1 and 2); types in system.data from SOAP
+units real
+atom_style full
+boundary p p p
+bond_style harmonic
+angle_style harmonic
+pair_style lj/cut/coul/long 10.0
+pair_modify mix arithmetic tail no
+special_bonds lj/coul 0.0 0.0 0.0
+read_data system.data
+pair_coeff 1 1 1.3298e-06 4.2713  # ala (Montmorillonite edge)
+pair_coeff 2 2 1.3298e-06 4.2713  # alb (Montmorillonite edge)
+pair_coeff 3 3 1.3298e-06 4.2713  # ao (Montmorillonite edge)
+pair_coeff 4 4 0.0 0.0  # ho (Montmorillonite edge)
+pair_coeff 5 5 9.0298e-07 5.2643  # mga (Montmorillonite edge)
+pair_coeff 6 6 9.0298e-07 5.2643  # mgb (Montmorillonite edge)
+pair_coeff 7 7 9.0298e-07 5.2643  # mgo (Montmorillonite edge)
+pair_coeff 8 8 0.1301 2.6378  # Na (Montmorillonite edge)
+pair_coeff 9 9 0.1554 3.1655  # oaa (Montmorillonite edge)
+pair_coeff 10 10 0.1554 3.1655  # oab (Montmorillonite edge)
+pair_coeff 11 11 0.1554 3.1655  # ob (Montmorillonite edge)
+pair_coeff 12 12 0.1554 3.1655  # obos (Montmorillonite edge)
+pair_coeff 13 13 0.1554 3.1655  # oed (Montmorillonite edge)
+pair_coeff 14 14 0.1554 3.1655  # oh (Montmorillonite edge)
+pair_coeff 15 15 0.1554 3.1655  # ohs (Montmorillonite edge)
+pair_coeff 16 16 0.1554 3.1655  # oma (Montmorillonite edge)
+pair_coeff 17 17 0.1554 3.1655  # omb (Montmorillonite edge)
+pair_coeff 18 18 1.8405e-06 3.302  # st (Montmorillonite edge)
+bond_coeff 1 553.935 1.0  # O-H (Montmorillonite edge)
+angle_coeff 1 30.0191 109.47  # MOH-Al-bulk (Montmorillonite edge)
+angle_coeff 2 30.0191 109.47  # MOH-Al-surface (Montmorillonite edge)
+angle_coeff 3 30.0191 109.47  # MOH-Mg-bulk (Montmorillonite edge)
+angle_coeff 4 30.0191 109.47  # MOH-Mg-surface (Montmorillonite edge)
+angle_coeff 5 30.0191 109.47  # MOH-Si-surface (Montmorillonite edge)
+angle_coeff 6 800.0 100.0  # MOMe  (edge metal-O-metal) (Montmorillonite edge)
+kspace_style ewald 1.0e-5

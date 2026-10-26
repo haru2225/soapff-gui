@@ -1,0 +1,184 @@
+LAMMPS (22 Jul 2025 - Update 5)
+# soapff-cui: ClayFF + SOAP charges.  lmp -in in.lammps
+include system.settings
+# soapff-cui settings: Montmorillonite edge (T. R. Underwood, I. C. Bourg, J. Phys. Chem. C 124, 3702 (2020)) for its types; the other types and the flexible SPC (ClayFF) water: ClayFF (Cygan et al. 2004, Tables 1 and 2); types in system.data from SOAP
+units real
+atom_style full
+boundary p p p
+bond_style harmonic
+angle_style harmonic
+pair_style lj/cut/coul/long 10.0
+pair_modify mix arithmetic tail no
+special_bonds lj/coul 0.0 0.0 0.0
+read_data system.data
+Reading data file ...
+  orthogonal box = (0 0 0) to (87.5065 87.5065 87.5065)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  2292 atoms
+  scanning bonds ...
+  1 = max bonds/atom
+  scanning angles ...
+  3 = max angles/atom
+  orthogonal box = (0 0 0) to (87.5065 87.5065 87.5065)
+  1 by 1 by 1 MPI processor grid
+  reading bonds ...
+  288 bonds
+  reading angles ...
+  624 angles
+Finding 1-2 1-3 1-4 neighbors ...
+  special bond factors lj:    0        0        0       
+  special bond factors coul:  0        0        0       
+     1 = max # of 1-2 neighbors
+     0 = max # of 1-3 neighbors
+     0 = max # of 1-4 neighbors
+     1 = max # of special neighbors
+  special bonds CPU = 0.000 seconds
+  read_data CPU = 0.015 seconds
+pair_coeff 1 1 1.3298e-06 4.2713  # ala (Montmorillonite edge)
+pair_coeff 2 2 1.3298e-06 4.2713  # alb (Montmorillonite edge)
+pair_coeff 3 3 1.3298e-06 4.2713  # ao (Montmorillonite edge)
+pair_coeff 4 4 0.0 0.0  # ho (Montmorillonite edge)
+pair_coeff 5 5 9.0298e-07 5.2643  # mga (Montmorillonite edge)
+pair_coeff 6 6 9.0298e-07 5.2643  # mgb (Montmorillonite edge)
+pair_coeff 7 7 9.0298e-07 5.2643  # mgo (Montmorillonite edge)
+pair_coeff 8 8 0.1301 2.6378  # Na (Montmorillonite edge)
+pair_coeff 9 9 0.1554 3.1655  # oaa (Montmorillonite edge)
+pair_coeff 10 10 0.1554 3.1655  # oab (Montmorillonite edge)
+pair_coeff 11 11 0.1554 3.1655  # ob (Montmorillonite edge)
+pair_coeff 12 12 0.1554 3.1655  # obos (Montmorillonite edge)
+pair_coeff 13 13 0.1554 3.1655  # oed (Montmorillonite edge)
+pair_coeff 14 14 0.1554 3.1655  # oh (Montmorillonite edge)
+pair_coeff 15 15 0.1554 3.1655  # ohs (Montmorillonite edge)
+pair_coeff 16 16 0.1554 3.1655  # oma (Montmorillonite edge)
+pair_coeff 17 17 0.1554 3.1655  # omb (Montmorillonite edge)
+pair_coeff 18 18 1.8405e-06 3.302  # st (Montmorillonite edge)
+bond_coeff 1 553.935 1.0  # O-H (Montmorillonite edge)
+angle_coeff 1 30.0191 109.47  # MOH-Al-bulk (Montmorillonite edge)
+angle_coeff 2 30.0191 109.47  # MOH-Al-surface (Montmorillonite edge)
+angle_coeff 3 30.0191 109.47  # MOH-Mg-bulk (Montmorillonite edge)
+angle_coeff 4 30.0191 109.47  # MOH-Mg-surface (Montmorillonite edge)
+angle_coeff 5 30.0191 109.47  # MOH-Si-surface (Montmorillonite edge)
+angle_coeff 6 800.0 100.0  # MOMe  (edge metal-O-metal) (Montmorillonite edge)
+kspace_style ewald 1.0e-4
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo_style custom step temp press pe ke etotal vol density lx ly lz
+thermo 1000
+# minimisation with a small step limit first (built structures may contain overlapping water)
+min_style cg
+min_modify dmax 0.01
+minimize 1.0e-4 1.0e-6 1000 10000
+Ewald initialization ...
+  using 12-bit tables for long-range coulomb
+  G vector (1/distance) = 0.25435214
+  estimated absolute RMS force accuracy = 0.036730919
+  estimated relative force accuracy = 0.00011061407
+  KSpace vectors: actual max1d max3d = 14335 19 29659
+                  kxmax kymax kzmax  = 19 19 19
+Generated 153 of 153 mixed pair_coeff terms from arithmetic mixing rule
+Neighbor list info ...
+  update: every = 1 steps, delay = 0 steps, check = yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 12
+  ghost atom cutoff = 12
+  binsize = 6, bins = 15 15 15
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut/coul/long, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 42.35 | 42.35 | 42.35 Mbytes
+   Step          Temp          Press          PotEng         KinEng         TotEng         Volume        Density           Lx             Ly             Lz      
+         0   0             -845.62147     -509519.56      0             -509519.56      670071.18      0.099249913    87.5065        87.5065        87.5065      
+        68   0              472.90253     -525526.5       0             -525526.5       670071.18      0.099249913    87.5065        87.5065        87.5065      
+Loop time of 15.6115 on 1 procs for 68 steps with 2292 atoms
+
+97.5% CPU use with 1 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -509519.555466255  -525474.033032729  -525526.495676254
+  Force two-norm initial, final = 4704.7344 399.35765
+  Force max component initial, final = 272.12074 30.582256
+  Final line search alpha, max atom move = 0.00031968538 0.0097767
+  Iterations, force evaluations = 68 68
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.61098    | 0.61098    | 0.61098    |   0.0 |  3.91
+Bond    | 0.003265   | 0.003265   | 0.003265   |   0.0 |  0.02
+Kspace  | 14.99      | 14.99      | 14.99      |   0.0 | 96.02
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 6.8952e-05 | 6.8952e-05 | 6.8952e-05 |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.007469   |            |       |  0.05
+
+Nlocal:           2292 ave        2292 max        2292 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         343392 ave      343392 max      343392 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 343392
+Ave neighs/atom = 149.82199
+Ave special neighs/atom = 0.2513089
+Neighbor list builds = 0
+Dangerous builds = 0
+min_modify dmax 0.1
+minimize 1.0e-6 1.0e-6 5000 50000
+Ewald initialization ...
+  using 12-bit tables for long-range coulomb
+  G vector (1/distance) = 0.25435214
+  estimated absolute RMS force accuracy = 0.036730919
+  estimated relative force accuracy = 0.00011061407
+  KSpace vectors: actual max1d max3d = 14335 19 29659
+                  kxmax kymax kzmax  = 19 19 19
+Generated 153 of 153 mixed pair_coeff terms from arithmetic mixing rule
+Per MPI rank memory allocation (min/avg/max) = 42.35 | 42.35 | 42.35 Mbytes
+   Step          Temp          Press          PotEng         KinEng         TotEng         Volume        Density           Lx             Ly             Lz      
+        68   0              472.90253     -525526.5       0             -525526.5       670071.18      0.099249913    87.5065        87.5065        87.5065      
+       241   0              14.383921     -528845.91      0             -528845.91      670071.18      0.099249913    87.5065        87.5065        87.5065      
+Loop time of 59.7347 on 1 procs for 173 steps with 2292 atoms
+
+98.4% CPU use with 1 MPI tasks x no OpenMP threads
+
+Minimization stats:
+  Stopping criterion = energy tolerance
+  Energy initial, next-to-last, final = 
+     -525526.495676259  -528845.483338043  -528845.907358724
+  Force two-norm initial, final = 399.35765 28.65147
+  Force max component initial, final = 30.582256 5.2987864
+  Final line search alpha, max atom move = 0.0031718183 0.016806788
+  Iterations, force evaluations = 173 276
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 2.313      | 2.313      | 2.313      |   0.0 |  3.87
+Bond    | 0.011805   | 0.011805   | 0.011805   |   0.0 |  0.02
+Kspace  | 57.299     | 57.299     | 57.299     |   0.0 | 95.92
+Neigh   | 0.087706   | 0.087706   | 0.087706   |   0.0 |  0.15
+Comm    | 0.00070612 | 0.00070612 | 0.00070612 |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 0.0224     |            |       |  0.04
+
+Nlocal:           2292 ave        2292 max        2292 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:              0 ave           0 max           0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:         341134 ave      341134 max      341134 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 341134
+Ave neighs/atom = 148.83682
+Ave special neighs/atom = 0.2513089
+Neighbor list builds = 13
+Dangerous builds = 0
+Total wall time: 0:01:15

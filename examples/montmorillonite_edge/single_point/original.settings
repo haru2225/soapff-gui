@@ -1,0 +1,26 @@
+# Force-field settings for clay_montmorillonite.data (units real)
+# LJ: standard ClayFF values mapped onto the custom atom types (edge types use the parent values).
+# Replace with the values of your GROMACS force-field files if they differ.
+pair_coeff      1 1 1.554000e-01 3.1655  # oed -> ob
+pair_coeff      2 2 1.554000e-01 3.1655  # oab -> ob
+pair_coeff      3 3 1.554000e-01 3.1655  # omb -> ob
+pair_coeff      4 4 1.554000e-01 3.1655  # oaa -> ob
+pair_coeff      5 5 1.554000e-01 3.1655  # oma -> ob
+pair_coeff      6 6 1.329800e-06 4.2713  # alb -> ao
+pair_coeff      7 7 9.029800e-07 5.2643  # mgb -> mgo
+pair_coeff      8 8 1.329800e-06 4.2713  # ala -> ao
+pair_coeff      9 9 9.029800e-07 5.2643  # mga -> mgo
+pair_coeff      10 10 0.000000e+00 0.0000  # ho -> ho
+pair_coeff      11 11 1.554000e-01 3.1655  # oh -> oh
+pair_coeff      12 12 1.554000e-01 3.1655  # ohs -> oh
+pair_coeff      13 13 1.554000e-01 3.1655  # ob -> ob
+pair_coeff      14 14 1.554000e-01 3.1655  # obos -> ob
+pair_coeff      15 15 1.329800e-06 4.2713  # ao -> ao
+pair_coeff      16 16 1.840500e-06 3.3020  # st -> st
+pair_coeff      17 17 9.029800e-07 5.2643  # mgo -> mgo
+pair_coeff      18 18 1.301000e-01 2.6378  # Na -> na
+pair_modify     mix arithmetic
+# long-range electrostatics: Ewald is used because it needs no FFT library
+# (PPPM is faster; switch to the line below if your LAMMPS build supports it)
+kspace_style    ewald 1.0e-5
+#kspace_style   pppm 1.0e-5

@@ -1,0 +1,110 @@
+{
+ "clay_montmorillonite": {
+  "atoms": 2292,
+  "wrong_type": 0,
+  "wrong_charge": 0,
+  "fallback": 0,
+  "min_similarity": 1.0,
+  "type_check_differ": 0,
+  "pair_coeff_differ": [],
+  "bonds": "288 bonds",
+  "angles": "624 angles",
+  "bonded_coeffs": [
+   "bond_coeff 1 553.935 1.0  # O-H (Montmorillonite edge)",
+   "angle_coeff 1 30.0191 109.47  # MOH-Al-bulk (Montmorillonite edge)",
+   "angle_coeff 2 30.0191 109.47  # MOH-Al-surface (Montmorillonite edge)",
+   "angle_coeff 3 30.0191 109.47  # MOH-Mg-bulk (Montmorillonite edge)",
+   "angle_coeff 4 30.0191 109.47  # MOH-Mg-surface (Montmorillonite edge)",
+   "angle_coeff 5 30.0191 109.47  # MOH-Si-surface (Montmorillonite edge)",
+   "angle_coeff 6 800.0 100.0  # MOMe  (edge metal-O-metal) (Montmorillonite edge)"
+  ],
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -509519.555466255,
+    -528845.907358724
+   ]
+  }
+ },
+ "clay_montmorillonite_2": {
+  "atoms": 4584,
+  "wrong_type": 0,
+  "wrong_charge": 0,
+  "fallback": 0,
+  "min_similarity": 1.0,
+  "type_check_differ": 0,
+  "pair_coeff_differ": [],
+  "bonds": "576 bonds",
+  "angles": "1248 angles",
+  "bonded_coeffs": [
+   "bond_coeff 1 553.935 1.0  # O-H (Montmorillonite edge)",
+   "angle_coeff 1 30.0191 109.47  # MOH-Al-bulk (Montmorillonite edge)",
+   "angle_coeff 2 30.0191 109.47  # MOH-Al-surface (Montmorillonite edge)",
+   "angle_coeff 3 30.0191 109.47  # MOH-Mg-bulk (Montmorillonite edge)",
+   "angle_coeff 4 30.0191 109.47  # MOH-Mg-surface (Montmorillonite edge)",
+   "angle_coeff 5 30.0191 109.47  # MOH-Si-surface (Montmorillonite edge)",
+   "angle_coeff 6 800.0 100.0  # MOMe  (edge metal-O-metal) (Montmorillonite edge)"
+  ],
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -1019042.49831074,
+    -1057691.91474976
+   ]
+  }
+ },
+ "default_library": "237 atoms are not in the library (fallback): O1 (similarity 0.783), O2 (similarity 0.795), O3 (similarity 0.781), O4 (si",
+ "single_point": {
+  "original": {
+   "pe": -509528.707277,
+   "ebond": 7.090368,
+   "eangle": 5917.865731,
+   "evdwl": 38869.102638,
+   "ecoul": -335112.681592,
+   "elong": -219210.084421
+  },
+  "written": {
+   "pe": -509528.707277,
+   "ebond": 7.090368,
+   "eangle": 5917.865731,
+   "evdwl": 38869.102638,
+   "ecoul": -335112.681592,
+   "elong": -219210.084421
+  }
+ },
+ "particle_water": {
+  "atoms": 9980,
+  "placed": {
+   "water": 2560,
+   "Na": 4,
+   "Cl": 4
+  },
+  "roles": {
+   "mineral": 2268,
+   "water": 7680,
+   "ion": 32
+  },
+  "fallback": 0,
+  "type_check_differ": 0,
+  "charge_sum": -0.0,
+  "minimization": {
+   "returncode": 0,
+   "stop": [
+    "energy tolerance",
+    "energy tolerance"
+   ],
+   "energy_initial_final": [
+    -481562.00576409,
+    -560343.06596038
+   ]
+  }
+ }
+}

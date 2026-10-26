@@ -1,0 +1,20 @@
+{
+ "brucite_5x5x4": {
+  "temperature_range": [
+   272,
+   325
+  ],
+  "nvt_mean_temperature": 297.2,
+  "nvt_mean_pressure_GPa": 5.83,
+  "npt_last20ps_volume_change_percent": 9.2
+ },
+ "pyrophyllite_3x2x3": {
+  "temperature_range": [
+   278,
+   327
+  ],
+  "nvt_mean_temperature": 299.9,
+  "nvt_mean_pressure_GPa": 1.9,
+  "npt_last20ps_volume_change_percent": 1.9
+ }
+}
