@@ -1,0 +1,48 @@
+water {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1536, 'water_missed': 0, 'mineral_as_water': 0}
+NaCl {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1504, 'water_missed': 0, 'mineral_as_water': 0}
+KCl {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1504, 'water_missed': 0, 'mineral_as_water': 0}
+CsCl {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1504, 'water_missed': 0, 'mineral_as_water': 0}
+CaCl2 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1500, 'water_missed': 0, 'mineral_as_water': 0}
+BaCl2 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1500, 'water_missed': 0, 'mineral_as_water': 0}
+hydrate_2W {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1554, 'water_missed': 0, 'mineral_as_water': 0}
+if_montmorillonite_dry_Na {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 692, 'water_missed': 0, 'mineral_as_water': 0}
+if_muscovite_2M1 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 738, 'water_missed': 0, 'mineral_as_water': 0}
+if_muscovite_1M {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 759, 'water_missed': 0, 'mineral_as_water': 0}
+if_phlogopite_1M {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 784, 'water_missed': 0, 'mineral_as_water': 0}
+if_nanpingite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 774, 'water_missed': 0, 'mineral_as_water': 0}
+if_pyrophyllite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 710, 'water_missed': 0, 'mineral_as_water': 0}
+if_pyrophyllite_2 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 710, 'water_missed': 0, 'mineral_as_water': 0}
+if_kaolinite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1659, 'water_missed': 0, 'mineral_as_water': 0}
+if_lizerdite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1335, 'water_missed': 0, 'mineral_as_water': 0}
+if_talc {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 849, 'water_missed': 0, 'mineral_as_water': 0}
+if_brucite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 885, 'water_missed': 0, 'mineral_as_water': 0}
+interface_montmorillonite_dry_Na {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 692, 'water_missed': 0, 'mineral_as_water': 0}
+interface_muscovite_2M1 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 738, 'water_missed': 0, 'mineral_as_water': 0}
+interface_muscovite_1M {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 759, 'water_missed': 0, 'mineral_as_water': 0}
+interface_phlogopite_1M {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 784, 'water_missed': 0, 'mineral_as_water': 0}
+interface_nanpingite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 774, 'water_missed': 0, 'mineral_as_water': 0}
+interface_pyrophyllite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 710, 'water_missed': 0, 'mineral_as_water': 0}
+interface_kaolinite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1659, 'water_missed': 0, 'mineral_as_water': 0}
+interface_lizerdite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1335, 'water_missed': 0, 'mineral_as_water': 0}
+interface_talc {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 849, 'water_missed': 0, 'mineral_as_water': 0}
+interface_brucite {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 885, 'water_missed': 0, 'mineral_as_water': 0}
+shape_sphere {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 2373, 'water_missed': 0, 'mineral_as_water': 0}
+shape_hemisphere {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 2469, 'water_missed': 0, 'mineral_as_water': 0}
+shape_cylinder {'A': {'wrong': 0, 'low': 1, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 1, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 2829, 'water_missed': 0, 'mineral_as_water': 0}
+shape_cavity {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 4047, 'water_missed': 0, 'mineral_as_water': 0}
+shape_xygauss {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 3159, 'water_missed': 0, 'mineral_as_water': 0}
+shape_ions {'A': {'wrong': 0, 'low': 2, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 2, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 4249, 'water_missed': 0, 'mineral_as_water': 0}
+/Users/harutokono/.soapff-gui/venv/lib/python3.12/site-packages/ase/io/lammpsdata.py:72: FutureWarning: "style" is deprecated; please use "atom_style".
+  warnings.warn(
+hydrate_2W_after_npt {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 1554, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 4 {'A': {'wrong': 0, 'low': 1, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 1, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 175, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 8 {'A': {'wrong': 0, 'low': 1, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 1, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 187, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 12 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 199, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 16 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 211, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 20 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 223, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 25 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 238, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 32 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 259, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 40 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 283, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 48 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 307, 'water_missed': 0, 'mineral_as_water': 0}
+interlayer 59 {'A': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'B': {'wrong': 0, 'low': 0, 'wrong_kinds': {}, 'wrong_by_kind': {}}, 'atoms': 340, 'water_missed': 0, 'mineral_as_water': 0}
+TOTAL atoms 52784 wrong A 0 B 0 below 0.95 A 5 B 5

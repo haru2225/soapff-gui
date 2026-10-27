@@ -1,0 +1,2428 @@
+{
+ "held_out": {
+  "water": {
+   "atoms": 1536,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1536,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 1536,
+    "soap": 1536,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9905842542648315,
+    "kinds": {
+     "ow": 512,
+     "hw": 1024
+    }
+   },
+   "water_check": {
+    "soap": 1536,
+    "rule": 1512,
+    "soap_only": 24,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "hw": 0.9914,
+    "ow": 0.9906
+   }
+  },
+  "NaCl": {
+   "atoms": 1504,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1504,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 1504,
+    "soap": 1504,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 16,
+    "min_similarity": 0.9884448647499084,
+    "kinds": {
+     "ow": 496,
+     "hw": 992,
+     "Na": 8,
+     "Cl": 8
+    }
+   },
+   "water_check": {
+    "soap": 1488,
+    "rule": 1464,
+    "soap_only": 24,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0,
+   "min_similarity": {
+    "Cl": 0.9957,
+    "Na": 0.9951,
+    "hw": 0.9903,
+    "ow": 0.9884
+   }
+  },
+  "KCl": {
+   "atoms": 1504,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1504,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 1504,
+    "soap": 1504,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 16,
+    "min_similarity": 0.9886506795883179,
+    "kinds": {
+     "ow": 496,
+     "hw": 992,
+     "K": 8,
+     "Cl": 8
+    }
+   },
+   "water_check": {
+    "soap": 1488,
+    "rule": 1455,
+    "soap_only": 33,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0,
+   "min_similarity": {
+    "Cl": 0.9937,
+    "K": 0.9936,
+    "hw": 0.9887,
+    "ow": 0.9909
+   }
+  },
+  "CsCl": {
+   "atoms": 1504,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1504,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 1504,
+    "soap": 1504,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 16,
+    "min_similarity": 0.9883498549461365,
+    "kinds": {
+     "ow": 496,
+     "hw": 992,
+     "Cs": 8,
+     "Cl": 8
+    }
+   },
+   "water_check": {
+    "soap": 1488,
+    "rule": 1464,
+    "soap_only": 24,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0,
+   "min_similarity": {
+    "Cl": 0.991,
+    "Cs": 0.995,
+    "hw": 0.9896,
+    "ow": 0.9883
+   }
+  },
+  "CaCl2": {
+   "atoms": 1500,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1500,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 1500,
+    "soap": 1500,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 18,
+    "min_similarity": 0.9866474270820618,
+    "kinds": {
+     "ow": 494,
+     "hw": 988,
+     "Ca": 6,
+     "Cl": 12
+    }
+   },
+   "water_check": {
+    "soap": 1482,
+    "rule": 1449,
+    "soap_only": 33,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "Ca": 0.996,
+    "Cl": 0.9872,
+    "hw": 0.9867,
+    "ow": 0.9895
+   }
+  },
+  "BaCl2": {
+   "atoms": 1500,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1500,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 1500,
+    "soap": 1500,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 18,
+    "min_similarity": 0.9897565245628357,
+    "kinds": {
+     "ow": 494,
+     "hw": 988,
+     "Ba": 6,
+     "Cl": 12
+    }
+   },
+   "water_check": {
+    "soap": 1482,
+    "rule": 1449,
+    "soap_only": 33,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "Ba": 0.9964,
+    "Cl": 0.9954,
+    "hw": 0.9898,
+    "ow": 0.9907
+   }
+  },
+  "hydrate_2W": {
+   "atoms": 1554,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1554,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 584,
+    "soap": 584,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 8,
+    "min_similarity": 0.9856343269348145,
+    "kinds": {
+     "Na": 8,
+     "ow": 192,
+     "hw": 384
+    }
+   },
+   "water_check": {
+    "soap": 576,
+    "rule": 561,
+    "soap_only": 15,
+    "rule_only": 0
+   },
+   "type_check_differ": 10,
+   "consistency": [],
+   "charge_sum": 0.0012,
+   "min_similarity": {
+    "Na": 0.965,
+    "ao": 0.9955,
+    "at": 0.995,
+    "ho": 0.9917,
+    "hw": 0.9856,
+    "mgo": 0.9989,
+    "ob": 0.996,
+    "obos": 0.9948,
+    "obts": 0.9934,
+    "oh": 0.9972,
+    "ohs": 0.9967,
+    "ow": 0.9895,
+    "st": 0.9973
+   }
+  },
+  "if_montmorillonite_dry_Na": {
+   "atoms": 692,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 692,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 367,
+    "soap": 367,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 1,
+    "min_similarity": 0.9888492822647095,
+    "kinds": {
+     "Na": 1,
+     "ow": 122,
+     "hw": 244
+    }
+   },
+   "water_check": {
+    "soap": 366,
+    "rule": 357,
+    "soap_only": 9,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0004,
+   "min_similarity": {
+    "Na": 0.9763,
+    "ao": 0.9984,
+    "at": 0.9994,
+    "ho": 0.996,
+    "hw": 0.9903,
+    "mgo": 0.9991,
+    "ob": 0.9979,
+    "obos": 0.999,
+    "obts": 0.9983,
+    "oh": 0.9985,
+    "ohs": 0.9984,
+    "ow": 0.9889,
+    "st": 0.9971
+   }
+  },
+  "if_muscovite_2M1": {
+   "atoms": 738,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 738,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 402,
+    "soap": 402,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9903241991996765,
+    "kinds": {
+     "ow": 134,
+     "hw": 268
+    }
+   },
+   "water_check": {
+    "soap": 402,
+    "rule": 378,
+    "soap_only": 24,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 0.9694,
+    "ao": 0.9927,
+    "at": 0.9909,
+    "ho": 0.9534,
+    "hw": 0.9903,
+    "ob": 0.9885,
+    "obts": 0.9827,
+    "oh": 0.9901,
+    "ow": 0.9908,
+    "st": 0.993
+   }
+  },
+  "if_muscovite_1M": {
+   "atoms": 759,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 759,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 423,
+    "soap": 423,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9866815209388733,
+    "kinds": {
+     "ow": 141,
+     "hw": 282
+    }
+   },
+   "water_check": {
+    "soap": 423,
+    "rule": 414,
+    "soap_only": 9,
+    "rule_only": 0
+   },
+   "type_check_differ": 3,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 0.968,
+    "ao": 0.992,
+    "at": 0.9914,
+    "ho": 0.9949,
+    "hw": 0.9867,
+    "ob": 0.994,
+    "obts": 0.9915,
+    "oh": 0.9891,
+    "ow": 0.9914,
+    "st": 0.9917
+   }
+  },
+  "if_phlogopite_1M": {
+   "atoms": 784,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 784,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 432,
+    "soap": 432,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9817636609077454,
+    "kinds": {
+     "ow": 144,
+     "hw": 288
+    }
+   },
+   "water_check": {
+    "soap": 432,
+    "rule": 429,
+    "soap_only": 3,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 0.9658,
+    "at": 0.9951,
+    "ho": 0.9789,
+    "hw": 0.9837,
+    "mgh": 0.9855,
+    "ob": 0.9913,
+    "obts": 0.9936,
+    "oh": 0.9863,
+    "ow": 0.9818,
+    "st": 0.9894
+   }
+  },
+  "if_nanpingite": {
+   "atoms": 774,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 774,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 438,
+    "soap": 438,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9888695478439331,
+    "kinds": {
+     "ow": 146,
+     "hw": 292
+    }
+   },
+   "water_check": {
+    "soap": 438,
+    "rule": 411,
+    "soap_only": 27,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "Cs": 0.9757,
+    "ao": 0.9925,
+    "at": 0.9902,
+    "ho": 0.9603,
+    "hw": 0.9889,
+    "ob": 0.9874,
+    "obts": 0.9764,
+    "oh": 0.9892,
+    "ow": 0.9905,
+    "st": 0.989
+   }
+  },
+  "if_pyrophyllite": {
+   "atoms": 710,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 710,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 390,
+    "soap": 390,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9912368655204773,
+    "kinds": {
+     "ow": 130,
+     "hw": 260
+    }
+   },
+   "water_check": {
+    "soap": 390,
+    "rule": 378,
+    "soap_only": 12,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0,
+   "min_similarity": {
+    "ao": 0.9973,
+    "ho": 0.9969,
+    "hw": 0.9912,
+    "ob": 0.9983,
+    "oh": 0.9982,
+    "ow": 0.9913,
+    "st": 0.9981
+   }
+  },
+  "if_pyrophyllite_2": {
+   "atoms": 710,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 710,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 390,
+    "soap": 390,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.98759526014328,
+    "kinds": {
+     "ow": 130,
+     "hw": 260
+    }
+   },
+   "water_check": {
+    "soap": 390,
+    "rule": 378,
+    "soap_only": 12,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0,
+   "min_similarity": {
+    "ao": 0.9986,
+    "ho": 0.9969,
+    "hw": 0.9876,
+    "ob": 0.9971,
+    "oh": 0.9983,
+    "ow": 0.991,
+    "st": 0.9925
+   }
+  },
+  "if_kaolinite": {
+   "atoms": 1659,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1659,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 845,
+    "soap": 845,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 2,
+    "min_similarity": 0.9893990755081177,
+    "kinds": {
+     "ho": 2,
+     "ow": 281,
+     "hw": 562
+    }
+   },
+   "water_check": {
+    "soap": 843,
+    "rule": 819,
+    "soap_only": 24,
+    "rule_only": 0
+   },
+   "type_check_differ": 2,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ao": 0.9846,
+    "ho": 0.9506,
+    "hw": 0.9894,
+    "ob": 0.9874,
+    "oh": 0.9718,
+    "ow": 0.9914,
+    "st": 0.9939
+   }
+  },
+  "if_lizerdite": {
+   "atoms": 1335,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1335,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 687,
+    "soap": 687,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9902888536453247,
+    "kinds": {
+     "ow": 229,
+     "hw": 458
+    }
+   },
+   "water_check": {
+    "soap": 687,
+    "rule": 678,
+    "soap_only": 9,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 0.979,
+    "hw": 0.9903,
+    "mgh": 0.9848,
+    "ob": 0.9919,
+    "oh": 0.9864,
+    "ow": 0.9913,
+    "st": 0.992
+   }
+  },
+  "if_talc": {
+   "atoms": 849,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 849,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 471,
+    "soap": 471,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9896798133850098,
+    "kinds": {
+     "ow": 157,
+     "hw": 314
+    }
+   },
+   "water_check": {
+    "soap": 471,
+    "rule": 468,
+    "soap_only": 3,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 0.9815,
+    "hw": 0.9897,
+    "mgh": 0.9865,
+    "ob": 0.9909,
+    "oh": 0.9858,
+    "ow": 0.9911,
+    "st": 0.9907
+   }
+  },
+  "if_brucite": {
+   "atoms": 885,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 885,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 407,
+    "soap": 407,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 2,
+    "min_similarity": 0.9903836846351624,
+    "kinds": {
+     "ho": 2,
+     "ow": 135,
+     "hw": 270
+    }
+   },
+   "water_check": {
+    "soap": 405,
+    "rule": 396,
+    "soap_only": 9,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 0.9522,
+    "hw": 0.9904,
+    "mgh": 0.9909,
+    "oh": 0.9671,
+    "ow": 0.9913
+   }
+  }
+ },
+ "examples": {
+  "interface_montmorillonite_dry_Na": {
+   "atoms": 692,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 692,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 366,
+    "soap": 366,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9870225191116333,
+    "kinds": {
+     "ow": 122,
+     "hw": 244
+    }
+   },
+   "water_check": {
+    "soap": 366,
+    "rule": 366,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0004,
+   "min_similarity": {
+    "Na": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 0.9999,
+    "hw": 0.987,
+    "mgo": 1.0,
+    "ob": 0.999,
+    "obos": 0.9999,
+    "obts": 1.0,
+    "oh": 0.9994,
+    "ohs": 1.0,
+    "ow": 0.988,
+    "st": 0.9993
+   }
+  },
+  "interface_muscovite_2M1": {
+   "atoms": 738,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 738,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 402,
+    "soap": 402,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9820903539657593,
+    "kinds": {
+     "ow": 134,
+     "hw": 268
+    }
+   },
+   "water_check": {
+    "soap": 402,
+    "rule": 402,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 0.9999,
+    "ao": 1.0,
+    "at": 0.9992,
+    "ho": 1.0,
+    "hw": 0.9821,
+    "ob": 0.9994,
+    "obts": 0.9991,
+    "oh": 0.9999,
+    "ow": 0.9897,
+    "st": 0.9992
+   }
+  },
+  "interface_muscovite_1M": {
+   "atoms": 759,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 759,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 423,
+    "soap": 423,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9776556491851807,
+    "kinds": {
+     "ow": 141,
+     "hw": 282
+    }
+   },
+   "water_check": {
+    "soap": 423,
+    "rule": 423,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 1.0,
+    "ao": 1.0,
+    "at": 0.9997,
+    "ho": 0.9998,
+    "hw": 0.9777,
+    "ob": 1.0,
+    "obts": 0.9998,
+    "oh": 0.9999,
+    "ow": 0.9859,
+    "st": 0.9995
+   }
+  },
+  "interface_phlogopite_1M": {
+   "atoms": 784,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 784,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 432,
+    "soap": 432,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9705744981765747,
+    "kinds": {
+     "ow": 144,
+     "hw": 288
+    }
+   },
+   "water_check": {
+    "soap": 432,
+    "rule": 432,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 1.0,
+    "at": 0.9994,
+    "ho": 1.0,
+    "hw": 0.9768,
+    "mgh": 1.0,
+    "ob": 0.9995,
+    "obts": 1.0,
+    "oh": 0.9999,
+    "ow": 0.9706,
+    "st": 0.9994
+   }
+  },
+  "interface_nanpingite": {
+   "atoms": 774,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 774,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 438,
+    "soap": 438,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.983349084854126,
+    "kinds": {
+     "ow": 146,
+     "hw": 292
+    }
+   },
+   "water_check": {
+    "soap": 438,
+    "rule": 438,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "Cs": 1.0,
+    "ao": 1.0,
+    "at": 0.9999,
+    "ho": 0.9992,
+    "hw": 0.9833,
+    "ob": 0.999,
+    "obts": 0.9991,
+    "oh": 1.0,
+    "ow": 0.9876,
+    "st": 0.9991
+   }
+  },
+  "interface_pyrophyllite": {
+   "atoms": 710,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 710,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 390,
+    "soap": 390,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9835938811302185,
+    "kinds": {
+     "ow": 130,
+     "hw": 260
+    }
+   },
+   "water_check": {
+    "soap": 390,
+    "rule": 390,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0,
+   "min_similarity": {
+    "ao": 1.0,
+    "ho": 0.9998,
+    "hw": 0.9887,
+    "ob": 0.9994,
+    "oh": 1.0,
+    "ow": 0.9836,
+    "st": 0.9997
+   }
+  },
+  "interface_kaolinite": {
+   "atoms": 1659,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1659,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 843,
+    "soap": 843,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9782587885856628,
+    "kinds": {
+     "ow": 281,
+     "hw": 562
+    }
+   },
+   "water_check": {
+    "soap": 843,
+    "rule": 843,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ao": 0.9996,
+    "ho": 0.9997,
+    "hw": 0.9783,
+    "ob": 0.9998,
+    "oh": 0.9999,
+    "ow": 0.9859,
+    "st": 1.0
+   }
+  },
+  "interface_lizerdite": {
+   "atoms": 1335,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1335,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 687,
+    "soap": 687,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9787889719009399,
+    "kinds": {
+     "ow": 229,
+     "hw": 458
+    }
+   },
+   "water_check": {
+    "soap": 687,
+    "rule": 687,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 1.0,
+    "hw": 0.9788,
+    "mgh": 0.9995,
+    "ob": 0.9998,
+    "oh": 0.9998,
+    "ow": 0.9808,
+    "st": 1.0
+   }
+  },
+  "interface_talc": {
+   "atoms": 849,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 849,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 471,
+    "soap": 471,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9732052683830261,
+    "kinds": {
+     "ow": 157,
+     "hw": 314
+    }
+   },
+   "water_check": {
+    "soap": 471,
+    "rule": 471,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 0.9999,
+    "hw": 0.9732,
+    "mgh": 1.0,
+    "ob": 0.9994,
+    "oh": 1.0,
+    "ow": 0.9857,
+    "st": 0.9996
+   }
+  },
+  "interface_brucite": {
+   "atoms": 885,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 885,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 405,
+    "soap": 405,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9749511480331421,
+    "kinds": {
+     "ow": 135,
+     "hw": 270
+    }
+   },
+   "water_check": {
+    "soap": 405,
+    "rule": 405,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 1.0,
+    "hw": 0.9812,
+    "mgh": 1.0,
+    "oh": 0.9995,
+    "ow": 0.9749
+   }
+  },
+  "shape_sphere": {
+   "atoms": 2373,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 2373,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 417,
+    "soap": 417,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9705917835235596,
+    "kinds": {
+     "ow": 139,
+     "hw": 278
+    }
+   },
+   "water_check": {
+    "soap": 417,
+    "rule": 417,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0024,
+   "min_similarity": {
+    "Na": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 0.9999,
+    "hw": 0.9737,
+    "mgo": 1.0,
+    "ob": 0.999,
+    "obos": 0.9999,
+    "obts": 1.0,
+    "oh": 0.9994,
+    "ohs": 1.0,
+    "ow": 0.9706,
+    "st": 0.9993
+   }
+  },
+  "shape_hemisphere": {
+   "atoms": 2469,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 2469,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 453,
+    "soap": 453,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9623821377754211,
+    "kinds": {
+     "ow": 151,
+     "hw": 302
+    }
+   },
+   "water_check": {
+    "soap": 453,
+    "rule": 453,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0192,
+   "min_similarity": {
+    "K": 0.9999,
+    "ao": 1.0,
+    "at": 0.9992,
+    "ho": 1.0,
+    "hw": 0.9624,
+    "ob": 0.9994,
+    "obts": 0.9991,
+    "oh": 0.9999,
+    "ow": 0.9679,
+    "st": 0.9992
+   }
+  },
+  "shape_cylinder": {
+   "atoms": 2829,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 2828,
+   "by_rule": 1,
+   "fallback": 0,
+   "rule_types": {
+    "hw": 1
+   },
+   "solution": {
+    "atoms": 873,
+    "soap": 872,
+    "below_threshold": 1,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.944699764251709,
+    "kinds": {
+     "ow": 291,
+     "hw": 581
+    }
+   },
+   "water_check": {
+    "soap": 872,
+    "rule": 873,
+    "soap_only": 0,
+    "rule_only": 1
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0024,
+   "min_similarity": {
+    "Na": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 0.9999,
+    "hw": 0.954,
+    "mgo": 1.0,
+    "ob": 0.999,
+    "obos": 0.9999,
+    "obts": 1.0,
+    "oh": 0.9994,
+    "ohs": 1.0,
+    "ow": 0.9677,
+    "st": 0.9993
+   }
+  },
+  "shape_cavity": {
+   "atoms": 4047,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 4047,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 2091,
+    "soap": 2091,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9612748026847839,
+    "kinds": {
+     "ow": 697,
+     "hw": 1394
+    }
+   },
+   "water_check": {
+    "soap": 2091,
+    "rule": 2091,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0024,
+   "min_similarity": {
+    "Na": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 0.9999,
+    "hw": 0.9623,
+    "mgo": 1.0,
+    "ob": 0.999,
+    "obos": 0.9999,
+    "obts": 1.0,
+    "oh": 0.9994,
+    "ohs": 1.0,
+    "ow": 0.9613,
+    "st": 0.9993
+   }
+  },
+  "shape_xygauss": {
+   "atoms": 3159,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 3159,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 1203,
+    "soap": 1203,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9626230597496033,
+    "kinds": {
+     "ow": 401,
+     "hw": 802
+    }
+   },
+   "water_check": {
+    "soap": 1203,
+    "rule": 1203,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0024,
+   "min_similarity": {
+    "Na": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 0.9999,
+    "hw": 0.9725,
+    "mgo": 1.0,
+    "ob": 0.999,
+    "obos": 0.9999,
+    "obts": 1.0,
+    "oh": 0.9994,
+    "ohs": 1.0,
+    "ow": 0.9626,
+    "st": 0.9993
+   }
+  },
+  "shape_ions": {
+   "atoms": 4249,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 4247,
+   "by_rule": 2,
+   "fallback": 0,
+   "rule_types": {
+    "hw": 1,
+    "Cl": 1
+   },
+   "solution": {
+    "atoms": 2233,
+    "soap": 2231,
+    "below_threshold": 2,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9296761155128479,
+    "kinds": {
+     "ow": 739,
+     "hw": 1477,
+     "Na": 8,
+     "Cl": 7
+    }
+   },
+   "water_check": {
+    "soap": 2216,
+    "rule": 2217,
+    "soap_only": 0,
+    "rule_only": 1
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0192,
+   "min_similarity": {
+    "Cl": 0.9669,
+    "K": 0.9999,
+    "Na": 0.973,
+    "ao": 1.0,
+    "at": 0.9992,
+    "ho": 1.0,
+    "hw": 0.9583,
+    "ob": 0.9994,
+    "obts": 0.9991,
+    "oh": 0.9999,
+    "ow": 0.9557,
+    "st": 0.9992
+   }
+  },
+  "hydrate_2W_initial": {
+   "atoms": 1554,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1554,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 582,
+    "soap": 582,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 6,
+    "min_similarity": 0.9907165765762329,
+    "kinds": {
+     "Na": 6,
+     "ow": 192,
+     "hw": 384
+    }
+   },
+   "water_check": {
+    "soap": 576,
+    "rule": 576,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0012,
+   "min_similarity": {
+    "Na": 0.9968,
+    "ao": 0.9978,
+    "at": 0.9992,
+    "ho": 0.9979,
+    "hw": 0.9914,
+    "mgo": 0.9994,
+    "ob": 0.9965,
+    "obos": 0.9992,
+    "obts": 0.9977,
+    "oh": 0.9971,
+    "ohs": 0.9977,
+    "ow": 0.9907,
+    "st": 0.9985
+   }
+  },
+  "swelling_gui_run": {
+   "atoms": 163,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 163,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 1.0,
+    "mgo": 1.0,
+    "ob": 1.0,
+    "obos": 1.0,
+    "obts": 1.0,
+    "oh": 1.0,
+    "ohs": 1.0,
+    "st": 1.0
+   }
+  },
+  "hydrate_2W_after_npt": {
+   "atoms": 1554,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 1554,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 584,
+    "soap": 584,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 8,
+    "min_similarity": 0.9813180565834045,
+    "kinds": {
+     "Na": 8,
+     "ow": 192,
+     "hw": 384
+    }
+   },
+   "water_check": {
+    "soap": 576,
+    "rule": 561,
+    "soap_only": 15,
+    "rule_only": 0
+   },
+   "type_check_differ": 3,
+   "consistency": [],
+   "charge_sum": 0.0012,
+   "min_similarity": {
+    "Na": 0.9763,
+    "ao": 0.9983,
+    "at": 0.9948,
+    "ho": 0.995,
+    "hw": 0.9813,
+    "mgo": 0.9989,
+    "ob": 0.9975,
+    "obos": 0.9986,
+    "obts": 0.9936,
+    "oh": 0.998,
+    "ohs": 0.9971,
+    "ow": 0.9852,
+    "st": 0.9966
+   }
+  },
+  "interlayer_4": {
+   "atoms": 175,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 174,
+   "by_rule": 0,
+   "fallback": 1,
+   "rule_types": {},
+   "solution": {
+    "atoms": 13,
+    "soap": 12,
+    "below_threshold": 1,
+    "mineral_type": 0,
+    "mineral_atoms": 1,
+    "min_similarity": 0.9455140233039856,
+    "kinds": {
+     "Na": 1,
+     "hw": 8,
+     "ow": 3
+    }
+   },
+   "water_check": {
+    "soap": 11,
+    "rule": 9,
+    "soap_only": 2,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9725,
+    "ao": 0.9969,
+    "at": 0.9944,
+    "ho": 0.9949,
+    "hw": 0.9529,
+    "mgo": 0.9974,
+    "ob": 0.995,
+    "obos": 0.9988,
+    "obts": 0.9915,
+    "oh": 0.9989,
+    "ohs": 0.9987,
+    "ow": 0.9516,
+    "st": 0.9963
+   }
+  },
+  "interlayer_8": {
+   "atoms": 187,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 186,
+   "by_rule": 1,
+   "fallback": 0,
+   "rule_types": {
+    "ow": 1
+   },
+   "solution": {
+    "atoms": 25,
+    "soap": 24,
+    "below_threshold": 1,
+    "mineral_type": 0,
+    "mineral_atoms": 1,
+    "min_similarity": 0.9419277906417847,
+    "kinds": {
+     "Na": 1,
+     "ow": 7,
+     "hw": 16
+    }
+   },
+   "water_check": {
+    "soap": 23,
+    "rule": 24,
+    "soap_only": 0,
+    "rule_only": 1
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.979,
+    "ao": 0.9985,
+    "at": 0.9992,
+    "ho": 0.9955,
+    "hw": 0.964,
+    "mgo": 0.9995,
+    "ob": 0.9973,
+    "obos": 0.9993,
+    "obts": 0.9981,
+    "oh": 0.9974,
+    "ohs": 0.9986,
+    "ow": 0.9618,
+    "st": 0.9977
+   }
+  },
+  "interlayer_12": {
+   "atoms": 199,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 199,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 36,
+    "soap": 36,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9702818393707275,
+    "kinds": {
+     "ow": 12,
+     "hw": 24
+    }
+   },
+   "water_check": {
+    "soap": 36,
+    "rule": 36,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9542,
+    "ao": 0.9976,
+    "at": 0.9991,
+    "ho": 0.9966,
+    "hw": 0.9703,
+    "mgo": 0.9987,
+    "ob": 0.9976,
+    "obos": 0.9987,
+    "obts": 0.998,
+    "oh": 0.9989,
+    "ohs": 0.9976,
+    "ow": 0.9706,
+    "st": 0.9976
+   }
+  },
+  "interlayer_16": {
+   "atoms": 211,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 211,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 48,
+    "soap": 48,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9754979610443115,
+    "kinds": {
+     "ow": 16,
+     "hw": 32
+    }
+   },
+   "water_check": {
+    "soap": 48,
+    "rule": 48,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9618,
+    "ao": 0.9983,
+    "at": 0.9992,
+    "ho": 0.9973,
+    "hw": 0.9755,
+    "mgo": 0.9993,
+    "ob": 0.9974,
+    "obos": 0.999,
+    "obts": 0.9981,
+    "oh": 0.998,
+    "ohs": 0.997,
+    "ow": 0.9781,
+    "st": 0.9977
+   }
+  },
+  "interlayer_20": {
+   "atoms": 223,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 223,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 60,
+    "soap": 60,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 0,
+    "min_similarity": 0.9840691685676575,
+    "kinds": {
+     "ow": 20,
+     "hw": 40
+    }
+   },
+   "water_check": {
+    "soap": 60,
+    "rule": 60,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 4,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9537,
+    "ao": 0.9979,
+    "at": 0.9991,
+    "ho": 0.9958,
+    "hw": 0.9841,
+    "mgo": 0.9992,
+    "ob": 0.9976,
+    "obos": 0.999,
+    "obts": 0.9986,
+    "oh": 0.9984,
+    "ohs": 0.9957,
+    "ow": 0.988,
+    "st": 0.9982
+   }
+  },
+  "interlayer_25": {
+   "atoms": 238,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 238,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 76,
+    "soap": 76,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 1,
+    "min_similarity": 0.9873377084732056,
+    "kinds": {
+     "Na": 1,
+     "ow": 25,
+     "hw": 50
+    }
+   },
+   "water_check": {
+    "soap": 75,
+    "rule": 75,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 3,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9627,
+    "ao": 0.998,
+    "at": 0.9989,
+    "ho": 0.9958,
+    "hw": 0.9878,
+    "mgo": 0.999,
+    "ob": 0.9978,
+    "obos": 0.9984,
+    "obts": 0.9984,
+    "oh": 0.9989,
+    "ohs": 0.9979,
+    "ow": 0.9873,
+    "st": 0.9982
+   }
+  },
+  "interlayer_32": {
+   "atoms": 259,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 259,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 97,
+    "soap": 97,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 1,
+    "min_similarity": 0.9907165765762329,
+    "kinds": {
+     "Na": 1,
+     "ow": 32,
+     "hw": 64
+    }
+   },
+   "water_check": {
+    "soap": 96,
+    "rule": 96,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9968,
+    "ao": 0.9978,
+    "at": 0.9992,
+    "ho": 0.9979,
+    "hw": 0.9914,
+    "mgo": 0.9994,
+    "ob": 0.9965,
+    "obos": 0.9992,
+    "obts": 0.9977,
+    "oh": 0.9971,
+    "ohs": 0.9977,
+    "ow": 0.9907,
+    "st": 0.9985
+   }
+  },
+  "interlayer_40": {
+   "atoms": 283,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 283,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 121,
+    "soap": 121,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 1,
+    "min_similarity": 0.9891589879989624,
+    "kinds": {
+     "Na": 1,
+     "ow": 40,
+     "hw": 80
+    }
+   },
+   "water_check": {
+    "soap": 120,
+    "rule": 117,
+    "soap_only": 3,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9719,
+    "ao": 0.9977,
+    "at": 0.9983,
+    "ho": 0.9942,
+    "hw": 0.9892,
+    "mgo": 0.999,
+    "ob": 0.9967,
+    "obos": 0.999,
+    "obts": 0.9978,
+    "oh": 0.9989,
+    "ohs": 0.9972,
+    "ow": 0.991,
+    "st": 0.998
+   }
+  },
+  "interlayer_48": {
+   "atoms": 307,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 307,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 145,
+    "soap": 145,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 1,
+    "min_similarity": 0.9881787896156311,
+    "kinds": {
+     "Na": 1,
+     "ow": 48,
+     "hw": 96
+    }
+   },
+   "water_check": {
+    "soap": 144,
+    "rule": 138,
+    "soap_only": 6,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9613,
+    "ao": 0.9987,
+    "at": 0.9987,
+    "ho": 0.9972,
+    "hw": 0.9882,
+    "mgo": 0.9989,
+    "ob": 0.9982,
+    "obos": 0.999,
+    "obts": 0.9981,
+    "oh": 0.9987,
+    "ohs": 0.9974,
+    "ow": 0.9906,
+    "st": 0.9984
+   }
+  },
+  "interlayer_59": {
+   "atoms": 340,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 340,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": {
+    "atoms": 178,
+    "soap": 178,
+    "below_threshold": 0,
+    "mineral_type": 0,
+    "mineral_atoms": 1,
+    "min_similarity": 0.9909008741378784,
+    "kinds": {
+     "Na": 1,
+     "ow": 59,
+     "hw": 118
+    }
+   },
+   "water_check": {
+    "soap": 177,
+    "rule": 177,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0002,
+   "min_similarity": {
+    "Na": 0.9705,
+    "ao": 0.9983,
+    "at": 0.9991,
+    "ho": 0.998,
+    "hw": 0.9909,
+    "mgo": 0.9996,
+    "ob": 0.9974,
+    "obos": 0.9991,
+    "obts": 0.9981,
+    "oh": 0.9989,
+    "ohs": 0.9978,
+    "ow": 0.9913,
+    "st": 0.9974
+   }
+  }
+ },
+ "dry": {
+  "muscovite_2M1": {
+   "atoms": 672,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 672,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0064,
+   "min_similarity": {
+    "K": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 1.0,
+    "ob": 1.0,
+    "obts": 1.0,
+    "oh": 1.0,
+    "st": 1.0
+   }
+  },
+  "muscovite_2M1_md": {
+   "atoms": 672,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 672,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0064,
+   "min_similarity": {
+    "K": 0.9911,
+    "ao": 0.992,
+    "at": 0.9913,
+    "ho": 0.9664,
+    "ob": 0.9896,
+    "obts": 0.9848,
+    "oh": 0.992,
+    "st": 0.991
+   }
+  },
+  "muscovite_1M": {
+   "atoms": 336,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 336,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 1.0,
+    "ob": 1.0,
+    "obts": 1.0,
+    "oh": 1.0,
+    "st": 1.0
+   }
+  },
+  "muscovite_1M_md": {
+   "atoms": 336,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 336,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 0.9903,
+    "ao": 0.9922,
+    "at": 0.9934,
+    "ho": 0.9948,
+    "ob": 0.9908,
+    "obts": 0.992,
+    "oh": 0.9934,
+    "st": 0.9946
+   }
+  },
+  "phlogopite_1M": {
+   "atoms": 352,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 352,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 1.0,
+    "at": 1.0,
+    "ho": 1.0,
+    "mgh": 1.0,
+    "ob": 1.0,
+    "obts": 1.0,
+    "oh": 1.0,
+    "st": 1.0
+   }
+  },
+  "phlogopite_1M_md": {
+   "atoms": 352,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 352,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0032,
+   "min_similarity": {
+    "K": 0.9983,
+    "at": 0.9959,
+    "ho": 0.9746,
+    "mgh": 0.9858,
+    "ob": 0.9892,
+    "obts": 0.9946,
+    "oh": 0.9873,
+    "st": 0.9907
+   }
+  },
+  "nanpingite": {
+   "atoms": 504,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 504,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0048,
+   "min_similarity": {
+    "Cs": 1.0,
+    "ao": 1.0,
+    "at": 1.0,
+    "ho": 1.0,
+    "ob": 1.0,
+    "obts": 1.0,
+    "oh": 1.0,
+    "st": 1.0
+   }
+  },
+  "nanpingite_md": {
+   "atoms": 504,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 504,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": -0.0048,
+   "min_similarity": {
+    "Cs": 0.9871,
+    "ao": 0.9927,
+    "at": 0.9911,
+    "ho": 0.9541,
+    "ob": 0.9879,
+    "obts": 0.9717,
+    "oh": 0.991,
+    "st": 0.9909
+   }
+  },
+  "kaolinite": {
+   "atoms": 544,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 544,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ao": 1.0,
+    "ho": 1.0,
+    "ob": 1.0,
+    "oh": 1.0,
+    "st": 1.0
+   }
+  },
+  "kaolinite_md": {
+   "atoms": 544,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 544,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 5,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ao": 0.9855,
+    "ho": 0.9664,
+    "ob": 0.986,
+    "oh": 0.9849,
+    "st": 0.9916
+   }
+  },
+  "lizerdite": {
+   "atoms": 432,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 432,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 1.0,
+    "mgh": 1.0,
+    "ob": 1.0,
+    "oh": 1.0,
+    "st": 1.0
+   }
+  },
+  "lizerdite_md": {
+   "atoms": 432,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 432,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 0.9685,
+    "mgh": 0.9836,
+    "ob": 0.9909,
+    "oh": 0.9849,
+    "st": 0.9911
+   }
+  },
+  "talc": {
+   "atoms": 504,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 504,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 1.0,
+    "mgh": 1.0,
+    "ob": 1.0,
+    "oh": 1.0,
+    "st": 1.0
+   }
+  },
+  "talc_md": {
+   "atoms": 504,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 504,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ho": 0.9828,
+    "mgh": 0.9854,
+    "ob": 0.992,
+    "oh": 0.9863,
+    "st": 0.9944
+   }
+  },
+  "pyrophyllite_2": {
+   "atoms": 480,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 480,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ao": 1.0,
+    "ho": 1.0,
+    "ob": 1.0,
+    "oh": 1.0,
+    "st": 1.0
+   }
+  },
+  "pyrophyllite_2_md": {
+   "atoms": 480,
+   "wrong": 0,
+   "wrong_kinds": {},
+   "by_soap": 480,
+   "by_rule": 0,
+   "fallback": 0,
+   "rule_types": {},
+   "solution": null,
+   "water_check": {
+    "soap": 0,
+    "rule": 0,
+    "soap_only": 0,
+    "rule_only": 0
+   },
+   "type_check_differ": 0,
+   "consistency": [],
+   "charge_sum": 0.0,
+   "min_similarity": {
+    "ao": 0.998,
+    "ho": 0.9965,
+    "ob": 0.9986,
+    "oh": 0.9987,
+    "st": 0.9985
+   }
+  }
+ }
+}

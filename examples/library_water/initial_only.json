@@ -1,0 +1,218 @@
+{
+ "inwater": {
+  "total": {
+   "mineral_whole": {
+    "n": 4328,
+    "low": 23,
+    "wrong": 1,
+    "min": 0.8851173520088196
+   },
+   "mineral_dry": {
+    "n": 4328,
+    "low": 0,
+    "wrong": 0,
+    "min": 0.999000608921051
+   },
+   "solution_whole": {
+    "n": 4328,
+    "low": 0,
+    "wrong": 0,
+    "min": 0.9740816354751587
+   }
+  },
+  "per": {
+   "montmorillonite_dry_Na": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.987217903137207
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9990046620368958
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9912497997283936
+    }
+   },
+   "muscovite_2M1": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9626655578613281
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9990859031677246
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9933664202690125
+    }
+   },
+   "muscovite_1M": {
+    "mineral_whole": {
+     "wrong": 1,
+     "low": 2,
+     "min": 0.9243155717849731
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9995405077934265
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9894496202468872
+    }
+   },
+   "phlogopite_1M": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 2,
+     "min": 0.8911369442939758
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.999416708946228
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9864955544471741
+    }
+   },
+   "nanpingite": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 1,
+     "min": 0.8851173520088196
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.999000608921051
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9740816354751587
+    }
+   },
+   "pyrophyllite": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9875495433807373
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9993602633476257
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9913853406906128
+    }
+   },
+   "kaolinite": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 11,
+     "min": 0.9200712442398071
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.999641478061676
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9919247031211853
+    }
+   },
+   "lizerdite": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9831616282463074
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9995061159133911
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9923274517059326
+    }
+   },
+   "talc": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9832122921943665
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9993931651115417
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9939596056938171
+    }
+   },
+   "brucite": {
+    "mineral_whole": {
+     "wrong": 0,
+     "low": 7,
+     "min": 0.9014198184013367
+    },
+    "mineral_dry": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9994560480117798
+    },
+    "solution_whole": {
+     "wrong": 0,
+     "low": 0,
+     "min": 0.9927558898925781
+    }
+   }
+  }
+ },
+ "water": {
+  "interface": {
+   "structures": 10,
+   "atoms": 9185,
+   "ow": 1619,
+   "ions": 70,
+   "wrong": 0,
+   "low": 0,
+   "min_water_ion": 0.9705744981765747,
+   "min_mineral": 0.9864955544471741
+  },
+  "shape": {
+   "structures": 6,
+   "atoms": 19126,
+   "ow": 2418,
+   "ions": 352,
+   "wrong": 0,
+   "low": 3,
+   "min_water_ion": 0.9296761155128479,
+   "min_mineral": 0.9955224990844727
+  }
+ }
+}

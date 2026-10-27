@@ -20,6 +20,7 @@ LJ = {  # type: (epsilon kcal/mol, sigma A)
     "mgo": (3.778e-6 / KJ, 5.2643), "mgh": (3.778e-6 / KJ, 5.2643), "cao": (2.104e-5 / KJ, 5.5667),
     "Na": (0.12171955 / KJ, 2.6103332), "K": (0.71203622 / KJ, 3.1092365), "Ca": (0.34886029 / KJ, 2.8651303),
     "Cs": (1.62938558 / KJ, 3.5635949), "Cl": (2.22399118 / KJ, 3.8522461),
+    "Ba": (0.0470, 4.2840 / 2 ** (1 / 6)),                      # not in the IOD set: ClayFF Table 1 (D0, R0 -> epsilon, sigma)
     "ho": (0.0, 0.0), "hw": (0.0, 0.0),
 }
 for _o in ("ob", "obos", "obts", "obss", "oh", "ohs", "ow", "oaq"):
@@ -32,11 +33,11 @@ ION_SETS = {
     "smith-dang": {"Na": (0.1300, 2.350), "Cl": (0.1000, 4.400), "K": (0.1000, 3.334), "Cs": (0.1000, 3.831)},
 }
 ELEMENT = {"st": "Si", "at": "Al", "ao": "Al", "mgo": "Mg", "mgh": "Mg", "cao": "Ca", "Na": "Na", "K": "K", "Ca": "Ca",
-           "Cs": "Cs", "Cl": "Cl",
+           "Cs": "Cs", "Ba": "Ba", "Cl": "Cl",
            "ho": "H", "hw": "H", "ob": "O", "obos": "O", "obts": "O", "obss": "O", "oh": "O", "ohs": "O", "ow": "O", "oaq": "O",
            "oed": "O", "oab": "O", "omb": "O", "oaa": "O", "oma": "O", "alb": "Al", "ala": "Al", "mgb": "Mg", "mga": "Mg"}
 CLAYFF_Q = {"st": 2.1, "at": 1.575, "ao": 1.575, "mgo": 1.36, "mgh": 1.05, "cao": 1.36, "Na": 1.0, "K": 1.0, "Ca": 2.0,
-            "Cs": 1.0, "Cl": -1.0,
+            "Cs": 1.0, "Ba": 2.0, "Cl": -1.0,
             "ob": -1.05, "obos": -1.1808, "obts": -1.1688, "obss": -1.2996, "oh": -0.95, "ohs": -1.0808,
             "ow": -0.82, "hw": 0.41, "oaq": -0.82, "ho": 0.425}
 BOND_OH = (554.1349, 1.0)

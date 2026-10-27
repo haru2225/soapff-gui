@@ -1,0 +1,65 @@
+held out water {'atoms': 1536, 'wrong': 0, 'by_soap': 1536, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 1536, 'soap': 1536, 'below_threshold': 0, 'mineral_type': 0}
+held out NaCl {'atoms': 1504, 'wrong': 0, 'by_soap': 1504, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 1504, 'soap': 1504, 'below_threshold': 0, 'mineral_type': 0}
+held out KCl {'atoms': 1504, 'wrong': 0, 'by_soap': 1504, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 1504, 'soap': 1504, 'below_threshold': 0, 'mineral_type': 0}
+held out CsCl {'atoms': 1504, 'wrong': 0, 'by_soap': 1504, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 1504, 'soap': 1504, 'below_threshold': 0, 'mineral_type': 0}
+held out CaCl2 {'atoms': 1500, 'wrong': 0, 'by_soap': 1500, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 1500, 'soap': 1500, 'below_threshold': 0, 'mineral_type': 0}
+held out BaCl2 {'atoms': 1500, 'wrong': 0, 'by_soap': 1500, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 1500, 'soap': 1500, 'below_threshold': 0, 'mineral_type': 0}
+held out hydrate_2W {'atoms': 1554, 'wrong': 0, 'by_soap': 1554, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 584, 'soap': 584, 'below_threshold': 0, 'mineral_type': 0}
+held out if_montmorillonite_dry_Na {'atoms': 692, 'wrong': 0, 'by_soap': 692, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 367, 'soap': 367, 'below_threshold': 0, 'mineral_type': 0}
+held out if_muscovite_2M1 {'atoms': 738, 'wrong': 0, 'by_soap': 738, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 402, 'soap': 402, 'below_threshold': 0, 'mineral_type': 0}
+held out if_muscovite_1M {'atoms': 759, 'wrong': 0, 'by_soap': 759, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 423, 'soap': 423, 'below_threshold': 0, 'mineral_type': 0}
+held out if_phlogopite_1M {'atoms': 784, 'wrong': 0, 'by_soap': 784, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 432, 'soap': 432, 'below_threshold': 0, 'mineral_type': 0}
+held out if_nanpingite {'atoms': 774, 'wrong': 0, 'by_soap': 774, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 438, 'soap': 438, 'below_threshold': 0, 'mineral_type': 0}
+held out if_pyrophyllite {'atoms': 710, 'wrong': 0, 'by_soap': 710, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 390, 'soap': 390, 'below_threshold': 0, 'mineral_type': 0}
+held out if_pyrophyllite_2 {'atoms': 710, 'wrong': 0, 'by_soap': 710, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 390, 'soap': 390, 'below_threshold': 0, 'mineral_type': 0}
+held out if_kaolinite {'atoms': 1659, 'wrong': 0, 'by_soap': 1659, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 845, 'soap': 845, 'below_threshold': 0, 'mineral_type': 0}
+held out if_lizerdite {'atoms': 1335, 'wrong': 0, 'by_soap': 1335, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 687, 'soap': 687, 'below_threshold': 0, 'mineral_type': 0}
+held out if_talc {'atoms': 849, 'wrong': 0, 'by_soap': 849, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 471, 'soap': 471, 'below_threshold': 0, 'mineral_type': 0}
+held out if_brucite {'atoms': 885, 'wrong': 0, 'by_soap': 885, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 407, 'soap': 407, 'below_threshold': 0, 'mineral_type': 0}
+example interface_montmorillonite_dry_Na {'atoms': 692, 'wrong': 0, 'by_soap': 692, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 366, 'soap': 366, 'below_threshold': 0, 'mineral_type': 0}
+example interface_muscovite_2M1 {'atoms': 738, 'wrong': 0, 'by_soap': 738, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 402, 'soap': 402, 'below_threshold': 0, 'mineral_type': 0}
+example interface_muscovite_1M {'atoms': 759, 'wrong': 0, 'by_soap': 759, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 423, 'soap': 423, 'below_threshold': 0, 'mineral_type': 0}
+example interface_phlogopite_1M {'atoms': 784, 'wrong': 0, 'by_soap': 784, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 432, 'soap': 432, 'below_threshold': 0, 'mineral_type': 0}
+example interface_nanpingite {'atoms': 774, 'wrong': 0, 'by_soap': 774, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 438, 'soap': 438, 'below_threshold': 0, 'mineral_type': 0}
+example interface_pyrophyllite {'atoms': 710, 'wrong': 0, 'by_soap': 710, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 390, 'soap': 390, 'below_threshold': 0, 'mineral_type': 0}
+example interface_kaolinite {'atoms': 1659, 'wrong': 0, 'by_soap': 1659, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 843, 'soap': 843, 'below_threshold': 0, 'mineral_type': 0}
+example interface_lizerdite {'atoms': 1335, 'wrong': 0, 'by_soap': 1335, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 687, 'soap': 687, 'below_threshold': 0, 'mineral_type': 0}
+example interface_talc {'atoms': 849, 'wrong': 0, 'by_soap': 849, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 471, 'soap': 471, 'below_threshold': 0, 'mineral_type': 0}
+example interface_brucite {'atoms': 885, 'wrong': 0, 'by_soap': 885, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 405, 'soap': 405, 'below_threshold': 0, 'mineral_type': 0}
+example shape_sphere {'atoms': 2373, 'wrong': 0, 'by_soap': 2373, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 417, 'soap': 417, 'below_threshold': 0, 'mineral_type': 0}
+example shape_hemisphere {'atoms': 2469, 'wrong': 0, 'by_soap': 2469, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 453, 'soap': 453, 'below_threshold': 0, 'mineral_type': 0}
+example shape_cylinder {'atoms': 2829, 'wrong': 0, 'by_soap': 2828, 'by_rule': 1, 'fallback': 0, 'rule_types': {np.str_('hw'): 1}} solution {'atoms': 873, 'soap': 872, 'below_threshold': 1, 'mineral_type': 0}
+example shape_cavity {'atoms': 4047, 'wrong': 0, 'by_soap': 4047, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 2091, 'soap': 2091, 'below_threshold': 0, 'mineral_type': 0}
+example shape_xygauss {'atoms': 3159, 'wrong': 0, 'by_soap': 3159, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 1203, 'soap': 1203, 'below_threshold': 0, 'mineral_type': 0}
+example shape_ions {'atoms': 4249, 'wrong': 0, 'by_soap': 4247, 'by_rule': 2, 'fallback': 0, 'rule_types': {np.str_('hw'): 1, np.str_('Cl'): 1}} solution {'atoms': 2233, 'soap': 2231, 'below_threshold': 2, 'mineral_type': 0}
+example hydrate_2W_initial {'atoms': 1554, 'wrong': 0, 'by_soap': 1554, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 582, 'soap': 582, 'below_threshold': 0, 'mineral_type': 0}
+example swelling_gui_run {'atoms': 163, 'wrong': 0, 'by_soap': 163, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+/Users/harutokono/.soapff-gui/venv/lib/python3.12/site-packages/ase/io/lammpsdata.py:72: FutureWarning: "style" is deprecated; please use "atom_style".
+  warnings.warn(
+example hydrate_2W_after_npt {'atoms': 1554, 'wrong': 0, 'by_soap': 1554, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 584, 'soap': 584, 'below_threshold': 0, 'mineral_type': 0}
+example interlayer_4 {'atoms': 175, 'wrong': 0, 'by_soap': 174, 'by_rule': 0, 'fallback': 1, 'rule_types': {}} solution {'atoms': 13, 'soap': 12, 'below_threshold': 1, 'mineral_type': 0}
+example interlayer_8 {'atoms': 187, 'wrong': 0, 'by_soap': 186, 'by_rule': 1, 'fallback': 0, 'rule_types': {np.str_('ow'): 1}} solution {'atoms': 25, 'soap': 24, 'below_threshold': 1, 'mineral_type': 0}
+example interlayer_12 {'atoms': 199, 'wrong': 0, 'by_soap': 199, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 36, 'soap': 36, 'below_threshold': 0, 'mineral_type': 0}
+example interlayer_16 {'atoms': 211, 'wrong': 0, 'by_soap': 211, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 48, 'soap': 48, 'below_threshold': 0, 'mineral_type': 0}
+example interlayer_20 {'atoms': 223, 'wrong': 0, 'by_soap': 223, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 60, 'soap': 60, 'below_threshold': 0, 'mineral_type': 0}
+example interlayer_25 {'atoms': 238, 'wrong': 0, 'by_soap': 238, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 76, 'soap': 76, 'below_threshold': 0, 'mineral_type': 0}
+example interlayer_32 {'atoms': 259, 'wrong': 0, 'by_soap': 259, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 97, 'soap': 97, 'below_threshold': 0, 'mineral_type': 0}
+example interlayer_40 {'atoms': 283, 'wrong': 0, 'by_soap': 283, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 121, 'soap': 121, 'below_threshold': 0, 'mineral_type': 0}
+example interlayer_48 {'atoms': 307, 'wrong': 0, 'by_soap': 307, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 145, 'soap': 145, 'below_threshold': 0, 'mineral_type': 0}
+example interlayer_59 {'atoms': 340, 'wrong': 0, 'by_soap': 340, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution {'atoms': 178, 'soap': 178, 'below_threshold': 0, 'mineral_type': 0}
+dry muscovite_2M1 {'atoms': 672, 'wrong': 0, 'by_soap': 672, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry muscovite_2M1_md {'atoms': 672, 'wrong': 0, 'by_soap': 672, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry muscovite_1M {'atoms': 336, 'wrong': 0, 'by_soap': 336, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry muscovite_1M_md {'atoms': 336, 'wrong': 0, 'by_soap': 336, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry phlogopite_1M {'atoms': 352, 'wrong': 0, 'by_soap': 352, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry phlogopite_1M_md {'atoms': 352, 'wrong': 0, 'by_soap': 352, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry nanpingite {'atoms': 504, 'wrong': 0, 'by_soap': 504, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry nanpingite_md {'atoms': 504, 'wrong': 0, 'by_soap': 504, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry kaolinite {'atoms': 544, 'wrong': 0, 'by_soap': 544, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry kaolinite_md {'atoms': 544, 'wrong': 0, 'by_soap': 544, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry lizerdite {'atoms': 432, 'wrong': 0, 'by_soap': 432, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry lizerdite_md {'atoms': 432, 'wrong': 0, 'by_soap': 432, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry talc {'atoms': 504, 'wrong': 0, 'by_soap': 504, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry talc_md {'atoms': 504, 'wrong': 0, 'by_soap': 504, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry pyrophyllite_2 {'atoms': 480, 'wrong': 0, 'by_soap': 480, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None
+dry pyrophyllite_2_md {'atoms': 480, 'wrong': 0, 'by_soap': 480, 'by_rule': 0, 'fallback': 0, 'rule_types': {}} solution None

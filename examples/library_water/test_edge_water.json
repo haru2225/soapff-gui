@@ -1,0 +1,50 @@
+{
+ "particle_seed2": {
+  "atoms": 9980,
+  "particle_atoms": 2292,
+  "water": 2560,
+  "ions_added": 8,
+  "prepare": {
+   "wrong": 0,
+   "fallback": 0,
+   "type_check_differ": 0,
+   "charge_sum": -0.0
+  },
+  "whole_vs_water_free": {
+   "low": 1,
+   "wrong": 0,
+   "min": 0.9478773474693298
+  },
+  "whole_vs_solution": {
+   "wrong": 0,
+   "low": 0,
+   "min_water": 0.9602090716362,
+   "min_ion": 0.9740433692932129,
+   "min_particle": 0.9764696359634399
+  }
+ },
+ "particle_twice_seed3": {
+  "atoms": 12280,
+  "particle_atoms": 4584,
+  "water": 2560,
+  "ions_added": 16,
+  "prepare": {
+   "wrong": 0,
+   "fallback": 0,
+   "type_check_differ": 0,
+   "charge_sum": 0.0
+  },
+  "whole_vs_water_free": {
+   "low": 2,
+   "wrong": 0,
+   "min": 0.9226384162902832
+  },
+  "whole_vs_solution": {
+   "wrong": 0,
+   "low": 0,
+   "min_water": 0.9612789154052734,
+   "min_ion": 0.973410427570343,
+   "min_particle": 0.9567869901657104
+  }
+ }
+}

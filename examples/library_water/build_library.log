@@ -1,0 +1,920 @@
+  structure 1/490 (brucite_bulk.data): 240 atoms
+  structure 2/490 (kaolinite_bulk.data): 408 atoms
+  structure 3/490 (lizerdite_bulk.data): 324 atoms
+  structure 4/490 (muscovite_1M_bulk.data): 168 atoms
+  structure 5/490 (muscovite_2M1_bulk.data): 336 atoms
+  structure 6/490 (nanpingite_bulk.data): 336 atoms
+  structure 7/490 (phlogopite_1M_bulk.data): 176 atoms
+  structure 8/490 (pyrophyllite_2_bulk.data): 320 atoms
+  structure 9/490 (pyrophyllite_bulk.data): 320 atoms
+  structure 10/490 (talc_bulk.data): 378 atoms
+  structure 11/490 (montmorillonite_dry_Na.data): 163 atoms
+  structure 12/490 (brucite_001.data): 480 atoms, 3 kept
+  structure 13/490 (kaolinite_001.data): 816 atoms, 7 kept
+  structure 14/490 (lizerdite_001.data): 648 atoms, 5 kept
+  structure 15/490 (muscovite_1M_001.data): 336 atoms, 14 kept
+  structure 16/490 (muscovite_2M1_001.data): 336 atoms, 21 kept
+  structure 17/490 (nanpingite_001.data): 336 atoms, 7 kept
+  structure 18/490 (phlogopite_1M_001.data): 352 atoms, 10 kept
+  structure 19/490 (pyrophyllite_2_001.data): 320 atoms, 5 kept
+  structure 20/490 (pyrophyllite_001.data): 320 atoms, 0 kept
+  structure 21/490 (talc_001.data): 378 atoms, 0 kept
+  structure 22/490 (montmorillonite_dry_Na_001.data): 326 atoms, 24 kept
+  structure 23/490 (water.data): 1536 atoms, 94 kept
+  structure 24/490 (NaCl.data): 1504 atoms, 104 kept
+  structure 25/490 (KCl.data): 1504 atoms, 18 kept
+  structure 26/490 (CsCl.data): 1504 atoms, 16 kept
+  structure 27/490 (CaCl2.data): 1500 atoms, 64 kept
+  structure 28/490 (BaCl2.data): 1500 atoms, 24 kept
+  structure 29/490 (hydrate_2W.data): 1554 atoms, 76 kept
+  structure 30/490 (if_montmorillonite_dry_Na.data): 692 atoms, 44 kept
+  structure 31/490 (if_muscovite_2M1.data): 738 atoms, 38 kept
+  structure 32/490 (if_muscovite_1M.data): 759 atoms, 34 kept
+  structure 33/490 (if_phlogopite_1M.data): 784 atoms, 33 kept
+  structure 34/490 (if_nanpingite.data): 774 atoms, 24 kept
+  structure 35/490 (if_pyrophyllite.data): 710 atoms, 37 kept
+  structure 36/490 (if_pyrophyllite_2.data): 710 atoms, 11 kept
+  structure 37/490 (if_kaolinite.data): 1659 atoms, 28 kept
+  structure 38/490 (if_lizerdite.data): 1335 atoms, 55 kept
+  structure 39/490 (if_talc.data): 849 atoms, 60 kept
+  structure 40/490 (if_brucite.data): 885 atoms, 31 kept
+  structure 41/490 (water.data|water_train.lammpstrj#0): 1536 atoms, 22 kept
+  structure 42/490 (water.data|water_train.lammpstrj#1): 1536 atoms, 9 kept
+  structure 43/490 (water.data|water_train.lammpstrj#2): 1536 atoms, 10 kept
+  structure 44/490 (water.data|water_train.lammpstrj#3): 1536 atoms, 7 kept
+  structure 45/490 (water.data|water_train.lammpstrj#4): 1536 atoms, 5 kept
+  structure 46/490 (water.data|water_train.lammpstrj#5): 1536 atoms, 1 kept
+  structure 47/490 (water.data|water_train.lammpstrj#6): 1536 atoms, 5 kept
+  structure 48/490 (water.data|water_train.lammpstrj#7): 1536 atoms, 4 kept
+  structure 49/490 (water.data|water_train.lammpstrj#8): 1536 atoms, 1 kept
+  structure 50/490 (water.data|water_train.lammpstrj#9): 1536 atoms, 2 kept
+  structure 51/490 (water.data|water_train.lammpstrj#10): 1536 atoms, 4 kept
+  structure 52/490 (water.data|water_train.lammpstrj#11): 1536 atoms, 3 kept
+  structure 53/490 (water.data|water_train.lammpstrj#12): 1536 atoms, 2 kept
+  structure 54/490 (water.data|water_train.lammpstrj#13): 1536 atoms, 4 kept
+  structure 55/490 (water.data|water_train.lammpstrj#14): 1536 atoms, 0 kept
+  structure 56/490 (water.data|water_train.lammpstrj#15): 1536 atoms, 0 kept
+  structure 57/490 (water.data|water_train.lammpstrj#16): 1536 atoms, 1 kept
+  structure 58/490 (water.data|water_train.lammpstrj#17): 1536 atoms, 9 kept
+  structure 59/490 (water.data|water_train.lammpstrj#18): 1536 atoms, 2 kept
+  structure 60/490 (water.data|water_train.lammpstrj#19): 1536 atoms, 0 kept
+  structure 61/490 (water.data|water_train.lammpstrj#20): 1536 atoms, 0 kept
+  structure 62/490 (water.data|water_train.lammpstrj#21): 1536 atoms, 1 kept
+  structure 63/490 (water.data|water_train.lammpstrj#22): 1536 atoms, 0 kept
+  structure 64/490 (water.data|water_train.lammpstrj#23): 1536 atoms, 2 kept
+  structure 65/490 (water.data|water_train.lammpstrj#24): 1536 atoms, 0 kept
+  structure 66/490 (NaCl.data|NaCl_train.lammpstrj#0): 1504 atoms, 41 kept
+  structure 67/490 (NaCl.data|NaCl_train.lammpstrj#1): 1504 atoms, 18 kept
+  structure 68/490 (NaCl.data|NaCl_train.lammpstrj#2): 1504 atoms, 23 kept
+  structure 69/490 (NaCl.data|NaCl_train.lammpstrj#3): 1504 atoms, 14 kept
+  structure 70/490 (NaCl.data|NaCl_train.lammpstrj#4): 1504 atoms, 9 kept
+  structure 71/490 (NaCl.data|NaCl_train.lammpstrj#5): 1504 atoms, 10 kept
+  structure 72/490 (NaCl.data|NaCl_train.lammpstrj#6): 1504 atoms, 6 kept
+  structure 73/490 (NaCl.data|NaCl_train.lammpstrj#7): 1504 atoms, 13 kept
+  structure 74/490 (NaCl.data|NaCl_train.lammpstrj#8): 1504 atoms, 9 kept
+  structure 75/490 (NaCl.data|NaCl_train.lammpstrj#9): 1504 atoms, 10 kept
+  structure 76/490 (NaCl.data|NaCl_train.lammpstrj#10): 1504 atoms, 9 kept
+  structure 77/490 (NaCl.data|NaCl_train.lammpstrj#11): 1504 atoms, 7 kept
+  structure 78/490 (NaCl.data|NaCl_train.lammpstrj#12): 1504 atoms, 6 kept
+  structure 79/490 (NaCl.data|NaCl_train.lammpstrj#13): 1504 atoms, 8 kept
+  structure 80/490 (NaCl.data|NaCl_train.lammpstrj#14): 1504 atoms, 13 kept
+  structure 81/490 (NaCl.data|NaCl_train.lammpstrj#15): 1504 atoms, 8 kept
+  structure 82/490 (NaCl.data|NaCl_train.lammpstrj#16): 1504 atoms, 2 kept
+  structure 83/490 (NaCl.data|NaCl_train.lammpstrj#17): 1504 atoms, 3 kept
+  structure 84/490 (NaCl.data|NaCl_train.lammpstrj#18): 1504 atoms, 7 kept
+  structure 85/490 (NaCl.data|NaCl_train.lammpstrj#19): 1504 atoms, 6 kept
+  structure 86/490 (NaCl.data|NaCl_train.lammpstrj#20): 1504 atoms, 2 kept
+  structure 87/490 (NaCl.data|NaCl_train.lammpstrj#21): 1504 atoms, 4 kept
+  structure 88/490 (NaCl.data|NaCl_train.lammpstrj#22): 1504 atoms, 8 kept
+  structure 89/490 (NaCl.data|NaCl_train.lammpstrj#23): 1504 atoms, 2 kept
+  structure 90/490 (NaCl.data|NaCl_train.lammpstrj#24): 1504 atoms, 10 kept
+  structure 91/490 (KCl.data|KCl_train.lammpstrj#0): 1504 atoms, 34 kept
+  structure 92/490 (KCl.data|KCl_train.lammpstrj#1): 1504 atoms, 19 kept
+  structure 93/490 (KCl.data|KCl_train.lammpstrj#2): 1504 atoms, 11 kept
+  structure 94/490 (KCl.data|KCl_train.lammpstrj#3): 1504 atoms, 11 kept
+  structure 95/490 (KCl.data|KCl_train.lammpstrj#4): 1504 atoms, 13 kept
+  structure 96/490 (KCl.data|KCl_train.lammpstrj#5): 1504 atoms, 10 kept
+  structure 97/490 (KCl.data|KCl_train.lammpstrj#6): 1504 atoms, 7 kept
+  structure 98/490 (KCl.data|KCl_train.lammpstrj#7): 1504 atoms, 11 kept
+  structure 99/490 (KCl.data|KCl_train.lammpstrj#8): 1504 atoms, 5 kept
+  structure 100/490 (KCl.data|KCl_train.lammpstrj#9): 1504 atoms, 4 kept
+  structure 101/490 (KCl.data|KCl_train.lammpstrj#10): 1504 atoms, 5 kept
+  structure 102/490 (KCl.data|KCl_train.lammpstrj#11): 1504 atoms, 12 kept
+  structure 103/490 (KCl.data|KCl_train.lammpstrj#12): 1504 atoms, 7 kept
+  structure 104/490 (KCl.data|KCl_train.lammpstrj#13): 1504 atoms, 8 kept
+  structure 105/490 (KCl.data|KCl_train.lammpstrj#14): 1504 atoms, 5 kept
+  structure 106/490 (KCl.data|KCl_train.lammpstrj#15): 1504 atoms, 1 kept
+  structure 107/490 (KCl.data|KCl_train.lammpstrj#16): 1504 atoms, 11 kept
+  structure 108/490 (KCl.data|KCl_train.lammpstrj#17): 1504 atoms, 7 kept
+  structure 109/490 (KCl.data|KCl_train.lammpstrj#18): 1504 atoms, 3 kept
+  structure 110/490 (KCl.data|KCl_train.lammpstrj#19): 1504 atoms, 2 kept
+  structure 111/490 (KCl.data|KCl_train.lammpstrj#20): 1504 atoms, 9 kept
+  structure 112/490 (KCl.data|KCl_train.lammpstrj#21): 1504 atoms, 8 kept
+  structure 113/490 (KCl.data|KCl_train.lammpstrj#22): 1504 atoms, 4 kept
+  structure 114/490 (KCl.data|KCl_train.lammpstrj#23): 1504 atoms, 4 kept
+  structure 115/490 (KCl.data|KCl_train.lammpstrj#24): 1504 atoms, 4 kept
+  structure 116/490 (CsCl.data|CsCl_train.lammpstrj#0): 1504 atoms, 20 kept
+  structure 117/490 (CsCl.data|CsCl_train.lammpstrj#1): 1504 atoms, 17 kept
+  structure 118/490 (CsCl.data|CsCl_train.lammpstrj#2): 1504 atoms, 10 kept
+  structure 119/490 (CsCl.data|CsCl_train.lammpstrj#3): 1504 atoms, 7 kept
+  structure 120/490 (CsCl.data|CsCl_train.lammpstrj#4): 1504 atoms, 5 kept
+  structure 121/490 (CsCl.data|CsCl_train.lammpstrj#5): 1504 atoms, 7 kept
+  structure 122/490 (CsCl.data|CsCl_train.lammpstrj#6): 1504 atoms, 7 kept
+  structure 123/490 (CsCl.data|CsCl_train.lammpstrj#7): 1504 atoms, 9 kept
+  structure 124/490 (CsCl.data|CsCl_train.lammpstrj#8): 1504 atoms, 9 kept
+  structure 125/490 (CsCl.data|CsCl_train.lammpstrj#9): 1504 atoms, 8 kept
+  structure 126/490 (CsCl.data|CsCl_train.lammpstrj#10): 1504 atoms, 4 kept
+  structure 127/490 (CsCl.data|CsCl_train.lammpstrj#11): 1504 atoms, 11 kept
+  structure 128/490 (CsCl.data|CsCl_train.lammpstrj#12): 1504 atoms, 8 kept
+  structure 129/490 (CsCl.data|CsCl_train.lammpstrj#13): 1504 atoms, 6 kept
+  structure 130/490 (CsCl.data|CsCl_train.lammpstrj#14): 1504 atoms, 6 kept
+  structure 131/490 (CsCl.data|CsCl_train.lammpstrj#15): 1504 atoms, 9 kept
+  structure 132/490 (CsCl.data|CsCl_train.lammpstrj#16): 1504 atoms, 9 kept
+  structure 133/490 (CsCl.data|CsCl_train.lammpstrj#17): 1504 atoms, 5 kept
+  structure 134/490 (CsCl.data|CsCl_train.lammpstrj#18): 1504 atoms, 6 kept
+  structure 135/490 (CsCl.data|CsCl_train.lammpstrj#19): 1504 atoms, 5 kept
+  structure 136/490 (CsCl.data|CsCl_train.lammpstrj#20): 1504 atoms, 8 kept
+  structure 137/490 (CsCl.data|CsCl_train.lammpstrj#21): 1504 atoms, 2 kept
+  structure 138/490 (CsCl.data|CsCl_train.lammpstrj#22): 1504 atoms, 4 kept
+  structure 139/490 (CsCl.data|CsCl_train.lammpstrj#23): 1504 atoms, 3 kept
+  structure 140/490 (CsCl.data|CsCl_train.lammpstrj#24): 1504 atoms, 6 kept
+  structure 141/490 (CaCl2.data|CaCl2_train.lammpstrj#0): 1500 atoms, 25 kept
+  structure 142/490 (CaCl2.data|CaCl2_train.lammpstrj#1): 1500 atoms, 9 kept
+  structure 143/490 (CaCl2.data|CaCl2_train.lammpstrj#2): 1500 atoms, 7 kept
+  structure 144/490 (CaCl2.data|CaCl2_train.lammpstrj#3): 1500 atoms, 8 kept
+  structure 145/490 (CaCl2.data|CaCl2_train.lammpstrj#4): 1500 atoms, 7 kept
+  structure 146/490 (CaCl2.data|CaCl2_train.lammpstrj#5): 1500 atoms, 8 kept
+  structure 147/490 (CaCl2.data|CaCl2_train.lammpstrj#6): 1500 atoms, 5 kept
+  structure 148/490 (CaCl2.data|CaCl2_train.lammpstrj#7): 1500 atoms, 3 kept
+  structure 149/490 (CaCl2.data|CaCl2_train.lammpstrj#8): 1500 atoms, 2 kept
+  structure 150/490 (CaCl2.data|CaCl2_train.lammpstrj#9): 1500 atoms, 2 kept
+  structure 151/490 (CaCl2.data|CaCl2_train.lammpstrj#10): 1500 atoms, 4 kept
+  structure 152/490 (CaCl2.data|CaCl2_train.lammpstrj#11): 1500 atoms, 1 kept
+  structure 153/490 (CaCl2.data|CaCl2_train.lammpstrj#12): 1500 atoms, 4 kept
+  structure 154/490 (CaCl2.data|CaCl2_train.lammpstrj#13): 1500 atoms, 4 kept
+  structure 155/490 (CaCl2.data|CaCl2_train.lammpstrj#14): 1500 atoms, 3 kept
+  structure 156/490 (CaCl2.data|CaCl2_train.lammpstrj#15): 1500 atoms, 2 kept
+  structure 157/490 (CaCl2.data|CaCl2_train.lammpstrj#16): 1500 atoms, 1 kept
+  structure 158/490 (CaCl2.data|CaCl2_train.lammpstrj#17): 1500 atoms, 3 kept
+  structure 159/490 (CaCl2.data|CaCl2_train.lammpstrj#18): 1500 atoms, 4 kept
+  structure 160/490 (CaCl2.data|CaCl2_train.lammpstrj#19): 1500 atoms, 3 kept
+  structure 161/490 (CaCl2.data|CaCl2_train.lammpstrj#20): 1500 atoms, 5 kept
+  structure 162/490 (CaCl2.data|CaCl2_train.lammpstrj#21): 1500 atoms, 1 kept
+  structure 163/490 (CaCl2.data|CaCl2_train.lammpstrj#22): 1500 atoms, 3 kept
+  structure 164/490 (CaCl2.data|CaCl2_train.lammpstrj#23): 1500 atoms, 5 kept
+  structure 165/490 (CaCl2.data|CaCl2_train.lammpstrj#24): 1500 atoms, 4 kept
+  structure 166/490 (BaCl2.data|BaCl2_train.lammpstrj#0): 1500 atoms, 23 kept
+  structure 167/490 (BaCl2.data|BaCl2_train.lammpstrj#1): 1500 atoms, 14 kept
+  structure 168/490 (BaCl2.data|BaCl2_train.lammpstrj#2): 1500 atoms, 12 kept
+  structure 169/490 (BaCl2.data|BaCl2_train.lammpstrj#3): 1500 atoms, 11 kept
+  structure 170/490 (BaCl2.data|BaCl2_train.lammpstrj#4): 1500 atoms, 8 kept
+  structure 171/490 (BaCl2.data|BaCl2_train.lammpstrj#5): 1500 atoms, 6 kept
+  structure 172/490 (BaCl2.data|BaCl2_train.lammpstrj#6): 1500 atoms, 3 kept
+  structure 173/490 (BaCl2.data|BaCl2_train.lammpstrj#7): 1500 atoms, 4 kept
+  structure 174/490 (BaCl2.data|BaCl2_train.lammpstrj#8): 1500 atoms, 4 kept
+  structure 175/490 (BaCl2.data|BaCl2_train.lammpstrj#9): 1500 atoms, 7 kept
+  structure 176/490 (BaCl2.data|BaCl2_train.lammpstrj#10): 1500 atoms, 1 kept
+  structure 177/490 (BaCl2.data|BaCl2_train.lammpstrj#11): 1500 atoms, 6 kept
+  structure 178/490 (BaCl2.data|BaCl2_train.lammpstrj#12): 1500 atoms, 9 kept
+  structure 179/490 (BaCl2.data|BaCl2_train.lammpstrj#13): 1500 atoms, 5 kept
+  structure 180/490 (BaCl2.data|BaCl2_train.lammpstrj#14): 1500 atoms, 3 kept
+  structure 181/490 (BaCl2.data|BaCl2_train.lammpstrj#15): 1500 atoms, 7 kept
+  structure 182/490 (BaCl2.data|BaCl2_train.lammpstrj#16): 1500 atoms, 4 kept
+  structure 183/490 (BaCl2.data|BaCl2_train.lammpstrj#17): 1500 atoms, 11 kept
+  structure 184/490 (BaCl2.data|BaCl2_train.lammpstrj#18): 1500 atoms, 1 kept
+  structure 185/490 (BaCl2.data|BaCl2_train.lammpstrj#19): 1500 atoms, 1 kept
+  structure 186/490 (BaCl2.data|BaCl2_train.lammpstrj#20): 1500 atoms, 5 kept
+  structure 187/490 (BaCl2.data|BaCl2_train.lammpstrj#21): 1500 atoms, 3 kept
+  structure 188/490 (BaCl2.data|BaCl2_train.lammpstrj#22): 1500 atoms, 1 kept
+  structure 189/490 (BaCl2.data|BaCl2_train.lammpstrj#23): 1500 atoms, 2 kept
+  structure 190/490 (BaCl2.data|BaCl2_train.lammpstrj#24): 1500 atoms, 0 kept
+  structure 191/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#0): 1554 atoms, 183 kept
+  structure 192/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#1): 1554 atoms, 107 kept
+  structure 193/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#2): 1554 atoms, 86 kept
+  structure 194/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#3): 1554 atoms, 77 kept
+  structure 195/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#4): 1554 atoms, 73 kept
+  structure 196/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#5): 1554 atoms, 59 kept
+  structure 197/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#6): 1554 atoms, 63 kept
+  structure 198/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#7): 1554 atoms, 84 kept
+  structure 199/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#8): 1554 atoms, 73 kept
+  structure 200/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#9): 1554 atoms, 55 kept
+  structure 201/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#10): 1554 atoms, 60 kept
+  structure 202/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#11): 1554 atoms, 50 kept
+  structure 203/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#12): 1554 atoms, 33 kept
+  structure 204/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#13): 1554 atoms, 37 kept
+  structure 205/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#14): 1554 atoms, 37 kept
+  structure 206/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#15): 1554 atoms, 58 kept
+  structure 207/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#16): 1554 atoms, 40 kept
+  structure 208/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#17): 1554 atoms, 39 kept
+  structure 209/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#18): 1554 atoms, 37 kept
+  structure 210/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#19): 1554 atoms, 33 kept
+  structure 211/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#20): 1554 atoms, 36 kept
+  structure 212/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#21): 1554 atoms, 48 kept
+  structure 213/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#22): 1554 atoms, 39 kept
+  structure 214/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#23): 1554 atoms, 37 kept
+  structure 215/490 (hydrate_2W.data|hydrate_2W_train.lammpstrj#24): 1554 atoms, 37 kept
+  structure 216/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#0): 692 atoms, 0 kept
+  structure 217/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#1): 692 atoms, 0 kept
+  structure 218/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#2): 692 atoms, 3 kept
+  structure 219/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#3): 692 atoms, 5 kept
+  structure 220/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#4): 692 atoms, 3 kept
+  structure 221/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#5): 692 atoms, 2 kept
+  structure 222/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#6): 692 atoms, 1 kept
+  structure 223/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#7): 692 atoms, 2 kept
+  structure 224/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#8): 692 atoms, 2 kept
+  structure 225/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#9): 692 atoms, 3 kept
+  structure 226/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#10): 692 atoms, 2 kept
+  structure 227/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#11): 692 atoms, 1 kept
+  structure 228/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#12): 692 atoms, 3 kept
+  structure 229/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#13): 692 atoms, 3 kept
+  structure 230/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#14): 692 atoms, 2 kept
+  structure 231/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#15): 692 atoms, 0 kept
+  structure 232/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#16): 692 atoms, 2 kept
+  structure 233/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#17): 692 atoms, 0 kept
+  structure 234/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#18): 692 atoms, 2 kept
+  structure 235/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#19): 692 atoms, 2 kept
+  structure 236/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#20): 692 atoms, 3 kept
+  structure 237/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#21): 692 atoms, 5 kept
+  structure 238/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#22): 692 atoms, 1 kept
+  structure 239/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#23): 692 atoms, 2 kept
+  structure 240/490 (if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#24): 692 atoms, 4 kept
+  structure 241/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#0): 738 atoms, 36 kept
+  structure 242/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#1): 738 atoms, 23 kept
+  structure 243/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#2): 738 atoms, 15 kept
+  structure 244/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#3): 738 atoms, 10 kept
+  structure 245/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#4): 738 atoms, 12 kept
+  structure 246/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#5): 738 atoms, 14 kept
+  structure 247/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#6): 738 atoms, 13 kept
+  structure 248/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#7): 738 atoms, 12 kept
+  structure 249/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#8): 738 atoms, 10 kept
+  structure 250/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#9): 738 atoms, 11 kept
+  structure 251/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#10): 738 atoms, 11 kept
+  structure 252/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#11): 738 atoms, 3 kept
+  structure 253/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#12): 738 atoms, 5 kept
+  structure 254/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#13): 738 atoms, 8 kept
+  structure 255/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#14): 738 atoms, 4 kept
+  structure 256/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#15): 738 atoms, 8 kept
+  structure 257/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#16): 738 atoms, 6 kept
+  structure 258/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#17): 738 atoms, 2 kept
+  structure 259/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#18): 738 atoms, 6 kept
+  structure 260/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#19): 738 atoms, 6 kept
+  structure 261/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#20): 738 atoms, 3 kept
+  structure 262/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#21): 738 atoms, 8 kept
+  structure 263/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#22): 738 atoms, 6 kept
+  structure 264/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#23): 738 atoms, 0 kept
+  structure 265/490 (if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#24): 738 atoms, 4 kept
+  structure 266/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#0): 759 atoms, 10 kept
+  structure 267/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#1): 759 atoms, 5 kept
+  structure 268/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#2): 759 atoms, 9 kept
+  structure 269/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#3): 759 atoms, 4 kept
+  structure 270/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#4): 759 atoms, 5 kept
+  structure 271/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#5): 759 atoms, 3 kept
+  structure 272/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#6): 759 atoms, 5 kept
+  structure 273/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#7): 759 atoms, 9 kept
+  structure 274/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#8): 759 atoms, 2 kept
+  structure 275/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#9): 759 atoms, 6 kept
+  structure 276/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#10): 759 atoms, 5 kept
+  structure 277/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#11): 759 atoms, 5 kept
+  structure 278/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#12): 759 atoms, 8 kept
+  structure 279/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#13): 759 atoms, 2 kept
+  structure 280/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#14): 759 atoms, 2 kept
+  structure 281/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#15): 759 atoms, 5 kept
+  structure 282/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#16): 759 atoms, 4 kept
+  structure 283/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#17): 759 atoms, 8 kept
+  structure 284/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#18): 759 atoms, 6 kept
+  structure 285/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#19): 759 atoms, 2 kept
+  structure 286/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#20): 759 atoms, 3 kept
+  structure 287/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#21): 759 atoms, 5 kept
+  structure 288/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#22): 759 atoms, 5 kept
+  structure 289/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#23): 759 atoms, 5 kept
+  structure 290/490 (if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#24): 759 atoms, 4 kept
+  structure 291/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#0): 784 atoms, 16 kept
+  structure 292/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#1): 784 atoms, 7 kept
+  structure 293/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#2): 784 atoms, 3 kept
+  structure 294/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#3): 784 atoms, 6 kept
+  structure 295/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#4): 784 atoms, 2 kept
+  structure 296/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#5): 784 atoms, 3 kept
+  structure 297/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#6): 784 atoms, 5 kept
+  structure 298/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#7): 784 atoms, 3 kept
+  structure 299/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#8): 784 atoms, 5 kept
+  structure 300/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#9): 784 atoms, 2 kept
+  structure 301/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#10): 784 atoms, 0 kept
+  structure 302/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#11): 784 atoms, 3 kept
+  structure 303/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#12): 784 atoms, 3 kept
+  structure 304/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#13): 784 atoms, 2 kept
+  structure 305/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#14): 784 atoms, 2 kept
+  structure 306/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#15): 784 atoms, 2 kept
+  structure 307/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#16): 784 atoms, 3 kept
+  structure 308/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#17): 784 atoms, 2 kept
+  structure 309/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#18): 784 atoms, 2 kept
+  structure 310/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#19): 784 atoms, 3 kept
+  structure 311/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#20): 784 atoms, 3 kept
+  structure 312/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#21): 784 atoms, 4 kept
+  structure 313/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#22): 784 atoms, 0 kept
+  structure 314/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#23): 784 atoms, 8 kept
+  structure 315/490 (if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#24): 784 atoms, 5 kept
+  structure 316/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#0): 774 atoms, 22 kept
+  structure 317/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#1): 774 atoms, 15 kept
+  structure 318/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#2): 774 atoms, 7 kept
+  structure 319/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#3): 774 atoms, 3 kept
+  structure 320/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#4): 774 atoms, 8 kept
+  structure 321/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#5): 774 atoms, 4 kept
+  structure 322/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#6): 774 atoms, 3 kept
+  structure 323/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#7): 774 atoms, 5 kept
+  structure 324/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#8): 774 atoms, 0 kept
+  structure 325/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#9): 774 atoms, 3 kept
+  structure 326/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#10): 774 atoms, 5 kept
+  structure 327/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#11): 774 atoms, 4 kept
+  structure 328/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#12): 774 atoms, 2 kept
+  structure 329/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#13): 774 atoms, 7 kept
+  structure 330/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#14): 774 atoms, 6 kept
+  structure 331/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#15): 774 atoms, 4 kept
+  structure 332/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#16): 774 atoms, 4 kept
+  structure 333/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#17): 774 atoms, 1 kept
+  structure 334/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#18): 774 atoms, 2 kept
+  structure 335/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#19): 774 atoms, 3 kept
+  structure 336/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#20): 774 atoms, 2 kept
+  structure 337/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#21): 774 atoms, 1 kept
+  structure 338/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#22): 774 atoms, 6 kept
+  structure 339/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#23): 774 atoms, 2 kept
+  structure 340/490 (if_nanpingite.data|if_nanpingite_train.lammpstrj#24): 774 atoms, 4 kept
+  structure 341/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#0): 710 atoms, 5 kept
+  structure 342/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#1): 710 atoms, 1 kept
+  structure 343/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#2): 710 atoms, 2 kept
+  structure 344/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#3): 710 atoms, 1 kept
+  structure 345/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#4): 710 atoms, 1 kept
+  structure 346/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#5): 710 atoms, 0 kept
+  structure 347/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#6): 710 atoms, 1 kept
+  structure 348/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#7): 710 atoms, 1 kept
+  structure 349/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#8): 710 atoms, 0 kept
+  structure 350/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#9): 710 atoms, 2 kept
+  structure 351/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#10): 710 atoms, 5 kept
+  structure 352/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#11): 710 atoms, 6 kept
+  structure 353/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#12): 710 atoms, 1 kept
+  structure 354/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#13): 710 atoms, 1 kept
+  structure 355/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#14): 710 atoms, 0 kept
+  structure 356/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#15): 710 atoms, 1 kept
+  structure 357/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#16): 710 atoms, 0 kept
+  structure 358/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#17): 710 atoms, 2 kept
+  structure 359/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#18): 710 atoms, 1 kept
+  structure 360/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#19): 710 atoms, 0 kept
+  structure 361/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#20): 710 atoms, 4 kept
+  structure 362/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#21): 710 atoms, 0 kept
+  structure 363/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#22): 710 atoms, 0 kept
+  structure 364/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#23): 710 atoms, 1 kept
+  structure 365/490 (if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#24): 710 atoms, 0 kept
+  structure 366/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#0): 710 atoms, 0 kept
+  structure 367/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#1): 710 atoms, 2 kept
+  structure 368/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#2): 710 atoms, 0 kept
+  structure 369/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#3): 710 atoms, 1 kept
+  structure 370/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#4): 710 atoms, 1 kept
+  structure 371/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#5): 710 atoms, 1 kept
+  structure 372/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#6): 710 atoms, 2 kept
+  structure 373/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#7): 710 atoms, 1 kept
+  structure 374/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#8): 710 atoms, 1 kept
+  structure 375/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#9): 710 atoms, 0 kept
+  structure 376/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#10): 710 atoms, 1 kept
+  structure 377/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#11): 710 atoms, 1 kept
+  structure 378/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#12): 710 atoms, 0 kept
+  structure 379/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#13): 710 atoms, 1 kept
+  structure 380/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#14): 710 atoms, 1 kept
+  structure 381/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#15): 710 atoms, 0 kept
+  structure 382/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#16): 710 atoms, 0 kept
+  structure 383/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#17): 710 atoms, 0 kept
+  structure 384/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#18): 710 atoms, 0 kept
+  structure 385/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#19): 710 atoms, 3 kept
+  structure 386/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#20): 710 atoms, 1 kept
+  structure 387/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#21): 710 atoms, 1 kept
+  structure 388/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#22): 710 atoms, 0 kept
+  structure 389/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#23): 710 atoms, 1 kept
+  structure 390/490 (if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#24): 710 atoms, 1 kept
+  structure 391/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#0): 1659 atoms, 22 kept
+  structure 392/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#1): 1659 atoms, 5 kept
+  structure 393/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#2): 1659 atoms, 8 kept
+  structure 394/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#3): 1659 atoms, 4 kept
+  structure 395/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#4): 1659 atoms, 1 kept
+  structure 396/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#5): 1659 atoms, 2 kept
+  structure 397/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#6): 1659 atoms, 0 kept
+  structure 398/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#7): 1659 atoms, 3 kept
+  structure 399/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#8): 1659 atoms, 2 kept
+  structure 400/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#9): 1659 atoms, 2 kept
+  structure 401/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#10): 1659 atoms, 0 kept
+  structure 402/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#11): 1659 atoms, 0 kept
+  structure 403/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#12): 1659 atoms, 4 kept
+  structure 404/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#13): 1659 atoms, 2 kept
+  structure 405/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#14): 1659 atoms, 3 kept
+  structure 406/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#15): 1659 atoms, 1 kept
+  structure 407/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#16): 1659 atoms, 0 kept
+  structure 408/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#17): 1659 atoms, 1 kept
+  structure 409/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#18): 1659 atoms, 2 kept
+  structure 410/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#19): 1659 atoms, 0 kept
+  structure 411/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#20): 1659 atoms, 1 kept
+  structure 412/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#21): 1659 atoms, 1 kept
+  structure 413/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#22): 1659 atoms, 0 kept
+  structure 414/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#23): 1659 atoms, 2 kept
+  structure 415/490 (if_kaolinite.data|if_kaolinite_train.lammpstrj#24): 1659 atoms, 1 kept
+  structure 416/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#0): 1335 atoms, 17 kept
+  structure 417/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#1): 1335 atoms, 2 kept
+  structure 418/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#2): 1335 atoms, 2 kept
+  structure 419/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#3): 1335 atoms, 5 kept
+  structure 420/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#4): 1335 atoms, 1 kept
+  structure 421/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#5): 1335 atoms, 2 kept
+  structure 422/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#6): 1335 atoms, 2 kept
+  structure 423/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#7): 1335 atoms, 0 kept
+  structure 424/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#8): 1335 atoms, 2 kept
+  structure 425/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#9): 1335 atoms, 1 kept
+  structure 426/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#10): 1335 atoms, 0 kept
+  structure 427/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#11): 1335 atoms, 2 kept
+  structure 428/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#12): 1335 atoms, 0 kept
+  structure 429/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#13): 1335 atoms, 0 kept
+  structure 430/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#14): 1335 atoms, 1 kept
+  structure 431/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#15): 1335 atoms, 1 kept
+  structure 432/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#16): 1335 atoms, 2 kept
+  structure 433/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#17): 1335 atoms, 0 kept
+  structure 434/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#18): 1335 atoms, 0 kept
+  structure 435/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#19): 1335 atoms, 1 kept
+  structure 436/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#20): 1335 atoms, 0 kept
+  structure 437/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#21): 1335 atoms, 4 kept
+  structure 438/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#22): 1335 atoms, 1 kept
+  structure 439/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#23): 1335 atoms, 0 kept
+  structure 440/490 (if_lizerdite.data|if_lizerdite_train.lammpstrj#24): 1335 atoms, 0 kept
+  structure 441/490 (if_talc.data|if_talc_train.lammpstrj#0): 849 atoms, 5 kept
+  structure 442/490 (if_talc.data|if_talc_train.lammpstrj#1): 849 atoms, 0 kept
+  structure 443/490 (if_talc.data|if_talc_train.lammpstrj#2): 849 atoms, 0 kept
+  structure 444/490 (if_talc.data|if_talc_train.lammpstrj#3): 849 atoms, 0 kept
+  structure 445/490 (if_talc.data|if_talc_train.lammpstrj#4): 849 atoms, 0 kept
+  structure 446/490 (if_talc.data|if_talc_train.lammpstrj#5): 849 atoms, 1 kept
+  structure 447/490 (if_talc.data|if_talc_train.lammpstrj#6): 849 atoms, 3 kept
+  structure 448/490 (if_talc.data|if_talc_train.lammpstrj#7): 849 atoms, 0 kept
+  structure 449/490 (if_talc.data|if_talc_train.lammpstrj#8): 849 atoms, 2 kept
+  structure 450/490 (if_talc.data|if_talc_train.lammpstrj#9): 849 atoms, 0 kept
+  structure 451/490 (if_talc.data|if_talc_train.lammpstrj#10): 849 atoms, 1 kept
+  structure 452/490 (if_talc.data|if_talc_train.lammpstrj#11): 849 atoms, 1 kept
+  structure 453/490 (if_talc.data|if_talc_train.lammpstrj#12): 849 atoms, 2 kept
+  structure 454/490 (if_talc.data|if_talc_train.lammpstrj#13): 849 atoms, 2 kept
+  structure 455/490 (if_talc.data|if_talc_train.lammpstrj#14): 849 atoms, 1 kept
+  structure 456/490 (if_talc.data|if_talc_train.lammpstrj#15): 849 atoms, 3 kept
+  structure 457/490 (if_talc.data|if_talc_train.lammpstrj#16): 849 atoms, 0 kept
+  structure 458/490 (if_talc.data|if_talc_train.lammpstrj#17): 849 atoms, 1 kept
+  structure 459/490 (if_talc.data|if_talc_train.lammpstrj#18): 849 atoms, 0 kept
+  structure 460/490 (if_talc.data|if_talc_train.lammpstrj#19): 849 atoms, 1 kept
+  structure 461/490 (if_talc.data|if_talc_train.lammpstrj#20): 849 atoms, 0 kept
+  structure 462/490 (if_talc.data|if_talc_train.lammpstrj#21): 849 atoms, 0 kept
+  structure 463/490 (if_talc.data|if_talc_train.lammpstrj#22): 849 atoms, 2 kept
+  structure 464/490 (if_talc.data|if_talc_train.lammpstrj#23): 849 atoms, 0 kept
+  structure 465/490 (if_talc.data|if_talc_train.lammpstrj#24): 849 atoms, 3 kept
+  structure 466/490 (if_brucite.data|if_brucite_train.lammpstrj#0): 885 atoms, 4 kept
+  structure 467/490 (if_brucite.data|if_brucite_train.lammpstrj#1): 885 atoms, 4 kept
+  structure 468/490 (if_brucite.data|if_brucite_train.lammpstrj#2): 885 atoms, 1 kept
+  structure 469/490 (if_brucite.data|if_brucite_train.lammpstrj#3): 885 atoms, 2 kept
+  structure 470/490 (if_brucite.data|if_brucite_train.lammpstrj#4): 885 atoms, 6 kept
+  structure 471/490 (if_brucite.data|if_brucite_train.lammpstrj#5): 885 atoms, 2 kept
+  structure 472/490 (if_brucite.data|if_brucite_train.lammpstrj#6): 885 atoms, 2 kept
+  structure 473/490 (if_brucite.data|if_brucite_train.lammpstrj#7): 885 atoms, 2 kept
+  structure 474/490 (if_brucite.data|if_brucite_train.lammpstrj#8): 885 atoms, 1 kept
+  structure 475/490 (if_brucite.data|if_brucite_train.lammpstrj#9): 885 atoms, 4 kept
+  structure 476/490 (if_brucite.data|if_brucite_train.lammpstrj#10): 885 atoms, 1 kept
+  structure 477/490 (if_brucite.data|if_brucite_train.lammpstrj#11): 885 atoms, 0 kept
+  structure 478/490 (if_brucite.data|if_brucite_train.lammpstrj#12): 885 atoms, 3 kept
+  structure 479/490 (if_brucite.data|if_brucite_train.lammpstrj#13): 885 atoms, 0 kept
+  structure 480/490 (if_brucite.data|if_brucite_train.lammpstrj#14): 885 atoms, 0 kept
+  structure 481/490 (if_brucite.data|if_brucite_train.lammpstrj#15): 885 atoms, 1 kept
+  structure 482/490 (if_brucite.data|if_brucite_train.lammpstrj#16): 885 atoms, 0 kept
+  structure 483/490 (if_brucite.data|if_brucite_train.lammpstrj#17): 885 atoms, 2 kept
+  structure 484/490 (if_brucite.data|if_brucite_train.lammpstrj#18): 885 atoms, 6 kept
+  structure 485/490 (if_brucite.data|if_brucite_train.lammpstrj#19): 885 atoms, 1 kept
+  structure 486/490 (if_brucite.data|if_brucite_train.lammpstrj#20): 885 atoms, 1 kept
+  structure 487/490 (if_brucite.data|if_brucite_train.lammpstrj#21): 885 atoms, 1 kept
+  structure 488/490 (if_brucite.data|if_brucite_train.lammpstrj#22): 885 atoms, 1 kept
+  structure 489/490 (if_brucite.data|if_brucite_train.lammpstrj#23): 885 atoms, 0 kept
+  structure 490/490 (if_brucite.data|if_brucite_train.lammpstrj#24): 885 atoms, 1 kept
+pruned (similarity >= [0.99, 0.999] to a kept entry of the same element, charge and type; the first 11 references kept whole): 540739 -> 7435 entries
+library: 7435 entries from 490 structures, species ['Al', 'Ba', 'Ca', 'Cl', 'Cs', 'H', 'K', 'Mg', 'Na', 'O', 'Si'] -> /Users/harutokono/clay/soapff-gui/examples/library_water/library_clayff_water.npz
+library one-to-one check: 7433 / 7435 entries have a nearest other entry with the same charge
+  BaCl2.data: 24 / 24
+  BaCl2.data|BaCl2_train.lammpstrj#0: 23 / 23
+  BaCl2.data|BaCl2_train.lammpstrj#1: 14 / 14
+  BaCl2.data|BaCl2_train.lammpstrj#10: 1 / 1
+  BaCl2.data|BaCl2_train.lammpstrj#11: 6 / 6
+  BaCl2.data|BaCl2_train.lammpstrj#12: 9 / 9
+  BaCl2.data|BaCl2_train.lammpstrj#13: 5 / 5
+  BaCl2.data|BaCl2_train.lammpstrj#14: 3 / 3
+  BaCl2.data|BaCl2_train.lammpstrj#15: 7 / 7
+  BaCl2.data|BaCl2_train.lammpstrj#16: 4 / 4
+  BaCl2.data|BaCl2_train.lammpstrj#17: 11 / 11
+  BaCl2.data|BaCl2_train.lammpstrj#18: 1 / 1
+  BaCl2.data|BaCl2_train.lammpstrj#19: 1 / 1
+  BaCl2.data|BaCl2_train.lammpstrj#2: 12 / 12
+  BaCl2.data|BaCl2_train.lammpstrj#20: 5 / 5
+  BaCl2.data|BaCl2_train.lammpstrj#21: 3 / 3
+  BaCl2.data|BaCl2_train.lammpstrj#22: 1 / 1
+  BaCl2.data|BaCl2_train.lammpstrj#23: 2 / 2
+  BaCl2.data|BaCl2_train.lammpstrj#3: 11 / 11
+  BaCl2.data|BaCl2_train.lammpstrj#4: 8 / 8
+  BaCl2.data|BaCl2_train.lammpstrj#5: 6 / 6
+  BaCl2.data|BaCl2_train.lammpstrj#6: 3 / 3
+  BaCl2.data|BaCl2_train.lammpstrj#7: 4 / 4
+  BaCl2.data|BaCl2_train.lammpstrj#8: 4 / 4
+  BaCl2.data|BaCl2_train.lammpstrj#9: 7 / 7
+  CaCl2.data: 64 / 64
+  CaCl2.data|CaCl2_train.lammpstrj#0: 25 / 25
+  CaCl2.data|CaCl2_train.lammpstrj#1: 9 / 9
+  CaCl2.data|CaCl2_train.lammpstrj#10: 4 / 4
+  CaCl2.data|CaCl2_train.lammpstrj#11: 1 / 1
+  CaCl2.data|CaCl2_train.lammpstrj#12: 4 / 4
+  CaCl2.data|CaCl2_train.lammpstrj#13: 4 / 4
+  CaCl2.data|CaCl2_train.lammpstrj#14: 3 / 3
+  CaCl2.data|CaCl2_train.lammpstrj#15: 2 / 2
+  CaCl2.data|CaCl2_train.lammpstrj#16: 1 / 1
+  CaCl2.data|CaCl2_train.lammpstrj#17: 3 / 3
+  CaCl2.data|CaCl2_train.lammpstrj#18: 4 / 4
+  CaCl2.data|CaCl2_train.lammpstrj#19: 3 / 3
+  CaCl2.data|CaCl2_train.lammpstrj#2: 7 / 7
+  CaCl2.data|CaCl2_train.lammpstrj#20: 5 / 5
+  CaCl2.data|CaCl2_train.lammpstrj#21: 1 / 1
+  CaCl2.data|CaCl2_train.lammpstrj#22: 3 / 3
+  CaCl2.data|CaCl2_train.lammpstrj#23: 5 / 5
+  CaCl2.data|CaCl2_train.lammpstrj#24: 4 / 4
+  CaCl2.data|CaCl2_train.lammpstrj#3: 8 / 8
+  CaCl2.data|CaCl2_train.lammpstrj#4: 7 / 7
+  CaCl2.data|CaCl2_train.lammpstrj#5: 8 / 8
+  CaCl2.data|CaCl2_train.lammpstrj#6: 5 / 5
+  CaCl2.data|CaCl2_train.lammpstrj#7: 3 / 3
+  CaCl2.data|CaCl2_train.lammpstrj#8: 2 / 2
+  CaCl2.data|CaCl2_train.lammpstrj#9: 2 / 2
+  CsCl.data: 16 / 16
+  CsCl.data|CsCl_train.lammpstrj#0: 20 / 20
+  CsCl.data|CsCl_train.lammpstrj#1: 17 / 17
+  CsCl.data|CsCl_train.lammpstrj#10: 4 / 4
+  CsCl.data|CsCl_train.lammpstrj#11: 11 / 11
+  CsCl.data|CsCl_train.lammpstrj#12: 8 / 8
+  CsCl.data|CsCl_train.lammpstrj#13: 6 / 6
+  CsCl.data|CsCl_train.lammpstrj#14: 6 / 6
+  CsCl.data|CsCl_train.lammpstrj#15: 9 / 9
+  CsCl.data|CsCl_train.lammpstrj#16: 9 / 9
+  CsCl.data|CsCl_train.lammpstrj#17: 5 / 5
+  CsCl.data|CsCl_train.lammpstrj#18: 6 / 6
+  CsCl.data|CsCl_train.lammpstrj#19: 5 / 5
+  CsCl.data|CsCl_train.lammpstrj#2: 10 / 10
+  CsCl.data|CsCl_train.lammpstrj#20: 8 / 8
+  CsCl.data|CsCl_train.lammpstrj#21: 2 / 2
+  CsCl.data|CsCl_train.lammpstrj#22: 4 / 4
+  CsCl.data|CsCl_train.lammpstrj#23: 3 / 3
+  CsCl.data|CsCl_train.lammpstrj#24: 6 / 6
+  CsCl.data|CsCl_train.lammpstrj#3: 7 / 7
+  CsCl.data|CsCl_train.lammpstrj#4: 5 / 5
+  CsCl.data|CsCl_train.lammpstrj#5: 7 / 7
+  CsCl.data|CsCl_train.lammpstrj#6: 7 / 7
+  CsCl.data|CsCl_train.lammpstrj#7: 9 / 9
+  CsCl.data|CsCl_train.lammpstrj#8: 9 / 9
+  CsCl.data|CsCl_train.lammpstrj#9: 8 / 8
+  KCl.data: 18 / 18
+  KCl.data|KCl_train.lammpstrj#0: 34 / 34
+  KCl.data|KCl_train.lammpstrj#1: 19 / 19
+  KCl.data|KCl_train.lammpstrj#10: 5 / 5
+  KCl.data|KCl_train.lammpstrj#11: 12 / 12
+  KCl.data|KCl_train.lammpstrj#12: 7 / 7
+  KCl.data|KCl_train.lammpstrj#13: 8 / 8
+  KCl.data|KCl_train.lammpstrj#14: 5 / 5
+  KCl.data|KCl_train.lammpstrj#15: 1 / 1
+  KCl.data|KCl_train.lammpstrj#16: 11 / 11
+  KCl.data|KCl_train.lammpstrj#17: 7 / 7
+  KCl.data|KCl_train.lammpstrj#18: 3 / 3
+  KCl.data|KCl_train.lammpstrj#19: 2 / 2
+  KCl.data|KCl_train.lammpstrj#2: 11 / 11
+  KCl.data|KCl_train.lammpstrj#20: 9 / 9
+  KCl.data|KCl_train.lammpstrj#21: 8 / 8
+  KCl.data|KCl_train.lammpstrj#22: 4 / 4
+  KCl.data|KCl_train.lammpstrj#23: 4 / 4
+  KCl.data|KCl_train.lammpstrj#24: 4 / 4
+  KCl.data|KCl_train.lammpstrj#3: 11 / 11
+  KCl.data|KCl_train.lammpstrj#4: 13 / 13
+  KCl.data|KCl_train.lammpstrj#5: 10 / 10
+  KCl.data|KCl_train.lammpstrj#6: 7 / 7
+  KCl.data|KCl_train.lammpstrj#7: 11 / 11
+  KCl.data|KCl_train.lammpstrj#8: 5 / 5
+  KCl.data|KCl_train.lammpstrj#9: 4 / 4
+  NaCl.data: 104 / 104
+  NaCl.data|NaCl_train.lammpstrj#0: 41 / 41
+  NaCl.data|NaCl_train.lammpstrj#1: 18 / 18
+  NaCl.data|NaCl_train.lammpstrj#10: 9 / 9
+  NaCl.data|NaCl_train.lammpstrj#11: 7 / 7
+  NaCl.data|NaCl_train.lammpstrj#12: 6 / 6
+  NaCl.data|NaCl_train.lammpstrj#13: 8 / 8
+  NaCl.data|NaCl_train.lammpstrj#14: 13 / 13
+  NaCl.data|NaCl_train.lammpstrj#15: 8 / 8
+  NaCl.data|NaCl_train.lammpstrj#16: 2 / 2
+  NaCl.data|NaCl_train.lammpstrj#17: 3 / 3
+  NaCl.data|NaCl_train.lammpstrj#18: 7 / 7
+  NaCl.data|NaCl_train.lammpstrj#19: 6 / 6
+  NaCl.data|NaCl_train.lammpstrj#2: 23 / 23
+  NaCl.data|NaCl_train.lammpstrj#20: 2 / 2
+  NaCl.data|NaCl_train.lammpstrj#21: 4 / 4
+  NaCl.data|NaCl_train.lammpstrj#22: 8 / 8
+  NaCl.data|NaCl_train.lammpstrj#23: 2 / 2
+  NaCl.data|NaCl_train.lammpstrj#24: 10 / 10
+  NaCl.data|NaCl_train.lammpstrj#3: 14 / 14
+  NaCl.data|NaCl_train.lammpstrj#4: 9 / 9
+  NaCl.data|NaCl_train.lammpstrj#5: 10 / 10
+  NaCl.data|NaCl_train.lammpstrj#6: 6 / 6
+  NaCl.data|NaCl_train.lammpstrj#7: 13 / 13
+  NaCl.data|NaCl_train.lammpstrj#8: 9 / 9
+  NaCl.data|NaCl_train.lammpstrj#9: 10 / 10
+  brucite_001.data: 3 / 3
+  brucite_bulk.data: 240 / 240
+  hydrate_2W.data: 76 / 76
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#0: 183 / 183
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#1: 107 / 107
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#10: 60 / 60
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#11: 50 / 50
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#12: 33 / 33
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#13: 37 / 37
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#14: 37 / 37
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#15: 58 / 58
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#16: 40 / 40
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#17: 39 / 39
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#18: 37 / 37
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#19: 33 / 33
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#2: 86 / 86
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#20: 36 / 36
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#21: 48 / 48
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#22: 39 / 39
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#23: 37 / 37
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#24: 37 / 37
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#3: 77 / 77
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#4: 73 / 73
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#5: 59 / 59
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#6: 63 / 63
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#7: 84 / 84
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#8: 73 / 73
+  hydrate_2W.data|hydrate_2W_train.lammpstrj#9: 55 / 55
+  if_brucite.data: 31 / 31
+  if_brucite.data|if_brucite_train.lammpstrj#0: 4 / 4
+  if_brucite.data|if_brucite_train.lammpstrj#1: 4 / 4
+  if_brucite.data|if_brucite_train.lammpstrj#10: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#12: 3 / 3
+  if_brucite.data|if_brucite_train.lammpstrj#15: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#17: 2 / 2
+  if_brucite.data|if_brucite_train.lammpstrj#18: 6 / 6
+  if_brucite.data|if_brucite_train.lammpstrj#19: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#2: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#20: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#21: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#22: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#24: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#3: 2 / 2
+  if_brucite.data|if_brucite_train.lammpstrj#4: 6 / 6
+  if_brucite.data|if_brucite_train.lammpstrj#5: 2 / 2
+  if_brucite.data|if_brucite_train.lammpstrj#6: 2 / 2
+  if_brucite.data|if_brucite_train.lammpstrj#7: 2 / 2
+  if_brucite.data|if_brucite_train.lammpstrj#8: 1 / 1
+  if_brucite.data|if_brucite_train.lammpstrj#9: 4 / 4
+  if_kaolinite.data: 28 / 28
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#0: 22 / 22
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#1: 4 / 5
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#12: 4 / 4
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#13: 2 / 2
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#14: 3 / 3
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#15: 1 / 1
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#17: 1 / 1
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#18: 2 / 2
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#2: 7 / 8
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#20: 1 / 1
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#21: 1 / 1
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#23: 2 / 2
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#24: 1 / 1
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#3: 4 / 4
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#4: 1 / 1
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#5: 2 / 2
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#7: 3 / 3
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#8: 2 / 2
+  if_kaolinite.data|if_kaolinite_train.lammpstrj#9: 2 / 2
+  if_lizerdite.data: 55 / 55
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#0: 17 / 17
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#1: 2 / 2
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#11: 2 / 2
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#14: 1 / 1
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#15: 1 / 1
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#16: 2 / 2
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#19: 1 / 1
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#2: 2 / 2
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#21: 4 / 4
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#22: 1 / 1
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#3: 5 / 5
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#4: 1 / 1
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#5: 2 / 2
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#6: 2 / 2
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#8: 2 / 2
+  if_lizerdite.data|if_lizerdite_train.lammpstrj#9: 1 / 1
+  if_montmorillonite_dry_Na.data: 44 / 44
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#10: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#11: 1 / 1
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#12: 3 / 3
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#13: 3 / 3
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#14: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#16: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#18: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#19: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#2: 3 / 3
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#20: 3 / 3
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#21: 5 / 5
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#22: 1 / 1
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#23: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#24: 4 / 4
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#3: 5 / 5
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#4: 3 / 3
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#5: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#6: 1 / 1
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#7: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#8: 2 / 2
+  if_montmorillonite_dry_Na.data|if_montmorillonite_dry_Na_train.lammpstrj#9: 3 / 3
+  if_muscovite_1M.data: 34 / 34
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#0: 10 / 10
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#1: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#10: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#11: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#12: 8 / 8
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#13: 2 / 2
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#14: 2 / 2
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#15: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#16: 4 / 4
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#17: 8 / 8
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#18: 6 / 6
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#19: 2 / 2
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#2: 9 / 9
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#20: 3 / 3
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#21: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#22: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#23: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#24: 4 / 4
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#3: 4 / 4
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#4: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#5: 3 / 3
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#6: 5 / 5
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#7: 9 / 9
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#8: 2 / 2
+  if_muscovite_1M.data|if_muscovite_1M_train.lammpstrj#9: 6 / 6
+  if_muscovite_2M1.data: 38 / 38
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#0: 36 / 36
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#1: 23 / 23
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#10: 11 / 11
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#11: 3 / 3
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#12: 5 / 5
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#13: 8 / 8
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#14: 4 / 4
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#15: 8 / 8
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#16: 6 / 6
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#17: 2 / 2
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#18: 6 / 6
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#19: 6 / 6
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#2: 15 / 15
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#20: 3 / 3
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#21: 8 / 8
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#22: 6 / 6
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#24: 4 / 4
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#3: 10 / 10
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#4: 12 / 12
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#5: 14 / 14
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#6: 13 / 13
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#7: 12 / 12
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#8: 10 / 10
+  if_muscovite_2M1.data|if_muscovite_2M1_train.lammpstrj#9: 11 / 11
+  if_nanpingite.data: 24 / 24
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#0: 22 / 22
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#1: 15 / 15
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#10: 5 / 5
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#11: 4 / 4
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#12: 2 / 2
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#13: 7 / 7
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#14: 6 / 6
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#15: 4 / 4
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#16: 4 / 4
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#17: 1 / 1
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#18: 2 / 2
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#19: 3 / 3
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#2: 7 / 7
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#20: 2 / 2
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#21: 1 / 1
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#22: 6 / 6
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#23: 2 / 2
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#24: 4 / 4
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#3: 3 / 3
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#4: 8 / 8
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#5: 4 / 4
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#6: 3 / 3
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#7: 5 / 5
+  if_nanpingite.data|if_nanpingite_train.lammpstrj#9: 3 / 3
+  if_phlogopite_1M.data: 33 / 33
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#0: 16 / 16
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#1: 7 / 7
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#11: 3 / 3
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#12: 3 / 3
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#13: 2 / 2
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#14: 2 / 2
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#15: 2 / 2
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#16: 3 / 3
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#17: 2 / 2
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#18: 2 / 2
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#19: 3 / 3
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#2: 3 / 3
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#20: 3 / 3
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#21: 4 / 4
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#23: 8 / 8
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#24: 5 / 5
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#3: 6 / 6
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#4: 2 / 2
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#5: 3 / 3
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#6: 5 / 5
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#7: 3 / 3
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#8: 5 / 5
+  if_phlogopite_1M.data|if_phlogopite_1M_train.lammpstrj#9: 2 / 2
+  if_pyrophyllite.data: 37 / 37
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#0: 5 / 5
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#1: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#10: 5 / 5
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#11: 6 / 6
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#12: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#13: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#15: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#17: 2 / 2
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#18: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#2: 2 / 2
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#20: 4 / 4
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#23: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#3: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#4: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#6: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#7: 1 / 1
+  if_pyrophyllite.data|if_pyrophyllite_train.lammpstrj#9: 2 / 2
+  if_pyrophyllite_2.data: 11 / 11
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#1: 2 / 2
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#10: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#11: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#13: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#14: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#19: 3 / 3
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#20: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#21: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#23: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#24: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#3: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#4: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#5: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#6: 2 / 2
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#7: 1 / 1
+  if_pyrophyllite_2.data|if_pyrophyllite_2_train.lammpstrj#8: 1 / 1
+  if_talc.data: 60 / 60
+  if_talc.data|if_talc_train.lammpstrj#0: 5 / 5
+  if_talc.data|if_talc_train.lammpstrj#10: 1 / 1
+  if_talc.data|if_talc_train.lammpstrj#11: 1 / 1
+  if_talc.data|if_talc_train.lammpstrj#12: 2 / 2
+  if_talc.data|if_talc_train.lammpstrj#13: 2 / 2
+  if_talc.data|if_talc_train.lammpstrj#14: 1 / 1
+  if_talc.data|if_talc_train.lammpstrj#15: 3 / 3
+  if_talc.data|if_talc_train.lammpstrj#17: 1 / 1
+  if_talc.data|if_talc_train.lammpstrj#19: 1 / 1
+  if_talc.data|if_talc_train.lammpstrj#22: 2 / 2
+  if_talc.data|if_talc_train.lammpstrj#24: 3 / 3
+  if_talc.data|if_talc_train.lammpstrj#5: 1 / 1
+  if_talc.data|if_talc_train.lammpstrj#6: 3 / 3
+  if_talc.data|if_talc_train.lammpstrj#8: 2 / 2
+  kaolinite_001.data: 7 / 7
+  kaolinite_bulk.data: 408 / 408
+  lizerdite_001.data: 5 / 5
+  lizerdite_bulk.data: 324 / 324
+  montmorillonite_dry_Na.data: 163 / 163
+  montmorillonite_dry_Na_001.data: 24 / 24
+  muscovite_1M_001.data: 14 / 14
+  muscovite_1M_bulk.data: 168 / 168
+  muscovite_2M1_001.data: 21 / 21
+  muscovite_2M1_bulk.data: 336 / 336
+  nanpingite_001.data: 7 / 7
+  nanpingite_bulk.data: 336 / 336
+  phlogopite_1M_001.data: 10 / 10
+  phlogopite_1M_bulk.data: 176 / 176
+  pyrophyllite_2_001.data: 5 / 5
+  pyrophyllite_2_bulk.data: 320 / 320
+  pyrophyllite_bulk.data: 320 / 320
+  talc_bulk.data: 378 / 378
+  water.data: 94 / 94
+  water.data|water_train.lammpstrj#0: 22 / 22
+  water.data|water_train.lammpstrj#1: 9 / 9
+  water.data|water_train.lammpstrj#10: 4 / 4
+  water.data|water_train.lammpstrj#11: 3 / 3
+  water.data|water_train.lammpstrj#12: 2 / 2
+  water.data|water_train.lammpstrj#13: 4 / 4
+  water.data|water_train.lammpstrj#16: 1 / 1
+  water.data|water_train.lammpstrj#17: 9 / 9
+  water.data|water_train.lammpstrj#18: 2 / 2
+  water.data|water_train.lammpstrj#2: 10 / 10
+  water.data|water_train.lammpstrj#21: 1 / 1
+  water.data|water_train.lammpstrj#23: 2 / 2
+  water.data|water_train.lammpstrj#3: 7 / 7
+  water.data|water_train.lammpstrj#4: 5 / 5
+  water.data|water_train.lammpstrj#5: 1 / 1
+  water.data|water_train.lammpstrj#6: 5 / 5
+  water.data|water_train.lammpstrj#7: 4 / 4
+  water.data|water_train.lammpstrj#8: 1 / 1
+  water.data|water_train.lammpstrj#9: 2 / 2
+  wrong: hw(if_kaolinite.data|if_kaolinite_train.lammpstrj#1) -> ho(if_kaolinite.data|if_kaolinite_train.lammpstrj#2) x1
+  wrong: ho(if_kaolinite.data|if_kaolinite_train.lammpstrj#2) -> hw(if_kaolinite.data|if_kaolinite_train.lammpstrj#1) x1

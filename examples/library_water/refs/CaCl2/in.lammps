@@ -1,0 +1,40 @@
+# soapff-cui: ClayFF + SOAP charges.  lmp -in in.lammps
+include system.settings
+group water type 4 3
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo_style custom step temp press pe ke etotal vol density lx ly lz
+thermo 1000
+# minimisation with a small step limit first (built structures may contain overlapping water)
+min_style cg
+min_modify dmax 0.01
+minimize 1.0e-4 1.0e-6 1000 10000
+min_modify dmax 0.1
+minimize 1.0e-6 1.0e-6 5000 50000
+reset_timestep 0
+velocity all create 300.0 4928459 mom yes rot no dist gaussian
+timestep 0.5
+# relaxation of the initial structure: NVT, not recorded
+fix relax all nvt temp 300.0 300.0 100.0
+run 10000
+unfix relax
+reset_timestep 0
+# production
+fix md all nvt temp 300.0 300.0 100.0
+dump d all custom 2000 traj.lammpstrj id type element x y z ix iy iz q
+dump_modify d sort id element Ca Cl hw ow
+# mean squared displacement by LAMMPS (read by soapff-cui analyze)
+group a_Ow type 4
+compute msd_Ow a_Ow msd
+fix msd_Ow all ave/time 1 1 200 c_msd_Ow[*] file msd_Ow.dat
+group a_Ca type 1
+compute msd_Ca a_Ca msd
+fix msd_Ca all ave/time 1 1 200 c_msd_Ca[*] file msd_Ca.dat
+group a_Cl type 2
+compute msd_Cl a_Cl msd
+fix msd_Cl all ave/time 1 1 200 c_msd_Cl[*] file msd_Cl.dat
+run 10000
+unfix md
+fix md all npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
+run 40000
+write_data final.data

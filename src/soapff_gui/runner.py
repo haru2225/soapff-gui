@@ -11,18 +11,25 @@ from soapff_cui import core
 
 LIBRARY = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "library_clayff_bulk.npz")
 LIBRARY_EDGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "library_clayff_edge.npz")
+# the second step of each library: the water and the ions in solution, typed by SOAP after the mineral (core.make)
+LIBRARY_WATER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "library_clayff_water.npz")
+LIBRARY_EDGE_WATER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "library_clayff_edge_water.npz")
+SOLUTION_LIBRARY = {LIBRARY: LIBRARY_WATER, LIBRARY_EDGE: LIBRARY_EDGE_WATER}
 # the bundled libraries: name shown -> (file, description, source)
 LIBRARIES = {
     "ClayFF (Cygan et al. 2004)": (
         LIBRARY,
         "The 11 bulk layered minerals and their basal (0 0 1) slabs. Every type and charge is the published ClayFF value. "
-        "No edges.",
+        "No edges. The water and the ions of ClayFF Table 1 (Na+, K+, Cs+, Ca2+, Ba2+, Cl-) are typed by SOAP in a second step, "
+        "after the mineral, with a library of the structures that packmol builds: liquid water, chloride solutions and the "
+        "water-(0 0 1) interfaces of the 11 minerals (initial structures, no MD).",
         "R. T. Cygan, J.-J. Liang, A. G. Kalinichev, J. Phys. Chem. B 108, 1255 (2004)"),
     "Montmorillonite edge (Underwood & Bourg 2020)": (
         LIBRARY_EDGE,
         "A montmorillonite particle with edges on every side. Every parameter is that of this model (charges, LJ, O-H bond, "
         "M-O-H and edge metal-O-metal angles), also for the types it shares with ClayFF, whose values differ slightly. "
-        "Montmorillonite only (other minerals stop); added water and ions: ClayFF.",
+        "Montmorillonite only (other minerals stop); added water and ions: ClayFF, typed by SOAP in a second step, after the "
+        "particle, with a library of liquid water, chloride solutions and the particle with a water film (packmol, initial structures).",
         "T. R. Underwood, I. C. Bourg, J. Phys. Chem. C 124, 3702 (2020)"),
 }
 
@@ -68,7 +75,11 @@ def find_executables():
 def prepare(structure, workdir, library=None, log=print, **md):
     """soapff-cui make: structure -> workdir/{system.data, system.settings, in.lammps, charges.csv, report.json}."""
     md.setdefault("stop_on_fallback", True)        # the GUI does not write a force field with fallback atoms
-    return core.make(structure, workdir, library or LIBRARY, log=log, **md)
+    library = library or LIBRARY
+    sol = SOLUTION_LIBRARY.get(os.path.abspath(library))
+    if sol and os.path.isfile(sol):
+        md.setdefault("solution_library", sol)
+    return core.make(structure, workdir, library, log=log, **md)
 
 
 def find_debyer(path=None):

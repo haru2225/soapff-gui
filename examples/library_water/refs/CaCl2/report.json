@@ -1,0 +1,85 @@
+{
+ "structure": "/Users/harutokono/clay/soapff-gui/examples/library_water/refs/CaCl2/structure.extxyz",
+ "atoms": 1500,
+ "library": "/Users/harutokono/clay/soapff-gui/src/soapff_gui/data/library_clayff_bulk.npz",
+ "soap": {
+  "r_cut": 5.0,
+  "n_max": 4,
+  "l_max": 3,
+  "sigma": 0.4
+ },
+ "threshold": 0.95,
+ "boundary": "p p p",
+ "kspace": [
+  "kspace_style pppm 1.0e-5"
+ ],
+ "vacuum_gap": {},
+ "charges": "clayff2004",
+ "water_model": "spc",
+ "forcefield": null,
+ "charge_sum_before": 9.992007221626409e-16,
+ "charge_sum": 9.992007221626409e-16,
+ "from_soap": 1500,
+ "fallback": 0,
+ "type_check": {
+  "compared": 18,
+  "differ": 0,
+  "kinds": {}
+ },
+ "water_check": null,
+ "warnings": [],
+ "roles": {
+  "mineral": 0,
+  "water": 1482,
+  "ion": 18
+ },
+ "per_type": {
+  "Ca": {
+   "atoms": 6,
+   "charges": [
+    2.0
+   ],
+   "from_soap": 6,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "Cl": {
+   "atoms": 12,
+   "charges": [
+    -1.0
+   ],
+   "from_soap": 12,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "hw": {
+   "atoms": 988,
+   "charges": [
+    0.41
+   ],
+   "from_soap": 988,
+   "fallback": 0,
+   "min_similarity": 1.0
+  },
+  "ow": {
+   "atoms": 494,
+   "charges": [
+    -0.82
+   ],
+   "from_soap": 494,
+   "fallback": 0,
+   "min_similarity": 1.0
+  }
+ },
+ "consistency": [],
+ "md": {
+  "temp": 300.0,
+  "relax_ps": 5,
+  "nvt_ps": 5,
+  "npt_ps": 20,
+  "press": 1.0,
+  "baro": "iso",
+  "dump_ps": 1.0,
+  "timestep_fs": 0.5
+ }
+}

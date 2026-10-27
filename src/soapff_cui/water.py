@@ -13,8 +13,9 @@ moved back rigidly.
 density.  region(): any slice of z, optionally limited in a and b (fractions of the cell).  estimate(): the volume of a
 region of constraints (Monte Carlo), the part of it outside the van der Waals spheres of the atoms, and the molecules that
 fill it at a density.  pack(): packmol places items (molecule, number, constraints), keeping `tolerance` from every atom
-and from each other; packmol_input() is the input it runs.  add_water(): the regions of gaps()/region() filled with water
-and ions (each region an inside-box constraint).  The water and ions are typed by rule in soapff_cui.core.make."""
+and from each other, and marks them (per-atom array "added"); packmol_input() is the input it runs.  add_water(): the
+regions of gaps()/region() filled with water and ions (each region an inside-box constraint).  soapff_cui.core.make types
+the mineral without the added molecules, then the added water and ions (by SOAP with a solution library, else by rule)."""
 import os
 import shutil
 import subprocess
@@ -440,6 +441,10 @@ def pack(at, items, tolerance=2.0, seed=1, packmol=None, workdir=None, log=print
         s += new
     s.positions -= f * c
     s.wrap()
+    # the placed molecules are marked (per-atom array "added", kept in extxyz): soapff_cui.core.make types the mineral without
+    # them and then the added molecules (two steps)
+    prev = np.asarray(at.arrays["added"], bool) if "added" in at.arrays else np.zeros(n0, bool)
+    s.set_array("added", np.concatenate([prev, np.ones(len(s) - n0, bool)]))
     log(f"packmol {'converged' if converged else 'did NOT converge (packed.xyz_FORCED: overlaps may remain)'}: "
         + ", ".join(f"{r_['n']} {r_['molecule']} (nearest atom {r_['min_distance']:.2f} A)" for r_ in rep))
     return s, dict(converged=converged, items=rep, input=pr["input"], log=r.stdout[-4000:])

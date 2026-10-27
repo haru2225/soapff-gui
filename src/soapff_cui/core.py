@@ -225,6 +225,25 @@ def roles(at):
     return role, warn
 
 
+def free_molecules(at, r_oh=1.25, r_cation=2.4):
+    """mask of the water molecules by bonding alone, for the two-step typing of make (which atoms leave the mineral's SOAP):
+    an O with no framework cation (Si, Al, Mg, Fe, Ti) within r_cation and exactly two H within r_oh, and those H.  Looser
+    than the shape of roles(), so that a flexible water stretched in an MD frame is still found; its type then comes from
+    the SOAP of the second step, not from this test."""
+    el = np.array(at.get_chemical_symbols())
+    I, J, D = neighbor_list("ijd", at, max(r_oh, r_cation))
+    o = el[I] == "O"
+    fw = o & np.isin(el[J], FRAMEWORK) & (D < r_cation)
+    bonded = np.zeros(len(at), bool)
+    bonded[I[fw]] = True
+    oh = o & (el[J] == "H") & (D < r_oh)
+    nh = np.bincount(I[oh], minlength=len(at))
+    mol = (el == "O") & ~bonded & (nh == 2)
+    out = mol.copy()
+    out[J[oh & mol[I]]] = True
+    return out
+
+
 def fallback_charges(at, role):
     """ClayFF type charges (water flexible SPC, ions formal) - used only for atoms the library cannot describe."""
     at = at.copy()
@@ -242,14 +261,20 @@ def fallback_charges(at, role):
 
 
 # ------------------------------------------------------------------------------------------------- SOAP library
-def soap_vectors(at, species, r_cut, n_max, l_max, sigma, weighting=None, species_weights=None):
-    """normalised SOAP vectors (dscribe).  weighting: dscribe radial weighting of the neighbour density, e.g.
+def soap_vectors(at, species, r_cut, n_max, l_max, sigma, weighting=None, species_weights=None, centers=None):
+    """normalised SOAP vectors (dscribe) of every atom, or of the atoms `centers` (indices; their environment is the whole
+    structure).  weighting: dscribe radial weighting of the neighbour density, e.g.
     {"function": "pow", "r0": 2.0, "m": 4, "c": 1, "d": 1}: w(r) = c / (d + (r/r0)^m) (Willatt et al. 2018), which
     makes the first coordination shell (the bonded cations) count more than the outer environment."""
     from dscribe.descriptors import SOAP
     kw = dict(weighting=weighting) if weighting else {}
     soap = SOAP(species=list(species), r_cut=r_cut, n_max=n_max, l_max=l_max, sigma=sigma, periodic=True, sparse=False, **kw)
-    X = soap.create(at)
+    if centers is None:
+        X = soap.create(at)
+    else:                                        # in blocks: dscribe's memory grows by ~1 GB per 1000 given centres
+        c = [int(i) for i in centers]
+        X = np.vstack([np.atleast_2d(soap.create(at, centers=c[k:k + 500])) for k in range(0, len(c), 500)]) if c else \
+            np.zeros((0, soap.get_number_of_features()))
     if species_weights:                          # scale the components of each species pair (Z1, Z2) by w(Z1) w(Z2)
         X = np.array(X, dtype=float)
         sp = list(species)
@@ -313,6 +338,8 @@ def build_library(ref_data, frame_files=(), out="library.npz", every=1, soap=Non
     water_in_soap=False: the water molecules (types ow/hw) are left out of every reference before the SOAP (no water entries,
     and the water is not part of the environment of the other atoms); make() then types water by rule and leaves it out of the
     SOAP too.  The ions stay (their positions belong to the mineral).
+    prune: a similarity threshold, or one per reference file (None: that reference is not pruned); the frames of a reference
+    take its threshold (e.g. 0.999 for crystals, lower for liquid water, whose frames are all slightly different).
     protect: with prune, the first `protect` references are never pruned (only later ones, e.g. slabs, lose duplicates).
     forcefield: a force field of read_forcefield() stored with the library; make() then takes the charges, LJ, O-H bond and
     angles of its types from it instead of ClayFF Table 1 (the water and the ions it does not have stay ClayFF)."""
@@ -332,41 +359,45 @@ def build_library(ref_data, frame_files=(), out="library.npz", every=1, soap=Non
             keep = masks[k]
             dry.append((at0[keep], q[keep], [n for n, x in zip(names, keep) if x] if names else None))
         loaded = dry
-    for r, (at0, q, names) in zip(refs, loaded):
+    thr = list(prune) if isinstance(prune, (list, tuple)) else [prune] * len(refs)
+    if len(thr) != len(refs):
+        raise ValueError(f"prune: {len(thr)} thresholds for {len(refs)} reference files")
+    for k, (r, (at0, q, names)) in enumerate(zip(refs, loaded)):
         names = names or [""] * len(at0)
-        structs.append((os.path.basename(r), at0, q, names))
+        structs.append((os.path.basename(r), at0, q, names, None if k < protect else thr[k]))
     for spec in frame_files:
         head, sep, tail = spec.partition(":")
         k_ref, fpath = (int(head) - 1, tail) if sep and head.isdigit() else (0, spec)
         if not 0 <= k_ref < len(refs):
             raise ValueError(f"--frames {spec}: there are {len(refs)} reference files")
         at0, q, names = loaded[k_ref][0], loaded[k_ref][1], structs[k_ref][3]
+        t_ref = thr[k_ref]
         full = read_lammps_data(refs[k_ref])[0]
         frames = read_dump_frames(fpath, full.get_chemical_symbols())[::every]
         if frames and len(frames[0]) != len(full):
             raise ValueError(f"--frames {spec}: {len(frames[0])} atoms, reference {refs[k_ref]} has {len(full)}")
         frames = [a[masks[k_ref]] for a in frames]
         for k, a in enumerate(frames):
-            structs.append((f"{os.path.basename(refs[k_ref])}|{os.path.basename(fpath)}#{k}", a, q, names))
+            structs.append((f"{os.path.basename(refs[k_ref])}|{os.path.basename(fpath)}#{k}", a, q, names, t_ref))
     X, Q, T, E, SRC = [], [], [], [], []
     kept = {}                    # (element, type, charge) -> SOAP vectors kept so far (pruning, structure by structure)
     n_all = 0
-    for k, (name, a, q, names) in enumerate(structs):
+    for k, (name, a, q, names, t_k) in enumerate(structs):
         x = soap_vectors(a, species, **soap)
         el = np.array(a.get_chemical_symbols()); tn = np.array(names); q = np.asarray(q, float)
         sel = np.ones(len(a), bool)
         n_all += len(a)
-        if prune and k >= protect:
-            sel = _prune_new(x, el, tn, q, kept, prune)
+        if t_k:
+            sel = _prune_new(x, el, tn, q, kept, t_k)
         for key in set(zip(el[sel], tn[sel], np.round(q[sel], 6))):
             m = sel & (el == key[0]) & (tn == key[1]) & (np.round(q, 6) == key[2])
             kept[key] = np.vstack([kept[key], x[m]]) if key in kept else x[m]
         X.append(x[sel]); Q.append(q[sel]); T += list(tn[sel]); E += list(el[sel]); SRC += [name] * int(sel.sum())
-        log(f"  structure {k + 1}/{len(structs)} ({name}): {len(a)} atoms" + (f", {int(sel.sum())} kept" if prune else ""))
+        log(f"  structure {k + 1}/{len(structs)} ({name}): {len(a)} atoms" + (f", {int(sel.sum())} kept" if t_k else ""))
     X, Q, T, E, SRC = np.vstack(X), np.concatenate(Q), np.array(T), np.array(E), np.array(SRC)
-    if prune:
-        log(f"pruned (similarity >= {prune} to a kept entry of the same element, charge and type; the first {protect} "
-            f"references kept whole): {n_all} -> {len(Q)} entries")
+    if any(t is not None for t in thr):
+        log(f"pruned (similarity >= {sorted(set(t for t in thr if t is not None))} to a kept entry of the same element, charge "
+            f"and type; the first {protect} references kept whole): {n_all} -> {len(Q)} entries")
     np.savez_compressed(out, X=X, q=Q, type=T, element=E, origin=SRC,
                         species=np.array(species), source=np.array([os.path.abspath(r) for r in refs]),
                         n_structures=len(structs), weighting=json.dumps(soap.get("weighting") or {}), water_in_soap=water_in_soap,
@@ -438,15 +469,20 @@ def framework_cation(t, si=True):
     return np.array([x in base for x in t], bool)
 
 
-def assign(at, lib, threshold=THRESHOLD, block=4000, exclude_types=(), only=None):
+def assign(at, lib, threshold=THRESHOLD, block=4000, exclude_types=(), only=None, centers=None):
     """charge of every atom = charge of the most similar library entry of the same element.
     exclude_types: library entries of these types are not candidates for the atoms in `only` (a boolean mask over the
-    atoms; all atoms when None), e.g. the water entries for the atoms that are not water molecules."""
+    atoms; all atoms when None), e.g. the water entries for the atoms that are not water molecules.
+    centers: a boolean mask; only these atoms are assigned (the others keep q NaN), their environment being the whole
+    structure (the atoms of elements the library has)."""
     el = np.array(at.get_chemical_symbols())
     ok_el = np.isin(el, lib["species"])
+    keep = np.nonzero(ok_el)[0]                              # the structure seen by the SOAP: elements of the library
+    if centers is not None:
+        ok_el = ok_el & np.asarray(centers, bool)
     idx = np.nonzero(ok_el)[0]
-    sub = at[idx]
-    F = soap_vectors(sub, lib["species"], **lib["soap"])
+    sub = at[keep]
+    F = soap_vectors(sub, lib["species"], **lib["soap"], centers=np.searchsorted(keep, idx) if centers is not None else None)
     q = np.full(len(at), np.nan); sim = np.zeros(len(at)); match = np.array([""] * len(at), dtype="U12")
     for e in sorted(set(el[idx])):
         m = np.nonzero(el[idx] == e)[0]; r = np.nonzero(lib["element"] == e)[0]
@@ -888,7 +924,7 @@ def swelling_lines(type_ids, n_nonwater, n_water0, mol_max, temp, press, timeste
 def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="pppm 1.0e-5", temp=300.0, nvt_ps=50.0,
          npt_ps=0.0, press=1.0, baro="aniso", boundary="p p p", dump_ps=1.0, fallback=True, check=True, water_rule=False,
          relax_ps=10.0, timestep_fs=TIMESTEP_FS, md=True, reserve_water=False, stop_on_fallback=False, charges="clayff2004",
-         water="spc", log=print):
+         water="spc", solution_library=None, log=print):
     """charges: "clayff2004", the only scheme (clayff.CHARGE_SCHEMES): SOAP gives the type of every atom, ClayFF Table 1 (the
     published values) its charge.  water: "spc", the flexible SPC water of ClayFF (the only model).
     md=False: in.lammps stops after the energy minimisation (force field, neighbour list, thermo output, minimisation and
@@ -899,7 +935,16 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     stop_on_fallback: any atom that the library cannot describe (fallback) stops make with an error before anything is
     written (soapff-gui): the library lacks that environment and should be extended.
     water_rule: water molecules (an O with exactly two H within 1.2 A and no framework cation within 2.4 A, and those H)
-    are typed by that rule (ow/hw, charges of the water model) instead of by SOAP; the SOAP assignment is used for everything else."""
+    are typed by that rule (ow/hw, charges of the water model) instead of by SOAP; the SOAP assignment is used for everything else.
+    solution_library (with a library without water): the water and the ions are typed in a second step.  First the mineral:
+    the atoms that are neither added molecules (the per-atom array "added" of the structure, set by soapff_cui.water for the
+    molecules packmol places) nor water molecules (found by their shape, or with solution_library by bonding alone:
+    free_molecules) are typed with `library` on the
+    structure without the added molecules, so a mineral atom sees the same environment as in the dry references.  Then the
+    added molecules and the atoms the mineral library does not describe (ions in solution, a surface OH turned by water) are
+    typed with `solution_library` (water, aqueous ions, the minerals and their interfaces with water in the SOAP) on the whole
+    structure: an added atom takes a water or ion type, a mineral atom any type but water.  An atom of them whose best row is
+    below `threshold`, or of the other kind, keeps the rule (water by shape, ions formal) or falls back, and is reported."""
     bnd, periodic = parse_boundary(boundary)
     if charges not in CHARGE_SCHEMES or water not in WATER_MODELS:
         raise ValueError(f"charges must be one of {list(CHARGE_SCHEMES)}, water one of {list(WATER_MODELS)}")
@@ -913,9 +958,17 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
     for w in warn:
         log("WARNING " + w)
     water_free = not lib["water_in_soap"]                    # library built without water: water by rule, out of the SOAP
+    added = np.asarray(at.arrays["added"], bool) if "added" in at.arrays else None
+    sol = load_library(solution_library) if solution_library else None
+    if sol is not None and not water_free:
+        raise ValueError("solution_library: the first library must be one without water (the mineral library)")
+    # out of the mineral SOAP: the added molecules and any other water molecule (found by its shape)
+    sep = ((role == "water") | (free_molecules(at) if sol is not None else False) | (added if added is not None else False)) \
+        if water_free else np.zeros(len(at), bool)
     by_rule = (role == "water") if (water_rule or water_free) else np.zeros(len(at), bool)
     if water_free:
-        sub = np.nonzero(~by_rule)[0]
+        by_rule = by_rule & sep
+        sub = np.nonzero(~sep)[0]
         q = np.full(len(at), np.nan); sim = np.zeros(len(at)); match = np.array([""] * len(at), dtype="U12")
         ok_el = np.zeros(len(at), bool)
         if len(sub):
@@ -924,12 +977,42 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
         # water by rule: the atoms that are not water molecules (mineral, ions) never take a water type from the library
         q, sim, match, ok_el = assign(at, lib, threshold, exclude_types=WATER_TYPES if water_rule else (), only=~by_rule)
     q_fb, types_geo = fallback_charges(at, role)
+    # second step: the added molecules and the atoms the mineral library does not describe (e.g. ions in solution, a surface
+    # OH turned by the water of an MD frame), with the solution library on the whole structure.  An added atom takes only a
+    # water or ion type; a mineral atom any type but water
+    by_soap2 = np.zeros(len(at), bool)
+    solution = None
+    if sol is not None:
+        cand = sep | ~ok_el | np.isnan(q) | (sim < threshold)
+        if cand.any():
+            q2, s2, m2, ok2 = assign(at, sol, threshold, centers=cand)
+            t2 = np.array([TYPE_ALIAS.get(str(x), str(x)) for x in m2])
+            sol_type = np.where(sep, np.isin(t2, ["ow", "hw"] + list(FORMAL_ION)), ~np.isin(t2, ["ow", "hw"]))
+            hit = cand & ok2 & (s2 >= threshold)
+            by_soap2 = hit & sol_type
+            q, sim, match = np.where(by_soap2, q2, q), np.where(by_soap2, s2, sim), np.where(by_soap2, m2, match)
+            ok_el = ok_el | by_soap2
+            by_rule = by_rule & ~by_soap2
+            low2 = cand & ~hit
+            solution = dict(atoms=int(cand.sum()), soap=int(by_soap2.sum()), below_threshold=int(low2.sum()),
+                            mineral_type=int((hit & ~sol_type).sum()), mineral_atoms=int((cand & ~sep).sum()),
+                            min_similarity=float(s2[cand & ok2].min()) if (cand & ok2).any() else None,
+                            kinds=dict(collections.Counter(TYPE_ALIAS.get(str(x), str(x)) for x in m2[by_soap2])))
+            log(f"second step ({os.path.basename(solution_library)}; water, ions, {solution['mineral_atoms']} mineral atoms the "
+                f"mineral library does not describe): {solution['soap']} of {solution['atoms']} "
+                f"atoms by SOAP, {solution['below_threshold']} below similarity {threshold}"
+                + (f", {solution['mineral_type']} nearest to a type of the other kind (water / mineral)" if solution["mineral_type"] else ""))
+            if low2.any() or solution["mineral_type"]:
+                warn.append(f"second step: {int((cand & ~by_soap2).sum())} atoms not typed by the solution library "
+                            f"(similarity < {threshold}, or an added atom nearest to a mineral type / a mineral atom nearest to "
+                            f"water): water by shape, ions formal, the others fall back")
+                log("WARNING " + warn[-1])
     if by_rule.any():                                        # water by rule, not by SOAP
         qO, qH = WATER_Q
         q = np.where(by_rule, np.where(np.array(at.get_chemical_symbols()) == "O", qO, qH), q)
         match = np.where(by_rule, np.where(np.array(at.get_chemical_symbols()) == "O", "ow", "hw"), match)
         sim = np.where(by_rule, 1.0, sim); ok_el = ok_el | by_rule
-    unknown = ((~ok_el) | np.isnan(q) | ((sim < threshold) if fallback else False)) & ~by_rule
+    unknown = ((~ok_el) | np.isnan(q) | ((sim < threshold) if fallback else False)) & ~by_rule & ~by_soap2
     # ions the library cannot describe (e.g. Cl or Na in solution): formal charge and the ion type, by rule
     el_arr = np.array(at.get_chemical_symbols())
     ion_rule = unknown & (role == "ion") & np.isin(el_arr, [e for e in FORMAL_ION if e in LJ])
@@ -989,6 +1072,19 @@ def make(structure, out_dir, library, threshold=THRESHOLD, cutoff=10.0, kspace="
                     f"({', '.join(f'{k} x{v}' for k, v in type_check['kinds'].items())}); the library may lack these "
                     "environments - see charges.csv (column bond_type)")
         log("WARNING " + warn[-1])
+    # library with the water in the SOAP: the water found by SOAP (ow, hw) against the water found by the shape rule (roles).
+    # Reported, not changed: the rule misses the molecules of a flexible water stretched past its limits (O-H 0.9-1.1 A,
+    # H-O-H 95-125 deg) in an MD frame, and SOAP may miss a water in an environment the library lacks.
+    water_check = None
+    if not water_free or sol is not None:
+        soap_w = np.isin(tarr, ["ow", "hw"]) & ~unknown & ~by_rule
+        rule_w = role == "water"
+        water_check = dict(soap=int(soap_w.sum()), rule=int(rule_w.sum()), soap_only=int((soap_w & ~rule_w).sum()),
+                           rule_only=int((rule_w & ~soap_w).sum()))
+        if water_check["soap_only"] or water_check["rule_only"]:
+            warn.append(f"water: {water_check['soap_only']} atoms typed as water by SOAP are not water molecules by the shape rule, "
+                        f"{water_check['rule_only']} atoms of water molecules by the rule are not typed as water by SOAP")
+            log("WARNING " + warn[-1])
     role = np.where(np.isin(tarr, ["ow", "hw"]), "water", np.where(np.isin(tarr, list(FORMAL_ION) + ["Na", "K", "Ca", "Cs", "Cl"]), "ion", "mineral"))
     total = float(q.sum())
     # the charges are not changed to make the system neutral: the net charge is reported (ClayFF itself leaves +0.0002 e per
@@ -1077,7 +1173,9 @@ write_data final.data
     rep = dict(structure=structure if isinstance(structure, str) else "Atoms", atoms=len(at), library=os.path.abspath(library),
                soap=lib["soap"], threshold=threshold, boundary=" ".join(bnd), kspace=info["kspace"], vacuum_gap=gaps,
                charges=charges, water_model=water, forcefield=ff, charge_sum_before=total, charge_sum=float(q.sum()),
-               from_soap=int((~unknown).sum()), fallback=int(unknown.sum()), type_check=type_check, warnings=warn,
+               from_soap=int((~unknown).sum()), fallback=int(unknown.sum()), type_check=type_check, water_check=water_check,
+               solution_library=os.path.abspath(solution_library) if solution_library else None, solution=solution,
+               warnings=warn,
                roles={r: int((role == r).sum()) for r in ("mineral", "water", "ion")}, per_type=per,
                consistency=problems, md=dict(temp=temp, relax_ps=relax_ps, nvt_ps=nvt_ps, npt_ps=npt_ps, press=press, baro=baro, dump_ps=dump_ps, timestep_fs=timestep_fs))
     json.dump(rep, open(os.path.join(out_dir, "report.json"), "w"), indent=1)

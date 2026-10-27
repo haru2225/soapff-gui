@@ -1,0 +1,776 @@
+{
+ "cases": {
+  "held_out/water": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1536,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/NaCl": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1504,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/KCl": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1504,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/CsCl": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1504,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/CaCl2": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1500,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/BaCl2": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1500,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/hydrate_2W": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1554,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_montmorillonite_dry_Na": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 692,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_muscovite_2M1": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 738,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_muscovite_1M": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 759,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_phlogopite_1M": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 784,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_nanpingite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 774,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_pyrophyllite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 710,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_pyrophyllite_2": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 710,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_kaolinite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1659,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_lizerdite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1335,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_talc": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 849,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "held_out/if_brucite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 885,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_montmorillonite_dry_Na": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 692,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_muscovite_2M1": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 738,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_muscovite_1M": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 759,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_phlogopite_1M": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 784,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_nanpingite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 774,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_pyrophyllite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 710,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_kaolinite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1659,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_lizerdite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1335,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_talc": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 849,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interface_brucite": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 885,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/shape_sphere": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 2373,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/shape_hemisphere": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 2469,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/shape_cylinder": {
+   "A": {
+    "wrong": 0,
+    "low": 1,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 1,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 2829,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/shape_cavity": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 4047,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/shape_xygauss": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 3159,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/shape_ions": {
+   "A": {
+    "wrong": 0,
+    "low": 2,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 2,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 4249,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/hydrate_2W_after_npt": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 1554,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_4": {
+   "A": {
+    "wrong": 0,
+    "low": 1,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 1,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 175,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_8": {
+   "A": {
+    "wrong": 0,
+    "low": 1,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 1,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 187,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_12": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 199,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_16": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 211,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_20": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 223,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_25": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 238,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_32": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 259,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_40": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 283,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_48": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 307,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  },
+  "examples/interlayer_59": {
+   "A": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "B": {
+    "wrong": 0,
+    "low": 0,
+    "wrong_kinds": {},
+    "wrong_by_kind": {}
+   },
+   "atoms": 340,
+   "water_missed": 0,
+   "mineral_as_water": 0
+  }
+ },
+ "total": {
+  "atoms": 52784,
+  "wrong_A": 0,
+  "wrong_B": 0,
+  "low_A": 5,
+  "low_B": 5
+ }
+}

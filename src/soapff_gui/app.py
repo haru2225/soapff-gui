@@ -1590,8 +1590,9 @@ class App:
         inside/outside box, cube, sphere, ellipsoid, cylinder; over/below plane, xygauss), the regions drawn over the structure
         (side and top views), the number of water molecules from a density and the free volume of the region, the packmol
         input shown and its log.  The empty slices along z (vacuum, interlayer) are offered as boxes.  The result is written
-        next to the structure (packmol's files in <stem>_water_packmol/) and the force field and input are made from it (the
-        water is typed by rule, with the water model of the Calculation settings)."""
+        next to the structure (packmol's files in <stem>_water_packmol/), the placed molecules marked (per-atom array "added"),
+        and the force field and input are made from it (the mineral first, without the added molecules; then the added water
+        and ions, by SOAP with the solution library of the chosen library (ClayFF, edge), else by rule)."""
         if self.busy():
             messagebox.showinfo("soapff-GUI", "A run is in progress. Choose after it finishes or is stopped")
             return

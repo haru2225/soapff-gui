@@ -1,0 +1,120 @@
+{
+ "prune_water": 0.99,
+ "systems": {
+  "water": {
+   "atoms": 1536,
+   "training_frames": 25
+  },
+  "NaCl": {
+   "atoms": 1504,
+   "training_frames": 25
+  },
+  "KCl": {
+   "atoms": 1504,
+   "training_frames": 25
+  },
+  "CsCl": {
+   "atoms": 1504,
+   "training_frames": 25
+  },
+  "CaCl2": {
+   "atoms": 1500,
+   "training_frames": 25
+  },
+  "BaCl2": {
+   "atoms": 1500,
+   "training_frames": 25
+  },
+  "hydrate_2W": {
+   "atoms": 1554,
+   "training_frames": 25
+  },
+  "if_montmorillonite_dry_Na": {
+   "atoms": 692,
+   "training_frames": 25
+  },
+  "if_muscovite_2M1": {
+   "atoms": 738,
+   "training_frames": 25
+  },
+  "if_muscovite_1M": {
+   "atoms": 759,
+   "training_frames": 25
+  },
+  "if_phlogopite_1M": {
+   "atoms": 784,
+   "training_frames": 25
+  },
+  "if_nanpingite": {
+   "atoms": 774,
+   "training_frames": 25
+  },
+  "if_pyrophyllite": {
+   "atoms": 710,
+   "training_frames": 25
+  },
+  "if_pyrophyllite_2": {
+   "atoms": 710,
+   "training_frames": 25
+  },
+  "if_kaolinite": {
+   "atoms": 1659,
+   "training_frames": 25
+  },
+  "if_lizerdite": {
+   "atoms": 1335,
+   "training_frames": 25
+  },
+  "if_talc": {
+   "atoms": 849,
+   "training_frames": 25
+  },
+  "if_brucite": {
+   "atoms": 885,
+   "training_frames": 25
+  }
+ },
+ "rows": 7435,
+ "species": [
+  "Al",
+  "Ba",
+  "Ca",
+  "Cl",
+  "Cs",
+  "H",
+  "K",
+  "Mg",
+  "Na",
+  "O",
+  "Si"
+ ],
+ "rows_per_type": {
+  "Ba": 7,
+  "Ca": 7,
+  "Cl": 22,
+  "Cs": 39,
+  "K": 65,
+  "Na": 36,
+  "ao": 210,
+  "at": 68,
+  "ho": 582,
+  "hw": 2796,
+  "mgh": 186,
+  "mgo": 2,
+  "ob": 1137,
+  "obos": 8,
+  "obts": 246,
+  "oh": 501,
+  "ohs": 4,
+  "ow": 1024,
+  "st": 495
+ },
+ "one_to_one": {
+  "rows": 7435,
+  "same_charge": 7433,
+  "confusions": {
+   "hw(if_kaolinite.data|if_kaolinite_train.lammpstrj#1) -> ho(if_kaolinite.data|if_kaolinite_train.lammpstrj#2)": 1,
+   "ho(if_kaolinite.data|if_kaolinite_train.lammpstrj#2) -> hw(if_kaolinite.data|if_kaolinite_train.lammpstrj#1)": 1
+  }
+ }
+}
