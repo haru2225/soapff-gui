@@ -30,6 +30,8 @@ vi config.env                    # and its mpirun / lmp line (MPIRUN, LMP) into 
 qstat -u $USER
 ```
 
+If LAMMPS is a Singularity image, set `LMP="singularity exec /path/to/lammps.sif lmp"` in `config.env` (examples are in the file).
+
 `./go.sh 12 "5.6 56" "01 02"` = N particles, normal stresses in MPa, stages (here only the compaction). The pack is made by `make_pack.sh` from this folder
 (the particle is `particle.data` / `particle.settings`, a copy of `../montmorillonite_edge/out_clay_montmorillonite/system.*`); from a clone of the repository the same steps are `python3 build_gouge.py -n 12 -o RUN_N12/gouge` and `pbs/submit_chain.sh RUN_N12 "5.6 56"`.
 
