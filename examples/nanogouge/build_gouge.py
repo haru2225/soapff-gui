@@ -16,7 +16,11 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 p = argparse.ArgumentParser()
-p.add_argument('--particle', default='../montmorillonite_edge/out_clay_montmorillonite', help='folder with system.data and system.settings of one particle')
+import os
+_here = os.path.dirname(os.path.abspath(__file__))
+_pk = _here if os.path.exists(os.path.join(_here, 'particle.data')) else os.path.join(_here, '..', 'montmorillonite_edge', 'out_clay_montmorillonite')
+p.add_argument('--particle-data', default=os.path.join(_pk, 'particle.data' if _pk == _here else 'system.data'), help='LAMMPS data file of one particle (soapff-gui)')
+p.add_argument('--particle-settings', default=os.path.join(_pk, 'particle.settings' if _pk == _here else 'system.settings'), help='its settings file')
 p.add_argument('-n', type=int, default=12, help='number of particles')
 p.add_argument('--mwmc', type=float, default=3.0, help='initial water / clay mass ratio (paper: ~3)')
 p.add_argument('--aspect', type=float, default=40 / 24, help='Lz / Lx = Lz / Ly of the box (paper: 40 nm / 24 nm)')
@@ -28,9 +32,10 @@ p.add_argument('--seed', type=int, default=1)
 p.add_argument('-o', '--out', default='gouge')
 a = p.parse_args()
 rng = np.random.default_rng(a.seed)
+os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
 
 # ---------------------------------------------------------------- read the particle (LAMMPS data, atom_style full)
-txt = open(f'{a.particle}/system.data').read().split('\n')
+txt = open(a.particle_data).read().split('\n')
 sec = None; masses = {}; atoms = []; bonds = []; angles = []; box = {}
 for l in txt:
     s = l.strip()
@@ -52,7 +57,7 @@ ptype = np.array([x[1] for x in atoms]); pq = np.array([x[2] for x in atoms]); p
 natp = len(atoms); ntp = max(masses)
 n_bt = max(b[1] for b in bonds); n_at = max(g[1] for g in angles)
 mass_p = sum(masses[t][0] for t in ptype)
-settings = open(f'{a.particle}/system.settings').read().split('\n')
+settings = open(a.particle_settings).read().split('\n')
 coef = [l for l in settings if re.match(r'^(pair_coeff|bond_coeff|angle_coeff)\s', l)]
 # the particle sits whole in its box: centre it, find its disk radius and thickness
 cen = pos0.mean(0); pos0 = pos0 - cen

@@ -8,7 +8,9 @@
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd); TOP=$(dirname "$HERE")
 RUNDIR=$1; SIGMAS=${2:-"5.6 56"}; STAGES=${3:-all}
-mkdir -p "$RUNDIR"; cp "$TOP"/lammps/in.* "$HERE"/job.sh "$RUNDIR"/
+mkdir -p "$RUNDIR"
+if ls "$HERE"/in.* >/dev/null 2>&1; then cp "$HERE"/in.* "$RUNDIR"/; else cp "$TOP"/lammps/in.* "$RUNDIR"/; fi
+cp "$HERE"/job.sh "$RUNDIR"/
 [ -f "$RUNDIR/config.env" ] || cp "$HERE/config.env" "$RUNDIR/"
 cd "$RUNDIR"; source ./config.env
 for f in gouge.data gouge.settings; do [ -f $f ] || { echo "missing $RUNDIR/$f (run build_gouge.py -o $RUNDIR/gouge)"; exit 1; }; done

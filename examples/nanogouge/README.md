@@ -19,24 +19,19 @@ Everything ran on a small test system (3 particles, 27,000 atoms; every stage, t
 The force field is the one of the repository (ClayFF, Cygan et al. 2004; the edge types of Lammers et al. as taken whole from `clay_montmorillonite.settings`; flexible SPC water).
 The paper used SPC/E with SHAKE and GROMACS; here the water is flexible, so the time step is 1 fs.
 
-## From GitHub to the supercomputer
+## On the supercomputer (no git, no soapff-gui: one self-contained pack of 17 files)
 
 ```
-# on the supercomputer (login node)
-git clone https://github.com/haru2225/soapff-gui.git
-cd soapff-gui/examples/nanogouge
-
-# 1. look at the centre's sample LAMMPS script and copy its settings into pbs/config.env
-cat /home/app/lammps/run.sh          # "#PBS" lines -> QUEUE, SELECT, WALLTIME_*;  module line -> MODULES;  mpirun / lmp line -> MPIRUN, LMP
-vi pbs/config.env
-
-# 2. build the system (numpy and scipy are needed; or build it on your own computer and copy gouge.* to RUN)
-python3 build_gouge.py -n 12 --mwmc 3.0 --nconf 300 --seed 1 -o RUN_N12/gouge
-
-# 3. submit the whole chain: 01 -> 02 -> (03 -> 04 x3 -> 05) for sigma_n = 5.6 and 56 MPa
-pbs/submit_chain.sh RUN_N12 "5.6 56"
+curl -L https://github.com/haru2225/soapff-gui/raw/main/examples/nanogouge/nanogouge_pack.tar.gz | tar xz     # or scp nanogouge_pack.tar.gz and tar xzf it
+cd nanogouge_pack
+cat /home/app/lammps/run.sh      # the centre's sample script: copy its #PBS lines (QUEUE, SELECT, WALLTIME_*), its module line (MODULES)
+vi config.env                    # and its mpirun / lmp line (MPIRUN, LMP) into config.env
+./go.sh                          # builds the system (N=12, numpy and scipy are installed with pip --user if missing) and submits the whole chain
 qstat -u $USER
 ```
+
+`./go.sh 12 "5.6 56" "01 02"` = N particles, normal stresses in MPa, stages (here only the compaction). The pack is made by `make_pack.sh` from this folder
+(the particle is `particle.data` / `particle.settings`, a copy of `../montmorillonite_edge/out_clay_montmorillonite/system.*`); from a clone of the repository the same steps are `python3 build_gouge.py -n 12 -o RUN_N12/gouge` and `pbs/submit_chain.sh RUN_N12 "5.6 56"`.
 
 `pbs/submit_chain.sh RUN_N12 "5.6 56" "01 02"` runs only the compaction. Jobs are chained with `qsub -W depend=afterany`; a stage that is already finished is skipped, and
 stages 02 and 04 continue from their last data/restart file, so a job stopped by the wall time is simply followed by the next one (`N_DEHYD_JOBS`, `N_SHEAR_JOBS` in `config.env`).
@@ -46,11 +41,11 @@ Size (N = 12, m_w/m_c = 3): about 12 × 2,292 + 3 × 80,000 ≈ 268,000 atoms at
 Defaults are small enough for a laboratory-scale first try; for a larger system use `-n 30` and the 24 × 24 × 40 nm box of the paper is approached.
 Shear to γ = 3 at 1e8 /s is 30 ns (30 million steps of 1 fs); for a quick look use `-var rate 5.0e-7 -var gmax 1.0` through `EXTRA` (`qsub -v STAGE=04,SIGMA=5.6,EXTRA="-var rate 5.0e-7 -var gmax 1.0" job.sh`).
 
-## Analysis (any computer; numpy and matplotlib)
+## Analysis (any computer; numpy and matplotlib; `analysis/` in the repository, next to `go.sh` in the pack)
 
 ```
-python analysis/order_parameter.py RUN_N12/01_equil.data RUN_N12/02_dehydrate.data RUN_N12/03_consolidate_5.6.data RUN_N12/gouge.json   # S, m_w/m_c, dry bulk density
-python analysis/shear_curve.py RUN_N12/shear_5.6.dat RUN_N12/shear_56.dat                                                              # mu(gamma), shear_curve.png
+python3 order_parameter.py RUN_N12/01_equil.data RUN_N12/02_dehydrate.data RUN_N12/03_consolidate_5.6.data RUN_N12/gouge.json   # S, m_w/m_c, dry bulk density
+python3 shear_curve.py RUN_N12/shear_5.6.dat RUN_N12/shear_56.dat                                                              # mu(gamma), shear_curve.png
 ```
 
 `RUN_N12/dehydrate.dat` lists the water number, m_w/m_c, dry bulk density and Lz of every dehydration step; `RUN_N12/shear_<σ>.dump` holds the clay atoms (unwrapped, every 0.2 ns) for the pore-size and stacking analysis.
