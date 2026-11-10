@@ -29,11 +29,18 @@ else
 fi
 if [ -n "${SIF}" ]; then LMPCMD="singularity exec ${SING_OPTS} --bind $PWD ${SIF} ${LMP_IN_IMAGE}"; else LMPCMD="${LMP}"; fi
 if [ -z "${SIF}" ]; then
-  if ! command -v "${LMP%% *}" >/dev/null 2>&1 && [ ! -x "${LMP%% *}" ]; then
-    echo "WARNING: ${LMP} not found in PATH (${PATH}); searching /home/app ..."
-    F=$(find /home/app /opt /usr/local -maxdepth 5 -type f -name "$(basename ${LMP%% *})" 2>/dev/null | head -1)
-    if [ -n "$F" ]; then echo "found $F"; LMPCMD="$F"; else echo "ERROR: LAMMPS executable '${LMP}' not found. Put the module/PATH lines of the sample script in config.env (MODULES=...)"; exit 1; fi
+  # the program is given to mpirun with its absolute path (the other nodes may not have the module's PATH)
+  LB=${LMP%% *}; LMPABS=$(command -v "$LB" 2>/dev/null)
+  [ -z "$LMPABS" ] && [ -x "$LB" ] && LMPABS=$(readlink -f "$LB" 2>/dev/null || echo "$LB")
+  if [ -z "$LMPABS" ]; then
+    echo "WARNING: '$LB' is not in PATH here. PATH=${PATH}"; echo "searching for it ..."
+    LMPABS=$(find /home/app /opt /usr/local /work "$HOME" -maxdepth 6 -type f -name "$(basename "$LB")" 2>/dev/null | head -1)
   fi
+  if [ -z "$LMPABS" ]; then
+    echo "ERROR: LAMMPS executable '$LB' not found. Run on the login node:  which $LB;  module avail 2>&1 | grep -i lammps;  cat /home/app/lammps/run.sh"
+    echo "then put the module/PATH lines in config.env (MODULES=...) or the full path (LMP=/full/path/$LB)"; exit 1
+  fi
+  echo "LAMMPS: $LMPABS"; LMPCMD="$LMPABS"
 fi
 RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
