@@ -1,13 +1,14 @@
 #!/bin/bash
 # Usage: autoconfig.sh RUNDIR      writes RUNDIR/config.auto from the centre's sample script (nothing to edit by hand).
-#   source of the settings: $CONFIG_SRC, else /home/app/lammps/run.sh, else ~/run.sh / ./run.sh of the cwd if it has "lmp" in it.
+#   source of the settings: $CONFIG_SRC, else ~/run.sh (your copy of the centre's sample), ./run.sh, then /home/app/lammps/run.sh.
 #   taken from it:  every "#PBS" line (queue, resources, walltime; not name/output/join/mail) -> QSUB_OPTS
 #                   "module ..." lines -> MODULES;   the "singularity ... <image>.sif <lmp>" line -> SIF, SING_OPTS, LMP_IN_IMAGE
 #                   the mpirun / mpiexec word -> MPIRUN (mpiexec.hydra / Intel MPI -> HOSTFILE_FMT=mpich)
 #   NODES=<n> ./go.sh   rescales "select=<n>:" (PBS Pro) or "nodes=<n>" in the resources.
 RUNDIR=${1:-.}; mkdir -p "$RUNDIR"
 SRC=${CONFIG_SRC:-}
-for c in "$SRC" /home/app/lammps/run.sh "$HOME/run.sh" ./run.sh; do [ -n "$c" ] && [ -f "$c" ] && grep -q "lmp\|lammps" "$c" && { SRC=$c; break; }; done
+for c in "$SRC" "$HOME/run.sh" ./run.sh ../run.sh /home/app/lammps/run.sh; do [ -n "$c" ] && [ -f "$c" ] && grep -qi "lmp\|lammps\|mpi" "$c" && { SRC=$c; break; }; done
+echo "autoconfig: sample script = ${SRC:-none}" >&2
 OUT="$RUNDIR/config.auto"; : > "$OUT"
 q() { printf "'%s'" "$(printf %s "$1" | sed "s/'/'\\\\''/g")"; }   # single-quote: variables like $X_DIR stay as text
 if [ -z "$SRC" ] || [ ! -f "$SRC" ]; then
@@ -40,10 +41,10 @@ else
     [ -n "$ex" ] && echo "SING_OPTS=$(q "$(echo $ex | sed -E 's/--bind[ =][^ ]+//g')")" >> "$OUT"
     [ -n "$BIN" ] && echo "LMP_IN_IMAGE=$(q "$BIN")" >> "$OUT"
   else
-    LL=$(grep -vE '^[[:space:]]*#' "$SRC" | grep -vE '^[[:space:]]*(export|module|source|set|PATH=)' | grep -E '(^|[[:space:]/])(lmp[_a-z0-9]*|lammps)([[:space:]]|$)' | grep -E '(-in|-i)[[:space:]]|INPUT' | head -1)
+    LL=$(grep -vE '^[[:space:]]*#' "$SRC" | grep -vE '^[[:space:]]*(export|module|source|set|PATH=|[A-Za-z_][A-Za-z_0-9]*=)' | grep -E '(^|[[:space:]/])(lmp[_a-z0-9]*|lammps)([[:space:]]|$)' | grep -E '(-in|-i)[[:space:]]|INPUT' | head -1)
     B=$(echo "$LL" | tr ' ' '\n' | grep -vE '=' | grep -E '(^|/)(lmp[_a-z0-9]*|lammps)$' | head -1); [ -n "$B" ] && echo "LMP=$(q "$B")" >> "$OUT"
   fi
-  LL=$(grep -vE '^[[:space:]]*#' "$SRC" | grep -vE '^[[:space:]]*(export|module|source|set|PATH=)' | grep -E '(lmp[_a-z0-9]*|lammps[_a-z0-9]*)([[:space:]]|$)' | grep -E '(-in|-i)[[:space:]]|INPUT' | head -1)
+  LL=$(grep -vE '^[[:space:]]*#' "$SRC" | grep -vE '^[[:space:]]*(export|module|source|set|PATH=|[A-Za-z_][A-Za-z_0-9]*=)' | grep -E '(^|[[:space:]/])(lmp[_a-z0-9]*|lammps[_a-z0-9]*)([[:space:]]|$)' | grep -E '(-in|-i)[[:space:]]|INPUT' | head -1)
   MP=$(echo "$LL" | tr ' ' '\n' | grep -E '^(mpirun|mpiexec[_a-z.]*|mpijob|srun|aprun|mpirun_mpt|mpiexec_mpt)$' | head -1)
   [ -n "$MP" ] && echo "MPIRUN=$(q "$MP")" >> "$OUT"
   # options between the launcher and the program, without -np/-n N (the number of ranks is set from the allocation)
