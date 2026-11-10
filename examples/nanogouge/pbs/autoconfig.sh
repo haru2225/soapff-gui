@@ -46,4 +46,5 @@ else
   case "$MP" in mpiexec.hydra) echo 'HOSTFILE_FMT="mpich"' >> "$OUT";; esac
   grep -qiE 'intel|impi|mpich' "$SRC" && echo 'HOSTFILE_FMT="mpich"' >> "$OUT"
 fi
+grep -q "ncpus=1\b\|ncpus=1:" "$OUT" && echo "autoconfig WARNING: the sample script asks for ncpus=1; use NODES / edit QSUB_OPTS in config.auto to ask for all cores" >&2
 echo "---- detected settings ($OUT) ----" >&2; cat "$OUT" >&2; echo "-----------------------------------" >&2

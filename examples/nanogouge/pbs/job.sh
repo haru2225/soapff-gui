@@ -10,15 +10,21 @@ QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; M
 [ -n "${MODULES}" ] && eval "${MODULES}"
 export OMP_NUM_THREADS=1
 HOSTOPT=""
+NPROC=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)
 if [ -n "${PBS_NODEFILE:-}" ]; then
-  # use every core of every allocated node (independent of the mpiprocs written in the #PBS line)
-  NODES=$(sort -u "$PBS_NODEFILE" | wc -l); C=${CORES_PER_NODE:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)}
+  # cores per node = the largest of: slots listed per host in $PBS_NODEFILE, the cores this job may use (nproc), the cores requested (NCPUS)
+  SLOTS=$(sort "$PBS_NODEFILE" | uniq -c | awk '{print $1}' | sort -rn | head -1)
+  NREQ=${NCPUS:-${PBS_NCPUS:-0}}
+  C=${CORES_PER_NODE:-$(echo "$SLOTS $NPROC $NREQ" | tr ' ' '\n' | sort -rn | head -1)}
+  NODES=$(sort -u "$PBS_NODEFILE" | wc -l)
+  echo "cores: slots/host in PBS_NODEFILE=${SLOTS}  nproc=${NPROC}  NCPUS=${NREQ}  -> ${C} per node x ${NODES} nodes"
+  [ "${C}" -le 1 ] && echo "WARNING: only 1 core per node. Ask for more cores in the resource line (e.g. -l select=${NODES}:ncpus=<cores>:mpiprocs=<cores>); see QSUB_OPTS in config.auto" 
   HF=hostfile.${PBS_JOBID:-$$}
   if [ "${HOSTFILE_FMT}" = mpich ]; then sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1":"c}' > "$HF"; HOSTOPT="-machinefile $HF"
   else sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1" slots="c}' > "$HF"; HOSTOPT="--hostfile $HF"; fi
   NP=${NP:-$((NODES*C))}
 else
-  NP=${NP:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)}
+  NP=${NP:-$NPROC}
 fi
 if [ -n "${SIF}" ]; then LMPCMD="singularity exec ${SING_OPTS} --bind $PWD ${SIF} ${LMP_IN_IMAGE}"; else LMPCMD="${LMP}"; fi
 RUN="${MPIRUN} -np ${NP} ${HOSTOPT} ${LMPCMD} -screen none"
