@@ -1,0 +1,21 @@
+# common start of every stage.  Needed: -var data FILE -var settings FILE   (or -var resume 1 -var rfile RESTART)
+variable resume index 0
+variable rfile index none
+variable rc index 12.0          # real-space cutoff (A); the paper uses 12 A
+variable acc index 1.0e-4       # PPPM accuracy
+variable dt index 1.0           # fs (flexible water and O-H: 1 fs; 0.5 if it blows up)
+variable T index 300.0          # K
+variable nclay index 18         # clay atom types are 1..nclay
+variable thw index 19           # hw
+variable tow index 20           # ow
+variable seed index 12345
+if "${resume} == 0" then "include in.new" else "read_restart ${rfile}"
+kspace_style pppm ${acc}
+neighbor 2.0 bin
+neigh_modify delay 0 every 1 check yes
+group clay type 1:${nclay}
+group water type ${thw} ${tow}
+group wO type ${tow}
+timestep ${dt}
+thermo_style custom step temp pe ke etotal press pxx pyy pzz pxz vol lx ly lz xz
+thermo_modify lost error flush yes

@@ -1,0 +1,38 @@
+# 04: steady shear at constant normal stress (Lin & Hatano 2024 conditions: sigma_n 5.6 / 56 MPa, rate ~1e8 /s)
+#   box tilt xz grows at rate*lz (SLLOD + fix deform); z is kept at the normal stress with a Berendsen barostat;
+#   x and y stay fixed.  gamma = xz / lz.
+#   lmp -in in.04_shear -var data 03_consolidate_5.6.data -var settings gouge.settings -var sigma 5.6 -var rate 1.0e-7 -var gmax 3.0
+#   resume after the job was stopped:  -var resume 1 -var rfile shear_5.6.restart.1   (job.sh does this)
+include in.init
+variable sigma index 5.6            # MPa
+variable rate index 1.0e-7          # engineering shear rate in 1/fs (1.0e-7 = 1e8 /s)
+variable gmax index 3.0             # final shear strain
+variable Pn equal ${sigma}*9.86923
+
+variable Pdamp index 10000.0        # fs
+variable rest_every index 500000
+variable dump_every index 100000
+log log.04_shear_${sigma} append
+if "${resume} == 0" then "change_box all triclinic" "kspace_style pppm ${acc}"
+thermo 1000
+compute tdef all temp/deform
+fix fs all nvt/sllod temp ${T} ${T} 100.0
+fix_modify fs temp tdef
+fix fd all deform 1 xz erate ${rate} remap v units box
+fix fp all press/langevin z ${Pn} ${Pn} ${Pdamp} temp ${T} ${T} ${seed} dilate all
+compute pt all pressure tdef
+variable gam equal xz/lz
+variable ss equal -c_pt[5]*0.101325     # shear stress (MPa)
+variable sn equal -c_pt[3]*0.101325     # normal stress (MPa)
+variable mu equal v_ss/v_sn
+variable dens equal mass(clay)*1.66054/vol
+variable wat equal count(wO)
+variable lzv equal lz
+fix av all ave/time 100 50 5000 v_gam v_ss v_sn v_mu v_lzv v_dens file shear_${sigma}.dat
+restart ${rest_every} shear_${sigma}.restart.1 shear_${sigma}.restart.2
+dump dm clay custom ${dump_every} shear_${sigma}.dump id mol type xu yu zu
+dump_modify dm append yes
+variable nsteps equal round(${gmax}/(${rate}*${dt}))
+run ${nsteps} upto
+write_data shear_${sigma}_final.data
+print "DONE 04" file shear_${sigma}.done

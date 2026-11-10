@@ -1,0 +1,15 @@
+# 03: hold the dehydrated assemblage at the normal stress sigma (z only; x and y stay fixed)
+#   lmp -in in.03_consolidate -var data 02_dehydrate.data -var settings gouge.settings -var sigma 5.6
+include in.init
+variable sigma index 5.6            # normal stress, MPa
+variable t_ps index 2000
+variable Pn equal ${sigma}*9.86923  # atm  (1 MPa = 9.86923 atm)
+log log.03_consolidate_${sigma}
+thermo 1000
+variable lzv equal lz
+variable dens equal mass(clay)*1.66054/vol
+fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
+fix av all ave/time 100 10 1000 v_lzv v_dens file 03_consolidate_${sigma}.dat
+run $(round(v_t_ps*1000/v_dt))
+write_data 03_consolidate_${sigma}.data
+print "DONE 03" file 03_consolidate_${sigma}.done

@@ -1,0 +1,17 @@
+# 01: minimise, 100 ps NVT, then NPzT (only z moves) at 1 atm: Underwood & Bourg 2020 equilibration
+#   lmp -in in.01_equil -var data gouge.data -var settings gouge.settings
+include in.init
+variable t_nvt_ps index 100
+variable t_npt_ps index 1000
+log log.01_equil
+thermo 1000
+minimize 1.0e-4 1.0e-6 2000 20000
+reset_timestep 0
+velocity all create ${T} ${seed} dist gaussian mom yes rot yes
+fix fnvt all nvt temp ${T} ${T} 100.0
+run $(round(v_t_nvt_ps*1000/v_dt))
+unfix fnvt
+fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
+run $(round(v_t_npt_ps*1000/v_dt))
+write_data 01_equil.data
+print "DONE 01" file 01_equil.done

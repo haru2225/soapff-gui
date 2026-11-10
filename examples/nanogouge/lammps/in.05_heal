@@ -1,0 +1,18 @@
+# 05: stop the shear and hold (static contact time): the shear stress relaxes and the layers re-stack.
+#   lmp -in in.05_heal -var data shear_5.6_final.data -var settings gouge.settings -var sigma 5.6 -var t_ps 5000
+include in.init
+variable sigma index 5.6
+variable t_ps index 5000
+variable Pn equal ${sigma}*9.86923
+log log.05_heal_${sigma}
+thermo 1000
+compute pt all pressure thermo_temp
+variable ss equal -c_pt[5]*0.101325
+variable sn equal -c_pt[3]*0.101325
+variable dens equal mass(clay)*1.66054/vol
+variable lzv equal lz
+fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
+fix av all ave/time 100 50 5000 v_ss v_sn v_lzv v_dens file heal_${sigma}.dat
+run $(round(v_t_ps*1000/v_dt))
+write_data heal_${sigma}_final.data
+print "DONE 05" file heal_${sigma}.done
