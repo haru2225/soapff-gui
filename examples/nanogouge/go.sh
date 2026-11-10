@@ -1,11 +1,12 @@
 #!/bin/bash
 # One command: build the system and submit the whole PBS chain.
 #   ./go.sh [N particles = 12] ["normal stresses in MPa" = "5.6 56"] [stages = all]
-#   atoms ≈ 22,300 × N  (N=12: 0.27 M, N=67: 1.49 M).  NODES=<n> ./go.sh 67  uses n nodes.
+#   atoms ≈ 22,300 × N  (N=12: 0.27 M, N=67: 1.49 M).  ./go.sh 67 "5.6 56" all 4   uses 4 nodes (4th argument).
 # Before the first run, put the supercomputer's settings in config.env (copy them from /home/app/lammps/run.sh).
 set -eu
 cd "$(dirname "$0")"
 N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=RUN_N$N
+[ -n "${4:-}" ] && export NODES=$4      # 4th argument = number of nodes (works in any shell, no "NODES=4 ./go.sh" needed)
 PY=${PYTHON:-python3}
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
 NCONF=${NCONF:-$([ "$N" -gt 20 ] && echo 30 || echo 300)}
