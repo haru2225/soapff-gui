@@ -4,6 +4,7 @@
 #   taken from it:  every "#PBS" line (queue, resources, walltime; not name/output/join/mail) -> QSUB_OPTS
 #                   "module ..." lines -> MODULES;   the "singularity ... <image>.sif <lmp>" line -> SIF, SING_OPTS, LMP_IN_IMAGE
 #                   the mpirun / mpiexec word -> MPIRUN (mpiexec.hydra / Intel MPI -> HOSTFILE_FMT=mpich)
+#   NCPUS=<n> ./go.sh   cores per node (default: the node size reported by pbsnodes, if larger than the script's)
 #   NODES=<n> ./go.sh   rescales "select=<n>:" (PBS Pro) or "nodes=<n>" in the resources.
 RUNDIR=${1:-.}; mkdir -p "$RUNDIR"
 SRC=${CONFIG_SRC:-}
@@ -27,6 +28,18 @@ else
   echo "autoconfig: reading $SRC" >&2
   PBS=$(grep -E '^[[:space:]]*#PBS' "$SRC" | sed -E 's/^[[:space:]]*#PBS[[:space:]]*//' | grep -vE '^-(N|o|e|j|m|M|S|V|v|J|k|r)( |$)' | sed -E 's/[[:space:]]+#.*$//')
   if [ -n "${NODES:-}" ]; then PBS=$(echo "$PBS" | sed -E "s/select=[0-9]+/select=${NODES}/; s/nodes=[0-9]+/nodes=${NODES}/"); fi
+  # use all cores of a node: NCPUS=<n> forces a value; otherwise ask the batch system for the node size (MAXCPU=0 disables)
+  NC=${NCPUS:-}
+  if [ -z "$NC" ] && [ "${MAXCPU:-1}" = 1 ]; then
+    NC=$(pbsnodes -a 2>/dev/null | awk -F= '/resources_available.ncpus/{gsub(/ /,"",$2); print $2}' | sort | uniq -c | sort -rn | head -1 | awk '{print $2}')
+  fi
+  if [ -n "$NC" ] && echo "$PBS" | grep -q "ncpus="; then
+    OLD=$(echo "$PBS" | grep -o "ncpus=[0-9]*" | head -1 | cut -d= -f2)
+    if [ "$OLD" != "$NC" ] && { [ -n "${NCPUS:-}" ] || [ "$NC" -gt "$OLD" ]; }; then
+      PBS=$(echo "$PBS" | sed -E "s/ncpus=[0-9]+/ncpus=$NC/g; s/mpiprocs=[0-9]+/mpiprocs=$NC/g")
+      echo "autoconfig: ncpus per node $OLD -> $NC (all cores of a node; NCPUS=<n> to change, MAXCPU=0 to keep the script's value)" >&2
+    fi
+  fi
   Q=""; while IFS= read -r l; do [ -n "$l" ] && Q="$Q $l"; done <<< "$PBS"
   echo "QSUB_OPTS=$(q "$Q")" >> "$OUT"
   # environment of the sample script: module / source / export / ulimit / PATH lines (not PBS directives, not the job's own cd/INPUT lines)

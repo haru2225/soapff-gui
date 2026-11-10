@@ -41,6 +41,21 @@ if [ -z "${SIF}" ]; then
     echo "then put the module/PATH lines in config.env (MODULES=...) or the full path (LMP=/full/path/$LB)"; exit 1
   fi
   echo "LAMMPS: $LMPABS"; LMPCMD="$LMPABS"
+  # shared libraries the binary needs but cannot find (e.g. libfftw3.so.3): look for them in the software area and add their directories
+  MISS=$(ldd "$LMPABS" 2>/dev/null | awk '/not found/{print $1}')
+  if [ -n "$MISS" ]; then
+    echo "missing shared libraries: $(echo $MISS)"
+    LMPDIR=$(dirname "$(dirname "$LMPABS")")
+    for l in $MISS; do
+      f=""
+      for root in "$LMPDIR" "$(dirname "$LMPDIR")" /home/app /opt /usr/lib64 /usr/local /work "$HOME"; do
+        [ -d "$root" ] && f=$(find "$root" -maxdepth 8 -name "${l}*" 2>/dev/null | head -1) && [ -n "$f" ] && break
+      done
+      if [ -n "$f" ]; then export LD_LIBRARY_PATH="$(dirname "$f")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"; echo "  $l -> $(dirname "$f")"
+      else echo "  $l: not found anywhere; try 'module avail 2>&1 | grep -i ${l#lib}' and add the module to config.env (MODULES=...)"; fi
+    done
+    ldd "$LMPABS" 2>/dev/null | grep "not found" && echo "WARNING: still missing libraries (see above)"
+  fi
 fi
 RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
