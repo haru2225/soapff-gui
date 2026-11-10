@@ -27,7 +27,8 @@ else
   if [ -n "${NODES:-}" ]; then PBS=$(echo "$PBS" | sed -E "s/select=[0-9]+/select=${NODES}/; s/nodes=[0-9]+/nodes=${NODES}/"); fi
   Q=""; while IFS= read -r l; do [ -n "$l" ] && Q="$Q $l"; done <<< "$PBS"
   echo "QSUB_OPTS=\"$Q\"" >> "$OUT"
-  MOD=$(grep -E '^[[:space:]]*(module|source|\.)[[:space:]]' "$SRC" | grep -vE '^[[:space:]]*#' | sed -E 's/^[[:space:]]+//' | paste -sd';' -)
+  # environment of the sample script: module / source / export / ulimit / PATH lines (not PBS directives, not the job's own cd/INPUT lines)
+  MOD=$(grep -vE '^[[:space:]]*(#|$)' "$SRC" | grep -E '^[[:space:]]*(module|source|\.|export|ulimit|unset|set|PATH=|LD_LIBRARY_PATH=|MPI[A-Z_]*=|OMP[A-Z_]*=)[[:space:]=]' | grep -vE 'PBS_O_WORKDIR|INPUT|OMP_NUM_THREADS' | sed -E 's/^[[:space:]]+//' | paste -sd';' -)
   [ -n "$MOD" ] && echo "MODULES=\"$MOD\"" >> "$OUT"
   SL=$(grep -E 'singularity[[:space:]]+(exec|run)' "$SRC" | grep -vE '^[[:space:]]*#' | head -1)
   if [ -n "$SL" ]; then
@@ -41,8 +42,14 @@ else
     LL=$(grep -E '(^|[[:space:]/])(lmp[_a-z0-9]*|lammps)([[:space:]]|$)' "$SRC" | grep -vE '^[[:space:]]*#' | head -1)
     B=$(echo "$LL" | tr ' ' '\n' | grep -E '(^|/)(lmp[_a-z0-9]*|lammps)$' | head -1); [ -n "$B" ] && echo "LMP=\"$B\"" >> "$OUT"
   fi
-  MP=$(grep -oE '(mpirun|mpiexec(\.hydra)?|mpijob|srun)' "$SRC" | head -1)
+  LL=$(grep -vE '^[[:space:]]*#' "$SRC" | grep -E '(lmp[_a-z0-9]*|lammps[_a-z0-9]*)([[:space:]]|$)' | grep -E '(-in|-i)[[:space:]]|INPUT' | head -1)
+  MP=$(echo "$LL" | tr ' ' '\n' | grep -E '^(mpirun|mpiexec[_a-z.]*|mpijob|srun|aprun|mpirun_mpt|mpiexec_mpt)$' | head -1)
   [ -n "$MP" ] && echo "MPIRUN=\"$MP\"" >> "$OUT"
+  # options between the launcher and the program, without -np/-n N (the number of ranks is set from the allocation)
+  if [ -n "$MP" ]; then
+    OPTS=$(echo "$LL" | sed -E "s/.*(^|[[:space:]])$MP[[:space:]]+//" | sed -E 's/(singularity[[:space:]]+(exec|run)).*//; s/[[:space:]](lmp[_a-z0-9]*|lammps[_a-z0-9]*|[^ ]*\/lmp[_a-z0-9]*)([[:space:]].*)?$//' | sed -E 's/(-np|-n|-c)[[:space:]]+[^ ]+//g' | sed -E 's/[[:space:]]+/ /g; s/^ //')
+    [ -n "$OPTS" ] && echo "MPI_OPTS=\"$OPTS\"" >> "$OUT"
+  fi
   # a host file option is passed only if the sample script itself uses one (otherwise the PBS-aware mpirun reads the allocation)
   grep -qE '(-machinefile|-f)[[:space:]]+[^ ]*(NODEFILE|hostfile)' "$SRC" && echo 'HOSTFILE_FMT="mpich"' >> "$OUT"
   grep -qE '(--hostfile|-hostfile)[[:space:]]+' "$SRC" && echo 'HOSTFILE_FMT="openmpi"' >> "$OUT"

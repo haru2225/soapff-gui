@@ -4,7 +4,7 @@
 # It runs in the submit directory (the run folder holding the in.* files, gouge.data and gouge.settings).
 set -u
 cd "${PBS_O_WORKDIR:-$PWD}"
-QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; HOSTFILE_FMT="none"; CORES_PER_NODE="${CORES_PER_NODE:-}"
+QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; MPI_OPTS=""; HOSTFILE_FMT="none"; CORES_PER_NODE="${CORES_PER_NODE:-}"
 [ -f ./config.auto ] && source ./config.auto
 [ -f ./config.env ] && source ./config.env
 [ -n "${MODULES}" ] && eval "${MODULES}"
@@ -28,7 +28,14 @@ else
   NP=${NP:-$NPROC}
 fi
 if [ -n "${SIF}" ]; then LMPCMD="singularity exec ${SING_OPTS} --bind $PWD ${SIF} ${LMP_IN_IMAGE}"; else LMPCMD="${LMP}"; fi
-RUN="${MPIRUN} -np ${NP} ${HOSTOPT} ${LMPCMD} -screen none"
+if [ -z "${SIF}" ]; then
+  if ! command -v "${LMP%% *}" >/dev/null 2>&1 && [ ! -x "${LMP%% *}" ]; then
+    echo "WARNING: ${LMP} not found in PATH (${PATH}); searching /home/app ..."
+    F=$(find /home/app /opt /usr/local -maxdepth 5 -type f -name "$(basename ${LMP%% *})" 2>/dev/null | head -1)
+    if [ -n "$F" ]; then echo "found $F"; LMPCMD="$F"; else echo "ERROR: LAMMPS executable '${LMP}' not found. Put the module/PATH lines of the sample script in config.env (MODULES=...)"; exit 1; fi
+  fi
+fi
+RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
 echo "stage ${STAGE}  sigma ${SIGMA}  MPI ${NP} (${C:-?} per node)  $(date)"
 echo "${RUN}"
