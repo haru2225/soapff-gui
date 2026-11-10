@@ -9,6 +9,7 @@ RUNDIR=${1:-.}; mkdir -p "$RUNDIR"
 SRC=${CONFIG_SRC:-}
 for c in "$SRC" /home/app/lammps/run.sh "$HOME/run.sh" ./run.sh; do [ -n "$c" ] && [ -f "$c" ] && grep -q "lmp\|lammps" "$c" && { SRC=$c; break; }; done
 OUT="$RUNDIR/config.auto"; : > "$OUT"
+q() { printf "'%s'" "$(printf %s "$1" | sed "s/'/'\\\\''/g")"; }   # single-quote: variables like $X_DIR stay as text
 if [ -z "$SRC" ] || [ ! -f "$SRC" ]; then
   echo "autoconfig: no sample script found (set CONFIG_SRC=/path/run.sh); defaults are used" >&2
   {
@@ -26,29 +27,29 @@ else
   PBS=$(grep -E '^[[:space:]]*#PBS' "$SRC" | sed -E 's/^[[:space:]]*#PBS[[:space:]]*//' | grep -vE '^-(N|o|e|j|m|M|S|V|v|J|k|r)( |$)' | sed -E 's/[[:space:]]+#.*$//')
   if [ -n "${NODES:-}" ]; then PBS=$(echo "$PBS" | sed -E "s/select=[0-9]+/select=${NODES}/; s/nodes=[0-9]+/nodes=${NODES}/"); fi
   Q=""; while IFS= read -r l; do [ -n "$l" ] && Q="$Q $l"; done <<< "$PBS"
-  echo "QSUB_OPTS=\"$Q\"" >> "$OUT"
+  echo "QSUB_OPTS=$(q "$Q")" >> "$OUT"
   # environment of the sample script: module / source / export / ulimit / PATH lines (not PBS directives, not the job's own cd/INPUT lines)
   MOD=$(grep -vE '^[[:space:]]*(#|$)' "$SRC" | grep -E '^[[:space:]]*(module|source|\.|export|ulimit|unset|set|PATH=|LD_LIBRARY_PATH=|MPI[A-Z_]*=|OMP[A-Z_]*=)[[:space:]=]' | grep -vE 'PBS_O_WORKDIR|INPUT|OMP_NUM_THREADS' | sed -E 's/^[[:space:]]+//' | paste -sd';' -)
-  [ -n "$MOD" ] && echo "MODULES=\"$MOD\"" >> "$OUT"
+  [ -n "$MOD" ] && echo "MODULES=$(q "$MOD")" >> "$OUT"
   SL=$(grep -E 'singularity[[:space:]]+(exec|run)' "$SRC" | grep -vE '^[[:space:]]*#' | head -1)
   if [ -n "$SL" ]; then
     SIF=$(echo "$SL" | tr ' ' '\n' | grep -E '\.(sif|simg|img)$' | head -1)
     ex=$(echo "$SL" | sed -E 's/.*singularity[[:space:]]+(exec|run)[[:space:]]+//; s/'"$(echo "$SIF" | sed 's/[][\.*^$/]/\\&/g')"'.*//')
     BIN=$(echo "$SL" | sed -E 's#.*\.(sif|simg|img)[[:space:]]+##' | awk '{print $1}')
-    [ -n "$SIF" ] && echo "SIF=\"$SIF\"" >> "$OUT"
-    [ -n "$ex" ] && echo "SING_OPTS=\"$(echo $ex | sed -E 's/--bind[ =][^ ]+//g')\"" >> "$OUT"
-    [ -n "$BIN" ] && echo "LMP_IN_IMAGE=\"$BIN\"" >> "$OUT"
+    [ -n "$SIF" ] && echo "SIF=$(q "$SIF")" >> "$OUT"
+    [ -n "$ex" ] && echo "SING_OPTS=$(q "$(echo $ex | sed -E 's/--bind[ =][^ ]+//g')")" >> "$OUT"
+    [ -n "$BIN" ] && echo "LMP_IN_IMAGE=$(q "$BIN")" >> "$OUT"
   else
-    LL=$(grep -E '(^|[[:space:]/])(lmp[_a-z0-9]*|lammps)([[:space:]]|$)' "$SRC" | grep -vE '^[[:space:]]*#' | head -1)
-    B=$(echo "$LL" | tr ' ' '\n' | grep -E '(^|/)(lmp[_a-z0-9]*|lammps)$' | head -1); [ -n "$B" ] && echo "LMP=\"$B\"" >> "$OUT"
+    LL=$(grep -vE '^[[:space:]]*#' "$SRC" | grep -vE '^[[:space:]]*(export|module|source|set|PATH=)' | grep -E '(^|[[:space:]/])(lmp[_a-z0-9]*|lammps)([[:space:]]|$)' | grep -E '(-in|-i)[[:space:]]|INPUT' | head -1)
+    B=$(echo "$LL" | tr ' ' '\n' | grep -vE '=' | grep -E '(^|/)(lmp[_a-z0-9]*|lammps)$' | head -1); [ -n "$B" ] && echo "LMP=$(q "$B")" >> "$OUT"
   fi
-  LL=$(grep -vE '^[[:space:]]*#' "$SRC" | grep -E '(lmp[_a-z0-9]*|lammps[_a-z0-9]*)([[:space:]]|$)' | grep -E '(-in|-i)[[:space:]]|INPUT' | head -1)
+  LL=$(grep -vE '^[[:space:]]*#' "$SRC" | grep -vE '^[[:space:]]*(export|module|source|set|PATH=)' | grep -E '(lmp[_a-z0-9]*|lammps[_a-z0-9]*)([[:space:]]|$)' | grep -E '(-in|-i)[[:space:]]|INPUT' | head -1)
   MP=$(echo "$LL" | tr ' ' '\n' | grep -E '^(mpirun|mpiexec[_a-z.]*|mpijob|srun|aprun|mpirun_mpt|mpiexec_mpt)$' | head -1)
-  [ -n "$MP" ] && echo "MPIRUN=\"$MP\"" >> "$OUT"
+  [ -n "$MP" ] && echo "MPIRUN=$(q "$MP")" >> "$OUT"
   # options between the launcher and the program, without -np/-n N (the number of ranks is set from the allocation)
   if [ -n "$MP" ]; then
     OPTS=$(echo "$LL" | sed -E "s/.*(^|[[:space:]])$MP[[:space:]]+//" | sed -E 's/(singularity[[:space:]]+(exec|run)).*//; s/[[:space:]](lmp[_a-z0-9]*|lammps[_a-z0-9]*|[^ ]*\/lmp[_a-z0-9]*)([[:space:]].*)?$//' | sed -E 's/(-np|-n|-c)[[:space:]]+[^ ]+//g' | sed -E 's/[[:space:]]+/ /g; s/^ //')
-    [ -n "$OPTS" ] && echo "MPI_OPTS=\"$OPTS\"" >> "$OUT"
+    [ -n "$OPTS" ] && echo "MPI_OPTS=$(q "$OPTS")" >> "$OUT"
   fi
   # a host file option is passed only if the sample script itself uses one (otherwise the PBS-aware mpirun reads the allocation)
   grep -qE '(-machinefile|-f)[[:space:]]+[^ ]*(NODEFILE|hostfile)' "$SRC" && echo 'HOSTFILE_FMT="mpich"' >> "$OUT"

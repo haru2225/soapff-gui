@@ -7,7 +7,7 @@ cd "${PBS_O_WORKDIR:-$PWD}"
 QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; MPI_OPTS=""; HOSTFILE_FMT="none"; CORES_PER_NODE="${CORES_PER_NODE:-}"
 [ -f ./config.auto ] && source ./config.auto
 [ -f ./config.env ] && source ./config.env
-[ -n "${MODULES}" ] && eval "${MODULES}"
+if [ -n "${MODULES}" ]; then set +u; eval "${MODULES}"; set -u; fi
 export OMP_NUM_THREADS=1
 HOSTOPT=""
 NPROC=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)
