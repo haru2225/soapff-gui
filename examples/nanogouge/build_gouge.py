@@ -31,7 +31,12 @@ p.add_argument('--clay-density', type=float, default=2.7, help='g/cm3, to size t
 p.add_argument('--seed', type=int, default=1)
 p.add_argument('-o', '--out', default='gouge')
 a = p.parse_args()
-rng = np.random.default_rng(a.seed)
+class _OldRng:                                    # numpy < 1.17 has no default_rng
+    def __init__(self, seed): self.r = np.random.RandomState(seed)
+    def random(self, size=None): return self.r.random_sample(size)
+    def normal(self, size=None): return self.r.normal(size=size)
+    def permutation(self, n): return self.r.permutation(n)
+rng = np.random.default_rng(a.seed) if hasattr(np.random, 'default_rng') else _OldRng(a.seed)
 os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
 
 # ---------------------------------------------------------------- read the particle (LAMMPS data, atom_style full)
