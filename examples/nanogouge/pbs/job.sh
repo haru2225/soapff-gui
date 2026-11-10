@@ -16,6 +16,10 @@ fi
 QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; MPI_OPTS=""; HOSTFILE_FMT="none"; CORES_PER_NODE="${CORES_PER_NODE:-}"
 [ -f ./config.auto ] && source ./config.auto
 [ -f ./config.env ] && source ./config.env
+# safety: MPI_OPTS must hold launcher options only; cut at the first word that is the program name or a redirect (old config.auto files)
+if [ -n "${MPI_OPTS}" ]; then
+  MPI_OPTS=$(echo "${MPI_OPTS}" | awk '{o=""; for(i=1;i<=NF;i++){ if ($i ~ /(^|\/)(lmp[_a-z0-9]*|lammps[_a-z0-9]*)$/ || $i ~ /^[<>]/ || $i ~ /^\$/ ) break; o=o" "$i } sub(/^ /,"",o); print o}')
+fi
 if [ -n "${MODULES}" ]; then set +u; eval "${MODULES}"; set -u; fi
 export OMP_NUM_THREADS=1
 HOSTOPT=""

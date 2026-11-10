@@ -62,7 +62,14 @@ else
   [ -n "$MP" ] && echo "MPIRUN=$(q "$MP")" >> "$OUT"
   # options between the launcher and the program, without -np/-n N (the number of ranks is set from the allocation)
   if [ -n "$MP" ]; then
-    OPTS=$(echo "$LL" | sed -E "s/.*(^|[[:space:]])$MP[[:space:]]+//" | sed -E 's/(singularity[[:space:]]+(exec|run)).*//; s/[[:space:]](lmp[_a-z0-9]*|lammps[_a-z0-9]*|[^ ]*\/lmp[_a-z0-9]*)([[:space:]].*)?$//' | sed -E 's/(-np|-n|-c)[[:space:]]+[^ ]+//g' | sed -E 's/[[:space:]]+/ /g; s/^ //')
+    # tokenise the launch line: options = the words between the launcher and the program (or singularity / a redirect / -in), without -np N
+    OPTS=$(echo "$LL" | awk -v mp="$MP" '{ s=0; for(i=1;i<=NF;i++) if($i==mp){s=i;break}
+        out=""; for(k=s+1;k<=NF;k++){ w=$k
+          if (w ~ /(^|\/)(lmp[_a-z0-9]*|lammps[_a-z0-9]*)$/ || w=="singularity" || w ~ /^[<>0-9]*[<>]/ || w=="-in" || w=="-i" || w=="2>&1") break
+          if (w ~ /^(-np|-n|-c)$/) { k++; continue }
+          if (w ~ /^-(np|n)[0-9]+$/) continue
+          out = out " " w }
+        sub(/^ /,"",out); print out }')
     [ -n "$OPTS" ] && echo "MPI_OPTS=$(q "$OPTS")" >> "$OUT"
   fi
   # a host file option is passed only if the sample script itself uses one (otherwise the PBS-aware mpirun reads the allocation)
