@@ -43,8 +43,9 @@ else
   fi
   MP=$(grep -oE '(mpirun|mpiexec(\.hydra)?|mpijob|srun)' "$SRC" | head -1)
   [ -n "$MP" ] && echo "MPIRUN=\"$MP\"" >> "$OUT"
-  case "$MP" in mpiexec.hydra) echo 'HOSTFILE_FMT="mpich"' >> "$OUT";; esac
-  grep -qiE 'intel|impi|mpich' "$SRC" && echo 'HOSTFILE_FMT="mpich"' >> "$OUT"
+  # a host file option is passed only if the sample script itself uses one (otherwise the PBS-aware mpirun reads the allocation)
+  grep -qE '(-machinefile|-f)[[:space:]]+[^ ]*(NODEFILE|hostfile)' "$SRC" && echo 'HOSTFILE_FMT="mpich"' >> "$OUT"
+  grep -qE '(--hostfile|-hostfile)[[:space:]]+' "$SRC" && echo 'HOSTFILE_FMT="openmpi"' >> "$OUT"
 fi
 grep -q "ncpus=1\b\|ncpus=1:" "$OUT" && echo "autoconfig WARNING: the sample script asks for ncpus=1; use NODES / edit QSUB_OPTS in config.auto to ask for all cores" >&2
 echo "---- detected settings ($OUT) ----" >&2; cat "$OUT" >&2; echo "-----------------------------------" >&2

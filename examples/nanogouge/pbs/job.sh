@@ -4,7 +4,7 @@
 # It runs in the submit directory (the run folder holding the in.* files, gouge.data and gouge.settings).
 set -u
 cd "${PBS_O_WORKDIR:-$PWD}"
-QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; HOSTFILE_FMT="openmpi"; CORES_PER_NODE="${CORES_PER_NODE:-}"
+QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; HOSTFILE_FMT="none"; CORES_PER_NODE="${CORES_PER_NODE:-}"
 [ -f ./config.auto ] && source ./config.auto
 [ -f ./config.env ] && source ./config.env
 [ -n "${MODULES}" ] && eval "${MODULES}"
@@ -19,9 +19,10 @@ if [ -n "${PBS_NODEFILE:-}" ]; then
   NODES=$(sort -u "$PBS_NODEFILE" | wc -l)
   echo "cores: slots/host in PBS_NODEFILE=${SLOTS}  nproc=${NPROC}  NCPUS=${NREQ}  -> ${C} per node x ${NODES} nodes"
   [ "${C}" -le 1 ] && echo "WARNING: only 1 core per node. Ask for more cores in the resource line (e.g. -l select=${NODES}:ncpus=<cores>:mpiprocs=<cores>); see QSUB_OPTS in config.auto" 
+  # default: no host option (a PBS-aware mpirun reads the allocation itself). Only if config sets HOSTFILE_FMT=openmpi|mpich a host file is passed.
   HF=hostfile.${PBS_JOBID:-$$}
   if [ "${HOSTFILE_FMT}" = mpich ]; then sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1":"c}' > "$HF"; HOSTOPT="-machinefile $HF"
-  else sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1" slots="c}' > "$HF"; HOSTOPT="--hostfile $HF"; fi
+  elif [ "${HOSTFILE_FMT}" = openmpi ]; then sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1" slots="c}' > "$HF"; HOSTOPT="--hostfile $HF"; fi
   NP=${NP:-$((NODES*C))}
 else
   NP=${NP:-$NPROC}
