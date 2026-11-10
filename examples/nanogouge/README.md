@@ -30,7 +30,9 @@ vi config.env                    # and its mpirun / lmp line (MPIRUN, LMP) into 
 qstat -u $USER
 ```
 
-If LAMMPS is a Singularity image, set `LMP="singularity exec /path/to/lammps.sif lmp"` in `config.env` (examples are in the file).
+Singularity: put the image in `config.env` (`SIF="/path/to/lammps.sif"`, `LMP_IN_IMAGE="lmp"`); every job then runs `mpirun -np <all cores> --hostfile ... singularity exec --bind $PWD <image> lmp ...`.
+All cores of every allocated node are used (the number of MPI ranks = nodes × `nproc`, whatever `mpiprocs` the `#PBS` line says; `CORES_PER_NODE` overrides it; `HOSTFILE_FMT="mpich"` for Intel MPI / MPICH).
+To run one stage by hand like the centre's sample: edit the marked lines of `run.sh` (queue, `select`, `STAGE`, `SIGMA`) and `qsub run.sh` in a run folder made by `./go.sh`.
 
 `./go.sh 12 "5.6 56" "01 02"` = N particles, normal stresses in MPa, stages (here only the compaction). The pack is made by `make_pack.sh` from this folder
 (the particle is `particle.data` / `particle.settings`, a copy of `../montmorillonite_edge/out_clay_montmorillonite/system.*`); from a clone of the repository the same steps are `python3 build_gouge.py -n 12 -o RUN_N12/gouge` and `pbs/submit_chain.sh RUN_N12 "5.6 56"`.

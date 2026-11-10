@@ -6,10 +6,23 @@ set -u
 cd "${PBS_O_WORKDIR:-$PWD}"
 source ./config.env
 [ -n "${MODULES}" ] && eval "${MODULES}"
-NP=${NP:-$( [ -n "${PBS_NODEFILE:-}" ] && wc -l < "$PBS_NODEFILE" || echo 1 )}
-RUN="${MPIRUN} -np ${NP} ${LMP} -screen none"
+export OMP_NUM_THREADS=1
+HOSTOPT=""
+if [ -n "${PBS_NODEFILE:-}" ]; then
+  # use every core of every allocated node (independent of the mpiprocs written in the #PBS line)
+  NODES=$(sort -u "$PBS_NODEFILE" | wc -l); C=${CORES_PER_NODE:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)}
+  HF=hostfile.${PBS_JOBID:-$$}
+  if [ "${HOSTFILE_FMT}" = mpich ]; then sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1":"c}' > "$HF"; HOSTOPT="-machinefile $HF"
+  else sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1" slots="c}' > "$HF"; HOSTOPT="--hostfile $HF"; fi
+  NP=${NP:-$((NODES*C))}
+else
+  NP=${NP:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)}
+fi
+if [ -n "${SIF}" ]; then LMPCMD="singularity exec ${SING_OPTS} --bind $PWD ${SIF} ${LMP_IN_IMAGE}"; else LMPCMD="${LMP}"; fi
+RUN="${MPIRUN} -np ${NP} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
-echo "stage ${STAGE}  sigma ${SIGMA}  np ${NP}  $(date)"
+echo "stage ${STAGE}  sigma ${SIGMA}  MPI ${NP} (${C:-?} per node)  $(date)"
+echo "${RUN}"
 case "${STAGE}" in
 01) [ -f 01_equil.done ] && exit 0
     ${RUN} -in in.01_equil -var data gouge.data -var settings gouge.settings ${EXTRA} ;;
