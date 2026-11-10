@@ -54,11 +54,12 @@ if [ -z "${SIF}" ]; then
     echo "then put the module/PATH lines in config.env (MODULES=...) or the full path (LMP=/full/path/$LB)"; exit 1
   fi
   echo "LAMMPS: $LMPABS"; LMPCMD="$LMPABS"
-  # shared libraries the binary needs but cannot find (e.g. libfftw3.so.3): look for them in the software area and add their directories
-  MISS=$(ldd "$LMPABS" 2>/dev/null | awk '/not found/{print $1}')
-  if [ -n "$MISS" ]; then
-    echo "missing shared libraries: $(echo $MISS)"
-    LMPDIR=$(dirname "$(dirname "$LMPABS")")
+  # shared libraries a binary needs but cannot find (e.g. libfftw3.so.3): look for them in the software area and add their directories
+  fixlibs() {
+    local BIN=$1 MISS LMPDIR l f root
+    MISS=$(ldd "$BIN" 2>/dev/null | awk '/not found/{print $1}'); [ -z "$MISS" ] && return 0
+    echo "missing shared libraries of $BIN: $(echo $MISS)"
+    LMPDIR=$(dirname "$(dirname "$BIN")")
     for l in $MISS; do
       f=""
       for root in "$LMPDIR" "$(dirname "$LMPDIR")" /home/app /opt /usr/lib64 /usr/local /work "$HOME"; do
@@ -67,7 +68,19 @@ if [ -z "${SIF}" ]; then
       if [ -n "$f" ]; then export LD_LIBRARY_PATH="$(dirname "$f")${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"; echo "  $l -> $(dirname "$f")"
       else echo "  $l: not found anywhere; try 'module avail 2>&1 | grep -i ${l#lib}' and add the module to config.env (MODULES=...)"; fi
     done
-    ldd "$LMPABS" 2>/dev/null | grep "not found" && echo "WARNING: still missing libraries (see above)"
+    ldd "$BIN" 2>/dev/null | grep "not found" && echo "WARNING: still missing libraries (see above)"
+    return 0
+  }
+  fixlibs "$LMPABS"
+  # the shear stage needs "fix press/langevin" (LAMMPS 21Nov2023 or newer): if this build lacks it, use another LAMMPS found in the software area
+  has_pl() { "$1" -h 2>/dev/null | grep -q "press/langevin"; }
+  if ! has_pl "$LMPABS"; then
+    echo "WARNING: $LMPABS has no 'fix press/langevin' (LAMMPS older than 21Nov2023); looking for a newer build ..."
+    for c in $(find /home/app /opt /work "$HOME" -maxdepth 7 -type f \( -name 'lmp' -o -name 'lmp_*' \) -perm -u+x 2>/dev/null | grep -v '\.so' | sort -r | head -20); do
+      fixlibs "$c" >/dev/null 2>&1
+      if has_pl "$c"; then LMPABS=$c; LMPCMD=$c; echo "using $c (has press/langevin)"; break; fi
+    done
+    has_pl "$LMPABS" || echo "WARNING: no LAMMPS with press/langevin found; stages 01-03 run, stage 04 (shear) will fail. Put LMP=/path/to/newer/lmp in config.env"
   fi
 fi
 RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
