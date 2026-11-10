@@ -12,21 +12,23 @@ mkdir -p "$RUNDIR"
 if ls "$HERE"/in.* >/dev/null 2>&1; then cp "$HERE"/in.* "$RUNDIR"/; else cp "$TOP"/lammps/in.* "$RUNDIR"/; fi
 cp "$HERE"/job.sh "$HERE"/run.sh "$RUNDIR"/
 [ -f "$RUNDIR/config.env" ] || cp "$HERE/config.env" "$RUNDIR/"
-cd "$RUNDIR"; source ./config.env
+[ -f "$HERE/autoconfig.sh" ] && bash "$HERE/autoconfig.sh" "$RUNDIR"
+cd "$RUNDIR"; N_DEHYD_JOBS=2; N_SHEAR_JOBS=3; QSUB_OPTS=""
+[ -f ./config.auto ] && source ./config.auto
+source ./config.env
 for f in gouge.data gouge.settings; do [ -f $f ] || { echo "missing $RUNDIR/$f (run build_gouge.py -o $RUNDIR/gouge)"; exit 1; }; done
-Q=""; [ -n "${QUEUE}" ] && Q="-q ${QUEUE}"
-sub() {   # sub NAME WALLTIME DEPENDENCY VARS
-  local dep=""; [ -n "$3" ] && dep="-W depend=afterany:$3"
-  qsub -N "$1" $Q ${RES_FLAG} "${SELECT}" ${RES_FLAG} "walltime=$2" $dep -v "$4" job.sh
+sub() {   # sub NAME DEPENDENCY VARS
+  local dep=""; [ -n "$2" ] && dep="-W depend=afterany:$2"
+  qsub -N "$1" ${QSUB_OPTS} $dep -v "$3" job.sh
 }
 want() { [ "$STAGES" = all ] || [[ " $STAGES " == *" $1 "* ]]; }
 J=""
-if want 01; then J=$(sub ng01 "$WALLTIME_SHORT" "" "STAGE=01"); echo "01: $J"; fi
-if want 02; then for i in $(seq 1 ${N_DEHYD_JOBS}); do J=$(sub ng02_$i "$WALLTIME_LONG" "$J" "STAGE=02"); echo "02 part $i: $J"; done; fi
+if want 01; then J=$(sub ng01 "" "STAGE=01"); echo "01: $J"; fi
+if want 02; then for i in $(seq 1 ${N_DEHYD_JOBS}); do J=$(sub ng02_$i "$J" "STAGE=02"); echo "02 part $i: $J"; done; fi
 BASE=$J
 for S in $SIGMAS; do
   J=$BASE
-  if want 03; then J=$(sub ng03_$S "$WALLTIME_SHORT" "$J" "STAGE=03,SIGMA=$S"); echo "03 sigma=$S: $J"; fi
-  if want 04; then for i in $(seq 1 ${N_SHEAR_JOBS}); do J=$(sub ng04_${S}_$i "$WALLTIME_LONG" "$J" "STAGE=04,SIGMA=$S"); echo "04 sigma=$S part $i: $J"; done; fi
-  if want 05; then J=$(sub ng05_$S "$WALLTIME_SHORT" "$J" "STAGE=05,SIGMA=$S"); echo "05 sigma=$S: $J"; fi
+  if want 03; then J=$(sub ng03_$S "$J" "STAGE=03,SIGMA=$S"); echo "03 sigma=$S: $J"; fi
+  if want 04; then for i in $(seq 1 ${N_SHEAR_JOBS}); do J=$(sub ng04_${S}_$i "$J" "STAGE=04,SIGMA=$S"); echo "04 sigma=$S part $i: $J"; done; fi
+  if want 05; then J=$(sub ng05_$S "$J" "STAGE=05,SIGMA=$S"); echo "05 sigma=$S: $J"; fi
 done

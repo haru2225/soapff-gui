@@ -19,18 +19,22 @@ Everything ran on a small test system (3 particles, 27,000 atoms; every stage, t
 The force field is the one of the repository (ClayFF, Cygan et al. 2004; the edge types of Lammers et al. as taken whole from `clay_montmorillonite.settings`; flexible SPC water).
 The paper used SPC/E with SHAKE and GROMACS; here the water is flexible, so the time step is 1 fs.
 
-## On the supercomputer (no git, no soapff-gui: one self-contained pack of 17 files)
+## On the supercomputer (no git, no soapff-gui, nothing to edit: one self-contained pack of 18 files)
 
 ```
 curl -L https://github.com/haru2225/soapff-gui/raw/main/examples/nanogouge/nanogouge_pack.tar.gz | tar xz     # or scp nanogouge_pack.tar.gz and tar xzf it
 cd nanogouge_pack
-cat /home/app/lammps/run.sh      # the centre's sample script: copy its #PBS lines (QUEUE, SELECT, WALLTIME_*), its module line (MODULES)
-vi config.env                    # and its mpirun / lmp line (MPIRUN, LMP) into config.env
-./go.sh                          # builds the system (N=12, numpy and scipy are installed with pip --user if missing) and submits the whole chain
+./go.sh                          # reads /home/app/lammps/run.sh, builds the system (N=12) and submits the whole chain
 qstat -u $USER
 ```
 
-Singularity: put the image in `config.env` (`SIF="/path/to/lammps.sif"`, `LMP_IN_IMAGE="lmp"`); every job then runs `mpirun -np <all cores> --hostfile ... singularity exec --bind $PWD <image> lmp ...`.
+`go.sh` needs no settings: `autoconfig.sh` reads the centre's sample script (`/home/app/lammps/run.sh`, or `CONFIG_SRC=/path/run.sh ./go.sh`) and takes from it every `#PBS` line (queue, resources, wall time), the `module` lines,
+the Singularity image and the MPI launcher, and writes `RUN_N12/config.auto` (it prints what it found). `NODES=8 ./go.sh` rescales `select=<n>`. `pbs/config.env` holds optional overrides only (all commented out).
+numpy and scipy are installed with `pip --user` if missing. `./go.sh 12 "5.6 56" "01 02"` = N particles, normal stresses in MPa, stages (here only the compaction).
+The pack is made by `make_pack.sh` from this folder (the particle is `particle.data` / `particle.settings`, a copy of `../montmorillonite_edge/out_clay_montmorillonite/system.*`);
+from a clone of the repository the same steps are `python3 build_gouge.py -n 12 -o RUN_N12/gouge` and `pbs/submit_chain.sh RUN_N12 "5.6 56"`.
+
+Singularity (detected from the sample script, or set `SIF="/path/to/lammps.sif"` in `config.env`): every job then runs `mpirun -np <all cores> --hostfile ... singularity exec --bind $PWD <image> lmp ...`.
 All cores of every allocated node are used (the number of MPI ranks = nodes × `nproc`, whatever `mpiprocs` the `#PBS` line says; `CORES_PER_NODE` overrides it; `HOSTFILE_FMT="mpich"` for Intel MPI / MPICH).
 To run one stage by hand like the centre's sample: edit the marked lines of `run.sh` (queue, `select`, `STAGE`, `SIGMA`) and `qsub run.sh` in a run folder made by `./go.sh`.
 

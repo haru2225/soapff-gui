@@ -4,7 +4,9 @@
 # It runs in the submit directory (the run folder holding the in.* files, gouge.data and gouge.settings).
 set -u
 cd "${PBS_O_WORKDIR:-$PWD}"
-source ./config.env
+QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; HOSTFILE_FMT="openmpi"; CORES_PER_NODE="${CORES_PER_NODE:-}"
+[ -f ./config.auto ] && source ./config.auto
+[ -f ./config.env ] && source ./config.env
 [ -n "${MODULES}" ] && eval "${MODULES}"
 export OMP_NUM_THREADS=1
 HOSTOPT=""
