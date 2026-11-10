@@ -19,7 +19,7 @@ source ./config.env
 for f in gouge.data gouge.settings; do [ -f $f ] || { echo "missing $RUNDIR/$f (run build_gouge.py -o $RUNDIR/gouge)"; exit 1; }; done
 sub() {   # sub NAME DEPENDENCY VARS
   local dep=""; [ -n "$2" ] && dep="-W depend=afterany:$2"
-  qsub -N "$1" ${QSUB_OPTS} $dep -v "$3" job.sh
+  qsub -N "$1" ${QSUB_OPTS} $dep -v "$3,SUBDIR_PHYS=$(pwd -P),SUBDIR_LOGICAL=$PWD" job.sh
 }
 want() { [ "$STAGES" = all ] || [[ " $STAGES " == *" $1 "* ]]; }
 J=""

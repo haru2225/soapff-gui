@@ -3,7 +3,16 @@
 # One job of the chain.  Everything is passed by submit_chain.sh:  STAGE (01..05)  SIGMA (normal stress, MPa)  [EXTRA]
 # It runs in the submit directory (the run folder holding the in.* files, gouge.data and gouge.settings).
 set -u
-cd "${PBS_O_WORKDIR:-$PWD}"
+# go to the run folder.  The login node's path may not exist on the compute node (symlink / automount): try the physical path too, retry, and stop with a diagnosis rather than running in the wrong place.
+for d in "${PBS_O_WORKDIR:-}" "${SUBDIR_PHYS:-}" "${SUBDIR_LOGICAL:-}"; do
+  [ -n "$d" ] || continue
+  for t in 1 2 3; do cd "$d" 2>/dev/null && [ -f ./in.01_equil ] && break 2; sleep 5; done
+done
+if [ ! -f ./in.01_equil ]; then
+  echo "ERROR: cannot enter the run folder on $(hostname).  tried: PBS_O_WORKDIR=${PBS_O_WORKDIR:-} SUBDIR_PHYS=${SUBDIR_PHYS:-}"
+  echo "pwd=$PWD  HOME=$HOME"; for d in "${PBS_O_WORKDIR:-}" "${SUBDIR_PHYS:-}"; do [ -n "$d" ] && ls -ld "$d" "$(dirname "$d")" 2>&1; done
+  ls -ld /home /home/* 2>&1 | head -5; df -h "$HOME" 2>&1 | tail -2; exit 1
+fi
 QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; MPI_OPTS=""; HOSTFILE_FMT="none"; CORES_PER_NODE="${CORES_PER_NODE:-}"
 [ -f ./config.auto ] && source ./config.auto
 [ -f ./config.env ] && source ./config.env
