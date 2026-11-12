@@ -1,35 +1,44 @@
 # 02: dehydration by deleting random water molecules every step_ps, NPzT at 1 atm in between
 #     (Underwood & Bourg 2020: 1 % of the water every 1 ns; half that rate below m_w/m_c = 1; here step_ps is shorter)
 #   lmp -in in.02_dehydrate -var data 01_equil.data -var settings gouge.settings -var final_mwmc 0.2
-#   restart after a kill:  -var data dehyd_current.data -var kstart <k in dehyd_k.txt>
+#   continued by the next job (job.sh):  -var resume 1 -var rfile dehyd.restart.stop -var nw0 <dehyd_nw0.txt>
+#   cycle k runs from step (k-1)*ncyc to k*ncyc: water removal at its start, MD, one line of dehydrate.dat at its end.
+#   A cycle stopped by the job's time limit is finished first by the next job; a new cycle (= a removal) starts only with > 2 min left.
 include in.init
 variable step_ps index 200          # ps between two deletions
 variable dfrac1 index 0.02          # fraction of the initial water removed per step while m_w/m_c > 1
 variable dfrac2 index 0.01          # ... and below
 variable final_mwmc index 0.2       # stop at this water / clay mass ratio
-variable kstart index 1
-variable snap_every index 5         # write a data file of the configuration every this many steps
+variable snap_every index 5         # write a data file of the configuration every this many cycles
+variable rest_every index 10000     # also a restart every this many steps
+variable nw0 index -1               # water molecules at the start of stage 02 (given when continuing)
+variable tmin index 120             # s: a new cycle (a water removal) starts only with more time than this left in the job
 log log.02_dehydrate append
 thermo 1000
-variable nw0 equal $(count(wO))
-if "${kstart} == 1" then "print '# k  n_water  mw/mc  rho_b(g/cm3)  lz(A)  S-free' file dehydrate.dat"
+if "${resume} == 0" then "print '# k  n_water  mw/mc  rho_b(g/cm3)  lz(A)  S-free' file dehydrate.dat"
+if "${nw0} < 0" then "variable nw0 delete" "variable nw0 equal $(count(wO))"
+print "${nw0}" file dehyd_nw0.txt
+variable ncyc equal round(v_step_ps*1000/v_dt)
 fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
 compute_modify fnpt_temp dynamic/dof yes
 compute_modify thermo_temp dynamic/dof yes
-variable k loop ${kstart} 100000
-label loop
+restart ${rest_every} dehyd.restart.1 dehyd.restart.2
+if "$(step%v_ncyc) != 0" then "jump SELF runcycle"
+label top
+if "$(timeremain) != 0 && $(timeremain) < ${tmin}" then "write_restart dehyd.restart.stop" "quit 0"
 variable ratio equal $(mass(water)/mass(clay))
 if "${ratio} <= ${final_mwmc}" then "jump SELF done"
 if "${ratio} > 1.0" then "variable ndel equal round(${dfrac1}*${nw0})" else "variable ndel equal round(${dfrac2}*${nw0})"
-variable sd equal ${seed}+${k}
+variable sd equal ${seed}+$(floor(step/v_ncyc))+1
 delete_atoms random count ${ndel} yes wO NULL ${sd} mol yes bond yes compress yes
-run $(round(v_step_ps*1000/v_dt))
-print "$(v_k) $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
-write_data dehyd_current.data
-print "$(v_k+1)" file dehyd_k.txt
-if "$(v_k % v_snap_every) == 0" then "write_data dehyd_snap_${k}.data"
-next k
-jump SELF loop
+label runcycle
+variable kc equal $(floor(step/v_ncyc)+1)
+variable kend equal $(v_kc*v_ncyc)
+run ${kend} upto
+if "$(step) < ${kend}" then "write_restart dehyd.restart.stop" "quit 0"
+print "${kc} $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
+if "$(v_kc%v_snap_every) == 0" then "write_data dehyd_snap_${kc}.data"
+jump SELF top
 label done
 write_data 02_dehydrate.data
 print "DONE 02" file 02_dehydrate.done

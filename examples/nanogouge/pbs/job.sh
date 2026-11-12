@@ -1,6 +1,8 @@
 #!/bin/bash
 #PBS -j oe
-# One job of the chain.  Everything is passed by submit_chain.sh:  STAGE (01..05)  SIGMA (normal stress, MPa)  [EXTRA]
+# One job of the chain (submit_chain.sh): it works on the first unfinished stage (01, 02, then 03 04 05 for each sigma of chain.env),
+# continues it from its last restart, stops LAMMPS cleanly before the wall time, and the next job goes on.  Any wall time works (1 h too).
+# STAGE=01..05 SIGMA=<MPa> (run.sh, qsub -v) runs one given stage only.  EXTRA = more LAMMPS -var options.
 # It runs in the submit directory (the run folder holding the in.* files, gouge.data and gouge.settings).
 set -u
 # go to the run folder.  The login node's path may not exist on the compute node (symlink / automount): try the physical path too, retry, and stop with a diagnosis rather than running in the wrong place.
@@ -81,7 +83,7 @@ if [ -z "${SIF}" ]; then
   }
   # can it start here?  A library not found, or a build made with another MPI version (lmp_icex 3Mar20 with HPE MPT 2.33:
   # "symbol lookup error: undefined symbol: mpi_sgi_status_ignore"), stops before LAMMPS begins.  ldd -r resolves every symbol without running it.
-  load_errors() { ldd -r "$1" 2>&1 | grep -E 'not found|undefined symbol' | sort -u | head -5; }
+  load_errors() { command -v ldd >/dev/null 2>&1 || return 0; ldd -r "$1" 2>&1 | grep -E 'not found|undefined symbol' | sort -u | head -5; }
   E=$(load_errors "$LMPABS")
   if ! has_pl "$LMPABS" || [ -n "$E" ]; then
     has_pl "$LMPABS" || echo "WARNING: $LMPABS has no 'fix press/langevin' (LAMMPS older than 21Nov2023)"
@@ -107,51 +109,122 @@ if [ -z "${SIF}" ]; then
 fi
 RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
-echo "stage ${STAGE}  sigma ${SIGMA}  MPI ${NP} (${C:-?} per node)  $(date)"
+[ -f ./chain.env ] && source ./chain.env          # SIGMAS and STAGES of the chain (written by submit_chain.sh)
+SIGMAS=${SIGMAS:-$SIGMA}; STAGES=${STAGES:-all}
+echo "MPI ${NP} (${C:-?} per node)  $(date)"
 echo "${RUN}"
-# the input of this stage is missing: the chain goes on after a failed job (afterany), so say which earlier stage did not finish and why, then stop
+
+# ---- wall time.  LAMMPS gets the time left minus TIME_MARGIN (s), stops cleanly, writes a restart; the next job continues from it.
+WALL=""
+[ -n "${PBS_JOBID:-}" ] && WALL=$(qstat -f "$PBS_JOBID" 2>/dev/null | awk -F'= ' '/Resource_List.walltime/{print $2; exit}')
+[ -z "$WALL" ] && WALL=$(echo "${QSUB_OPTS:-}" | grep -o 'walltime=[0-9:]*' | head -1 | cut -d= -f2)
+tosec() { echo "$1" | awk -F: '{s=0; for(i=1;i<=NF;i++) s=s*60+$i; print int(s)}'; }
+WALLSEC=${WALLSEC:-$([ -n "$WALL" ] && tosec "$WALL" || echo 0)}
+MARGIN=${TIME_MARGIN:-360}
+echo "wall time of this job: ${WALL:-unknown} (${WALLSEC} s); LAMMPS stops ${MARGIN} s before its end"
+tleft() { if [ "$WALLSEC" -gt 0 ]; then echo $(( WALLSEC - SECONDS - MARGIN )); else echo off; fi; }
+
+donefile() { case $1 in 01) echo 01_equil.done;; 02) echo 02_dehydrate.done;; 03) echo 03_consolidate_$2.done;; 04) echo shear_$2.done;; 05) echo heal_$2.done;; esac; }
+want() { [ "$STAGES" = all ] || [[ " $STAGES " == *" $1 "* ]]; }
+next_work() {   # "STAGE SIGMA" of the first unfinished stage: 01, 02, then 03 04 05 for each sigma in turn; nothing when all is done
+  local st S
+  for st in 01 02; do want $st && [ ! -f "$(donefile $st)" ] && { echo "$st -"; return; }; done
+  for S in $SIGMAS; do for st in 03 04 05; do want $st && [ ! -f "$(donefile $st $S)" ] && { echo "$st $S"; return; }; done; done
+}
+newest() { local b="" f; for f in "$@"; do [ -f "$f" ] && { [ -z "$b" ] || [ "$f" -nt "$b" ]; } && b=$f; done; echo "$b"; }   # the first one wins a tie (.stop)
+
+# the input of a stage is missing: say which earlier stage did not finish and why, then stop
 missing_input() {
-  local s n d g l f
+  local st d
   echo "ERROR: stage ${STAGE} cannot start: $1 is missing."
   echo "  finished stages: $(ls *.done 2>/dev/null | tr '\n' ' ')"
-  for s in "01|01_equil.done|ng01.o*|log.01_equil" "02|02_dehydrate.done|ng02_*.o*|log.02_dehydrate" \
-           "03|03_consolidate_${SIGMA}.done|ng03_${SIGMA}.o*|log.03_consolidate_${SIGMA}" "04|shear_${SIGMA}.done|ng04_${SIGMA}_*.o*|log.04_shear_${SIGMA}"; do
-    IFS='|' read -r n d g l <<< "$s"
-    [ -f "$d" ] && continue
-    echo "  the first unfinished stage is ${n}: it failed, or it was stopped by the wall time (\"walltime ... exceeded\"). The end of its outputs:"
-    for f in $(ls -t $g 2>/dev/null | head -1) $l; do
-      [ -f "$f" ] || continue
-      echo "  --- $f"
-      grep -E "ERROR|walltime|Killed|Lost atoms|Out of range|Bond atoms missing|cannot|not found" "$f" | tail -4 | cut -c1-200 | grep . || tail -3 "$f" | cut -c1-200
+  for st in 01 02 03 04; do
+    d=$(donefile $st "$SIGMA"); [ -f "$d" ] && continue
+    echo "  the first unfinished stage is ${st}. The end of its LAMMPS log and of the last job outputs:"
+    for f in $(ls log.0${st}* 2>/dev/null) $(ls -t ng*.o* 2>/dev/null | head -2); do
+      echo "  --- $f"; grep -E "ERROR|walltime|Killed|Lost atoms|Out of range|Bond atoms missing|cannot|not found" "$f" | tail -4 | cut -c1-200 | grep . || tail -3 "$f" | cut -c1-200
     done
     break
   done
   exit 1
 }
-case "${STAGE}" in
-01) [ -f 01_equil.done ] && exit 0
-    ${RUN} -in in.01_equil -var data gouge.data -var settings gouge.settings ${EXTRA} ;;
-02) [ -f 02_dehydrate.done ] && exit 0
-    if [ -f dehyd_current.data ] && [ -f dehyd_k.txt ]; then
-      ${RUN} -in in.02_dehydrate -var data dehyd_current.data -var kstart "$(cat dehyd_k.txt)" -var settings gouge.settings ${EXTRA}
-    else
-      [ -f 01_equil.data ] || missing_input 01_equil.data
-      ${RUN} -in in.02_dehydrate -var data 01_equil.data -var settings gouge.settings ${EXTRA}
-    fi ;;
-03) [ -f 03_consolidate_${SIGMA}.done ] && exit 0
-    [ -f 02_dehydrate.data ] || missing_input 02_dehydrate.data
-    ${RUN} -in in.03_consolidate -var data 02_dehydrate.data -var settings gouge.settings -var sigma ${SIGMA} ${EXTRA} ;;
-04) [ -f shear_${SIGMA}.done ] && exit 0
-    R=$(ls -t shear_${SIGMA}.restart.1 shear_${SIGMA}.restart.2 2>/dev/null | head -1)
-    if [ -n "${R}" ]; then
-      ${RUN} -in in.04_shear -var resume 1 -var rfile "${R}" -var sigma ${SIGMA} ${EXTRA}
-    else
-      [ -f 03_consolidate_${SIGMA}.data ] || missing_input 03_consolidate_${SIGMA}.data
-      ${RUN} -in in.04_shear -var data 03_consolidate_${SIGMA}.data -var settings gouge.settings -var sigma ${SIGMA} ${EXTRA}
-    fi ;;
-05) [ -f heal_${SIGMA}.done ] && exit 0
-    [ -f shear_${SIGMA}_final.data ] || missing_input shear_${SIGMA}_final.data
-    ${RUN} -in in.05_heal -var data shear_${SIGMA}_final.data -var settings gouge.settings -var sigma ${SIGMA} ${EXTRA} ;;
-*)  echo "unknown STAGE ${STAGE}"; exit 1 ;;
-esac
+
+# run (or continue) one stage until it is done or the time is up.  A restart of the stage is continued; otherwise it starts from the data file of the stage before.
+run_stage() {
+  local st=$1 S=$2 R TL rc
+  TL=$(tleft)
+  if [ "$TL" != off ] && [ "$TL" -lt "${MIN_LEFT:-180}" ]; then echo "only ${TL} s left: stage $st is left to the next job"; return 1; fi
+  STAGE=$st; SIGMA=$S
+  echo "== stage $st  sigma $S  $(date)  LAMMPS time limit ${TL} s"
+  local V="-var tlimit $TL ${EXTRA}"
+  case $st in
+  01) R=$(newest 01_equil.restart.stop 01_equil.restart.1 01_equil.restart.2 01_equil.restart.min)
+      if [ -z "$R" ]; then ${RUN} -in in.01_equil -var data gouge.data -var settings gouge.settings $V
+      elif [ "$R" = 01_equil.restart.min ]; then ${RUN} -in in.01_equil -var resume 1 -var rfile $R -var domin 1 $V
+      else ${RUN} -in in.01_equil -var resume 1 -var rfile $R -var domin 0 $V; fi ;;
+  02) R=$(newest dehyd.restart.stop dehyd.restart.1 dehyd.restart.2)
+      if [ -n "$R" ]; then ${RUN} -in in.02_dehydrate -var resume 1 -var rfile $R -var nw0 "$(cat dehyd_nw0.txt)" $V
+      else [ -f 01_equil.data ] || missing_input 01_equil.data
+           ${RUN} -in in.02_dehydrate -var data 01_equil.data -var settings gouge.settings $V; fi ;;
+  03) R=$(newest 03_consolidate_$S.restart.stop 03_consolidate_$S.restart.1 03_consolidate_$S.restart.2)
+      if [ -n "$R" ]; then ${RUN} -in in.03_consolidate -var resume 1 -var rfile $R -var sigma $S $V
+      else [ -f 02_dehydrate.data ] || missing_input 02_dehydrate.data
+           ${RUN} -in in.03_consolidate -var data 02_dehydrate.data -var settings gouge.settings -var sigma $S $V; fi ;;
+  04) R=$(newest shear_$S.restart.stop shear_$S.restart.1 shear_$S.restart.2)
+      if [ -n "$R" ]; then ${RUN} -in in.04_shear -var resume 1 -var rfile $R -var sigma $S $V
+      else [ -f 03_consolidate_$S.data ] || missing_input 03_consolidate_$S.data
+           ${RUN} -in in.04_shear -var data 03_consolidate_$S.data -var settings gouge.settings -var sigma $S $V; fi ;;
+  05) R=$(newest heal_$S.restart.stop heal_$S.restart.1 heal_$S.restart.2)
+      if [ -n "$R" ]; then ${RUN} -in in.05_heal -var resume 1 -var rfile $R -var sigma $S $V
+      else [ -f shear_${S}_final.data ] || missing_input shear_${S}_final.data
+           ${RUN} -in in.05_heal -var data shear_${S}_final.data -var settings gouge.settings -var sigma $S $V; fi ;;
+  *)  echo "unknown STAGE $st"; exit 1 ;;
+  esac
+  rc=$?
+  [ -f procs.txt ] && echo "MPI ranks per node: $(awk -F': ' '$1 ~ /^[0-9]/{print $3}' procs.txt | sort | uniq -c | awk '{printf "%s=%s ", $2, $1}')"
+  if [ $rc -ne 0 ]; then
+    # LAMMPS stopped with an error (a stop by the time limit ends with status 0): do not let the following jobs repeat it
+    echo "stage $st sigma $S job ${PBS_JOBID:-} $(date): LAMMPS ended with status $rc" > chain.failed
+    echo "ERROR: LAMMPS ended with status $rc.  The chain stops here (chain.failed); the following jobs end at once."
+    for f in $(ls -t log.0${st}* 2>/dev/null | head -1); do echo "--- $f"; grep -E "ERROR|WARNING" "$f" | tail -5; tail -3 "$f"; done
+    echo "Fix the cause, then run ./go.sh again (it deletes chain.failed and continues from the last restart)."
+    exit 1
+  fi
+  return 0
+}
+
+# one job in this folder at a time (two chains would write the same files)
+LOCK=.chain.lock
+if [ -f $LOCK ]; then
+  H=$(cat $LOCK)
+  if [ -n "$H" ] && [ "$H" != "${PBS_JOBID:-$$}" ] && qstat "$H" 2>/dev/null | grep -q " R "; then echo "job $H is working in this folder; this job ends"; exit 0; fi
+fi
+echo "${PBS_JOBID:-$$}" > $LOCK; trap '[ "$(cat $LOCK 2>/dev/null)" = "${PBS_JOBID:-$$}" ] && rm -f $LOCK' EXIT
+[ -f chain.failed ] && { echo "an earlier job failed: $(cat chain.failed).  Fix it and run ./go.sh again (it deletes chain.failed)."; exit 1; }
+
+# the last job of the chain submits the next one while work is left (needs qsub on the compute node; otherwise ./go.sh again)
+extend_chain() {
+  [ -n "${PBS_JOBID:-}" ] && [ -f chain.tail ] && [ "$(cat chain.tail)" = "$PBS_JOBID" ] || return 0
+  local J
+  if J=$(qsub -N ng_next ${QSUB_OPTS} -W depend=afterany:${PBS_JOBID} -v "SUBDIR_PHYS=$(pwd -P),SUBDIR_LOGICAL=$PWD" job.sh 2>&1); then
+    echo "$J" > chain.tail; echo "submitted the next job of the chain: $J"
+  else
+    echo "WARNING: could not submit the next job from the compute node ($J).  The chain ends after the jobs already queued: run ./go.sh again to continue."
+  fi
+}
+
+if [ -n "${STAGE:-}" ] && [ "${STAGE}" != auto ]; then
+  # one given stage (run.sh, qsub -v STAGE=..): continue it until it is done or the time is up
+  [ -f "$(donefile $STAGE $SIGMA)" ] && { echo "stage $STAGE (sigma $SIGMA) is already done"; exit 0; }
+  run_stage $STAGE $SIGMA
+else
+  # chain job: work on the first unfinished stage; when it is done and time is left, go on with the next one
+  while W=$(next_work) && [ -n "$W" ]; do
+    set -- $W; S=$2; [ "$S" = - ] && S=$SIGMA
+    run_stage $1 $S || break
+    [ -f "$(donefile $1 $S)" ] || break          # stopped by the time limit: the next job continues
+  done
+  W=$(next_work)
+  if [ -z "$W" ]; then echo "ALL STAGES DONE"; else echo "next: stage $W"; extend_chain; fi
+fi
 echo "end $(date)"

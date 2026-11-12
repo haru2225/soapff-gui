@@ -2,7 +2,7 @@
 #   box tilt xz grows at rate*lz (SLLOD + fix deform); z is kept at the normal stress with a Berendsen barostat;
 #   x and y stay fixed.  gamma = xz / lz.
 #   lmp -in in.04_shear -var data 03_consolidate_5.6.data -var settings gouge.settings -var sigma 5.6 -var rate 1.0e-7 -var gmax 3.0
-#   resume after the job was stopped:  -var resume 1 -var rfile shear_5.6.restart.1   (job.sh does this)
+#   continued by the next job (job.sh):  -var resume 1 -var rfile shear_5.6.restart.stop -var sigma 5.6
 include in.init
 variable sigma index 5.6            # MPa
 variable rate index 1.0e-7          # engineering shear rate in 1/fs (1.0e-7 = 1e8 /s)
@@ -10,7 +10,7 @@ variable gmax index 3.0             # final shear strain
 variable Pn equal ${sigma}*9.86923
 
 variable Pdamp index 10000.0        # fs
-variable rest_every index 500000
+variable rest_every index 10000     # a restart every this many steps (besides the one written at the time limit)
 variable dump_every index 100000
 log log.04_shear_${sigma} append
 if "${resume} == 0" then "change_box all triclinic" "kspace_style pppm ${acc}"
@@ -28,11 +28,17 @@ variable mu equal v_ss/v_sn
 variable dens equal mass(clay)*1.66054/vol
 variable wat equal count(wO)
 variable lzv equal lz
-fix av all ave/time 100 50 5000 v_gam v_ss v_sn v_mu v_lzv v_dens file shear_${sigma}.dat
+# 5000-step averages; written by fix print (append) so that the file grows across jobs
+fix av all ave/time 100 50 5000 v_gam v_ss v_sn v_mu v_lzv v_dens
+if "${resume} == 0" then "print '# TimeStep v_gam v_ss v_sn v_mu v_lzv v_dens' file shear_${sigma}.dat"
+# first line one whole averaging window after the (re)start, then every 5000 steps
+variable nextpr equal (floor((step+4999)/5000)+1)*5000
+fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g) $(f_av[5]:%.6g) $(f_av[6]:%.6g)" append shear_${sigma}.dat screen no
 restart ${rest_every} shear_${sigma}.restart.1 shear_${sigma}.restart.2
 dump dm clay custom ${dump_every} shear_${sigma}.dump id mol type xu yu zu
 dump_modify dm append yes
 variable nsteps equal round(${gmax}/(${rate}*${dt}))
 run ${nsteps} upto
+if "$(step) < ${nsteps}" then "write_restart shear_${sigma}.restart.stop" "quit 0"
 write_data shear_${sigma}_final.data
 print "DONE 04" file shear_${sigma}.done

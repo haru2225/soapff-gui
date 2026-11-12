@@ -14,4 +14,4 @@ $PY -c "import numpy, scipy" 2>/dev/null || { echo "installing numpy and scipy f
 [ -f $RUN/gouge.data ] || $PY build_gouge.py -n $N --mwmc 3.0 --nconf $NCONF --seed 1 -o $RUN/gouge
 if [ -f submit_chain.sh ]; then S=./submit_chain.sh; else S=pbs/submit_chain.sh; fi
 $S $RUN "$SIG" "$ST"
-echo "submitted. watch with: qstat -u \$USER   results in $RUN/ (shear_<sigma>.dat; python3 shear_curve.py $RUN/shear_5.6.dat)"
+echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; python3 shear_curve.py $RUN/shear_5.6.dat)"

@@ -1,17 +1,31 @@
 # 01: minimise, 100 ps NVT, then NPzT (only z moves) at 1 atm: Underwood & Bourg 2020 equilibration
 #   lmp -in in.01_equil -var data gouge.data -var settings gouge.settings
+#   continued by the next job (job.sh):  -var resume 1 -var rfile 01_equil.restart.stop [-var domin 1 after 01_equil.restart.min]
+#   a job's time limit (-var tlimit, s) stops the run cleanly; the state is written to 01_equil.restart.stop (.min while minimising)
 include in.init
 variable t_nvt_ps index 100
 variable t_npt_ps index 1000
-log log.01_equil
+variable rest_every index 10000     # also a restart every this many steps (a job killed without warning loses less)
+variable domin index 1              # 1 = minimise first (a new start, or a minimisation that the time limit stopped)
+log log.01_equil append
 thermo 1000
+variable n1 equal round(v_t_nvt_ps*1000/v_dt)
+variable n2 equal round((v_t_nvt_ps+v_t_npt_ps)*1000/v_dt)
+if "${resume} == 1 && ${domin} == 0" then "jump SELF md"
 minimize 1.0e-4 1.0e-6 2000 20000
+if "$(timeremain) < 0" then "write_restart 01_equil.restart.min" "quit 0"
 reset_timestep 0
 velocity all create ${T} ${seed} dist gaussian mom yes rot yes
+label md
+restart ${rest_every} 01_equil.restart.1 01_equil.restart.2
+if "$(step) >= ${n1}" then "jump SELF npt"
 fix fnvt all nvt temp ${T} ${T} 100.0
-run $(round(v_t_nvt_ps*1000/v_dt))
+run ${n1} upto
+if "$(step) < ${n1}" then "write_restart 01_equil.restart.stop" "quit 0"
 unfix fnvt
+label npt
 fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
-run $(round(v_t_npt_ps*1000/v_dt))
+run ${n2} upto
+if "$(step) < ${n2}" then "write_restart 01_equil.restart.stop" "quit 0"
 write_data 01_equil.data
 print "DONE 01" file 01_equil.done

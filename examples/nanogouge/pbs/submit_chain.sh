@@ -1,34 +1,32 @@
 #!/bin/bash
 # Usage:  pbs/submit_chain.sh RUNDIR "5.6 56" [stages]
 #   RUNDIR  run folder; must already hold gouge.data and gouge.settings (from build_gouge.py)
-#   "5.6 56" normal stresses (MPa) to shear at, each as its own branch after the dehydration
-#   stages  default "all" = 01 02 then for each sigma: 03, 04 (N_SHEAR_JOBS times), 05.  Or e.g. "01 02" to stop earlier.
-# Each job starts when the previous one has ended (afterany: a job stopped by the wall time does not block the chain; job.sh skips finished stages and
-# continues stages 02 and 04 from their last restart).
+#   "5.6 56" normal stresses (MPa) to shear at, one after the other after the dehydration
+#   stages  default "all" = 01 02, then 03 04 05 for each sigma.  Or e.g. "01 02" to stop earlier.
+# Submits a chain of N_JOBS identical jobs (qsub -W depend=afterany).  Each job works on the first unfinished stage, continues it from
+# its last restart and stops LAMMPS cleanly before the wall time (any wall time, 1 h too); the last job of the chain submits the next one
+# while work is left.  Running this again is safe: finished stages are skipped, and new jobs wait for a chain that is still queued.
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd); TOP=$(dirname "$HERE")
 RUNDIR=$1; SIGMAS=${2:-"5.6 56"}; STAGES=${3:-all}
 mkdir -p "$RUNDIR"
 if ls "$HERE"/in.* >/dev/null 2>&1; then cp "$HERE"/in.* "$RUNDIR"/; else cp "$TOP"/lammps/in.* "$RUNDIR"/; fi
 cp "$HERE"/job.sh "$HERE"/run.sh "$RUNDIR"/
+[ -f "$HERE/status.sh" ] && cp "$HERE/status.sh" "$RUNDIR"/
 [ -f "$RUNDIR/config.env" ] || cp "$HERE/config.env" "$RUNDIR/"
 [ -f "$HERE/autoconfig.sh" ] && bash "$HERE/autoconfig.sh" "$RUNDIR"
-cd "$RUNDIR"; N_DEHYD_JOBS=2; N_SHEAR_JOBS=3; QSUB_OPTS=""
+cd "$RUNDIR"; N_JOBS=10; QSUB_OPTS=""
 [ -f ./config.auto ] && source ./config.auto
 source ./config.env
 for f in gouge.data gouge.settings; do [ -f $f ] || { echo "missing $RUNDIR/$f (run build_gouge.py -o $RUNDIR/gouge)"; exit 1; }; done
-sub() {   # sub NAME DEPENDENCY VARS
-  local dep=""; [ -n "$2" ] && dep="-W depend=afterany:$2"
-  qsub -N "$1" ${QSUB_OPTS} $dep -v "$3,SUBDIR_PHYS=$(pwd -P),SUBDIR_LOGICAL=$PWD" job.sh
-}
-want() { [ "$STAGES" = all ] || [[ " $STAGES " == *" $1 "* ]]; }
+printf 'SIGMAS="%s"\nSTAGES="%s"\n' "$SIGMAS" "$STAGES" > chain.env
+[ -f chain.failed ] && { echo "removing chain.failed: $(cat chain.failed)"; rm -f chain.failed; }
+# a chain of this folder that is still queued or running: the new jobs start after it
 J=""
-if want 01; then J=$(sub ng01 "" "STAGE=01"); echo "01: $J"; fi
-if want 02; then for i in $(seq 1 ${N_DEHYD_JOBS}); do J=$(sub ng02_$i "$J" "STAGE=02"); echo "02 part $i: $J"; done; fi
-BASE=$J
-for S in $SIGMAS; do
-  J=$BASE
-  if want 03; then J=$(sub ng03_$S "$J" "STAGE=03,SIGMA=$S"); echo "03 sigma=$S: $J"; fi
-  if want 04; then for i in $(seq 1 ${N_SHEAR_JOBS}); do J=$(sub ng04_${S}_$i "$J" "STAGE=04,SIGMA=$S"); echo "04 sigma=$S part $i: $J"; done; fi
-  if want 05; then J=$(sub ng05_$S "$J" "STAGE=05,SIGMA=$S"); echo "05 sigma=$S: $J"; fi
+if [ -f chain.tail ]; then T=$(cat chain.tail); qstat "$T" >/dev/null 2>&1 && { J=$T; echo "the chain of this folder is still queued ($T): the new jobs follow it"; }; fi
+for i in $(seq 1 ${N_JOBS}); do
+  dep=""; [ -n "$J" ] && dep="-W depend=afterany:$J"
+  J=$(qsub -N ng_$i ${QSUB_OPTS} $dep -v "SUBDIR_PHYS=$(pwd -P),SUBDIR_LOGICAL=$PWD" job.sh)
+  echo "$J" > chain.tail; echo "job $i: $J"
 done
+echo "stages: $STAGES   sigmas: $SIGMAS   ($N_JOBS jobs; the last one submits more while work is left)"

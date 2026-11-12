@@ -41,8 +41,11 @@ To run one stage by hand like the centre's sample: edit the marked lines of `run
 `./go.sh 12 "5.6 56" "01 02"` = N particles, normal stresses in MPa, stages (here only the compaction). The pack is made by `make_pack.sh` from this folder
 (the particle is `particle.data` / `particle.settings`, a copy of `../montmorillonite_edge/out_clay_montmorillonite/system.*`); from a clone of the repository the same steps are `python3 build_gouge.py -n 12 -o RUN_N12/gouge` and `pbs/submit_chain.sh RUN_N12 "5.6 56"`.
 
-`pbs/submit_chain.sh RUN_N12 "5.6 56" "01 02"` runs only the compaction. Jobs are chained with `qsub -W depend=afterany`; a stage that is already finished is skipped, and
-stages 02 and 04 continue from their last data/restart file, so a job stopped by the wall time is simply followed by the next one (`N_DEHYD_JOBS`, `N_SHEAR_JOBS` in `config.env`).
+`pbs/submit_chain.sh RUN_N12 "5.6 56" "01 02"` runs only the compaction. Any wall time works, 1 h too: `submit_chain.sh` queues `N_JOBS` (10) identical jobs chained with
+`qsub -W depend=afterany`; each job works on the first unfinished stage, continues it from its last restart, stops LAMMPS cleanly `TIME_MARGIN` (360 s) before the
+end of its wall time (`timer timeout`, restart `*.restart.stop`), goes on with the next stage when one is finished, and the last job of the chain submits the next one
+while work is left (if the compute nodes cannot `qsub`, run `./go.sh` again; it continues). A LAMMPS error stops the chain (`chain.failed`, the following jobs end at once).
+`./status.sh RUN_N12` shows the speed and the computing time left of the current stage.
 If the centre does not allow `depend`, submit the jobs by hand in the order of the table: `cd RUN_N12; qsub -v STAGE=01 job.sh`, etc. (`job.sh` reads `STAGE`, `SIGMA`).
 
 Size (N = 12, m_w/m_c = 3): about 12 × 2,292 + 3 × 80,000 ≈ 268,000 atoms at the start (the builder takes seconds; S ≈ 0.13 of 300 configurations) and ≈ 40,000 after the dehydration to m_w/m_c = 0.2.
