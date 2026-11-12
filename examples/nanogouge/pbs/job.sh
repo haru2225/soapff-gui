@@ -72,16 +72,38 @@ if [ -z "${SIF}" ]; then
     return 0
   }
   fixlibs "$LMPABS"
-  # the shear stage needs "fix press/langevin" (LAMMPS 21Nov2023 or newer): if this build lacks it, use another LAMMPS found in the software area
-  has_pl() { "$1" -h 2>/dev/null | grep -q "press/langevin"; }
-  if ! has_pl "$LMPABS"; then
-    echo "WARNING: $LMPABS has no 'fix press/langevin' (LAMMPS older than 21Nov2023); looking for a newer build ..."
-    for c in $(find /home/app /opt /work "$HOME" -maxdepth 7 -type f \( -name 'lmp' -o -name 'lmp_*' \) -perm -u+x 2>/dev/null | grep -v '\.so' | sort -r | head -20); do
-      fixlibs "$c" >/dev/null 2>&1
-      if has_pl "$c"; then LMPABS=$c; LMPCMD=$c; echo "using $c (has press/langevin)"; break; fi
+  # the shear stage needs "fix press/langevin" (LAMMPS 21Nov2023 or newer).  The style name is stored in the program (or in its liblammps.so), so it is
+  # looked for there; running "lmp -h" printed nothing when a library was missing or MPI did not start without mpirun, and a good build looked old.
+  has_pl() {
+    LC_ALL=C grep -aq 'press/langevin' "$1" 2>/dev/null && return 0
+    local so; so=$(ldd "$1" 2>/dev/null | awk '/liblammps/ && $3 ~ /^\//{print $3; exit}')
+    [ -n "$so" ] && LC_ALL=C grep -aq 'press/langevin' "$so" 2>/dev/null
+  }
+  # can it start here?  A library not found, or a build made with another MPI version (lmp_icex 3Mar20 with HPE MPT 2.33:
+  # "symbol lookup error: undefined symbol: mpi_sgi_status_ignore"), stops before LAMMPS begins.  ldd -r resolves every symbol without running it.
+  load_errors() { ldd -r "$1" 2>&1 | grep -E 'not found|undefined symbol' | sort -u | head -5; }
+  E=$(load_errors "$LMPABS")
+  if ! has_pl "$LMPABS" || [ -n "$E" ]; then
+    has_pl "$LMPABS" || echo "WARNING: $LMPABS has no 'fix press/langevin' (LAMMPS older than 21Nov2023)"
+    [ -n "$E" ] && { echo "WARNING: $LMPABS cannot start in this environment:"; echo "$E" | sed 's/^/    /'; }
+    echo "looking for another LAMMPS build (with press/langevin, starting here) ..."
+    for c in $(find /home/app /opt /work "$HOME" -maxdepth 7 -type f \( -name 'lmp' -o -name 'lmp_*' \) -perm -u+x 2>/dev/null | grep -v '\.so' | sort -r | head -30); do
+      [ "$c" = "$LMPABS" ] && continue
+      has_pl "$c" || continue
+      OLDLD=${LD_LIBRARY_PATH:-}; fixlibs "$c" >/dev/null 2>&1
+      CE=$(load_errors "$c")
+      if [ -z "$CE" ]; then LMPABS=$c; LMPCMD=$c; echo "using $c (has press/langevin)"; break; fi
+      echo "  skipped $c:"; echo "$CE" | sed 's/^/    /'; export LD_LIBRARY_PATH="$OLDLD"
     done
     has_pl "$LMPABS" || echo "WARNING: no LAMMPS with press/langevin found; stages 01-03 run, stage 04 (shear) will fail. Put LMP=/path/to/newer/lmp in config.env"
   fi
+  E=$(load_errors "$LMPABS")
+  if [ -n "$E" ]; then
+    echo "WARNING: $LMPABS will probably not start:"; echo "$E" | sed 's/^/    /'
+    echo "$E" | grep -q 'undefined symbol: mpi' && echo "  it was built with another MPI version than the one loaded ($(command -v "${MPIRUN%% *}" 2>/dev/null)): use another LAMMPS (LMP=... in config.env) or load the MPI it was built with (MODULES=... in config.env)"
+    echo "$E" | grep -q 'not found' && echo "  a library is missing: find it (e.g. find /home/app -name 'libfftw3.so*') and add its folder in config.env:  MODULES='export LD_LIBRARY_PATH=/that/folder:\$LD_LIBRARY_PATH'"
+  fi
+  echo "MPI library of LAMMPS: $(ldd "$LMPABS" 2>/dev/null | awk '/libmpi/{print $3; exit}')   launcher: $(command -v "${MPIRUN%% *}" 2>/dev/null)"
 fi
 RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
