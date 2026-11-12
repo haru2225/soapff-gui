@@ -109,6 +109,25 @@ RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
 echo "stage ${STAGE}  sigma ${SIGMA}  MPI ${NP} (${C:-?} per node)  $(date)"
 echo "${RUN}"
+# the input of this stage is missing: the chain goes on after a failed job (afterany), so say which earlier stage did not finish and why, then stop
+missing_input() {
+  local s n d g l f
+  echo "ERROR: stage ${STAGE} cannot start: $1 is missing."
+  echo "  finished stages: $(ls *.done 2>/dev/null | tr '\n' ' ')"
+  for s in "01|01_equil.done|ng01.o*|log.01_equil" "02|02_dehydrate.done|ng02_*.o*|log.02_dehydrate" \
+           "03|03_consolidate_${SIGMA}.done|ng03_${SIGMA}.o*|log.03_consolidate_${SIGMA}" "04|shear_${SIGMA}.done|ng04_${SIGMA}_*.o*|log.04_shear_${SIGMA}"; do
+    IFS='|' read -r n d g l <<< "$s"
+    [ -f "$d" ] && continue
+    echo "  the first unfinished stage is ${n}: it failed, or it was stopped by the wall time (\"walltime ... exceeded\"). The end of its outputs:"
+    for f in $(ls -t $g 2>/dev/null | head -1) $l; do
+      [ -f "$f" ] || continue
+      echo "  --- $f"
+      grep -E "ERROR|walltime|Killed|Lost atoms|Out of range|Bond atoms missing|cannot|not found" "$f" | tail -4 | cut -c1-200 | grep . || tail -3 "$f" | cut -c1-200
+    done
+    break
+  done
+  exit 1
+}
 case "${STAGE}" in
 01) [ -f 01_equil.done ] && exit 0
     ${RUN} -in in.01_equil -var data gouge.data -var settings gouge.settings ${EXTRA} ;;
@@ -116,18 +135,22 @@ case "${STAGE}" in
     if [ -f dehyd_current.data ] && [ -f dehyd_k.txt ]; then
       ${RUN} -in in.02_dehydrate -var data dehyd_current.data -var kstart "$(cat dehyd_k.txt)" -var settings gouge.settings ${EXTRA}
     else
+      [ -f 01_equil.data ] || missing_input 01_equil.data
       ${RUN} -in in.02_dehydrate -var data 01_equil.data -var settings gouge.settings ${EXTRA}
     fi ;;
 03) [ -f 03_consolidate_${SIGMA}.done ] && exit 0
+    [ -f 02_dehydrate.data ] || missing_input 02_dehydrate.data
     ${RUN} -in in.03_consolidate -var data 02_dehydrate.data -var settings gouge.settings -var sigma ${SIGMA} ${EXTRA} ;;
 04) [ -f shear_${SIGMA}.done ] && exit 0
     R=$(ls -t shear_${SIGMA}.restart.1 shear_${SIGMA}.restart.2 2>/dev/null | head -1)
     if [ -n "${R}" ]; then
       ${RUN} -in in.04_shear -var resume 1 -var rfile "${R}" -var sigma ${SIGMA} ${EXTRA}
     else
+      [ -f 03_consolidate_${SIGMA}.data ] || missing_input 03_consolidate_${SIGMA}.data
       ${RUN} -in in.04_shear -var data 03_consolidate_${SIGMA}.data -var settings gouge.settings -var sigma ${SIGMA} ${EXTRA}
     fi ;;
 05) [ -f heal_${SIGMA}.done ] && exit 0
+    [ -f shear_${SIGMA}_final.data ] || missing_input shear_${SIGMA}_final.data
     ${RUN} -in in.05_heal -var data shear_${SIGMA}_final.data -var settings gouge.settings -var sigma ${SIGMA} ${EXTRA} ;;
 *)  echo "unknown STAGE ${STAGE}"; exit 1 ;;
 esac
