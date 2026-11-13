@@ -7,6 +7,7 @@ include in.init
 variable t_nvt_ps index 100
 variable t_npt_ps index 1000
 variable rest_every index 10000     # also a restart every this many steps (a job killed without warning loses less)
+variable dump_every index 5000     # trajectory 01_equil.dump (OVITO; id mol type xu yu zu) every this many steps (5 ps); 0 = none
 variable domin index 1              # 1 = minimise first (a new start, or a minimisation that the time limit stopped)
 log log.01_equil append
 thermo 100                          # minimisation: a line every 100 iterations
@@ -19,6 +20,7 @@ reset_timestep 0
 velocity all create ${T} ${seed} dist gaussian mom yes rot yes
 label md
 thermo 1000
+if "${dump_every} > 0" then "dump dm ${dump_group} custom ${dump_every} 01_equil.dump id mol type xu yu zu" "dump_modify dm append yes"
 restart ${rest_every} 01_equil.restart.1 01_equil.restart.2
 if "$(step) >= ${n1}" then "jump SELF npt"
 fix fnvt all nvt temp ${T} ${T} 100.0

@@ -58,6 +58,10 @@ output files `ng_*.o*` appear only when a job has ended). The first job finds a 
 `lmp_icex` 3Mar20 has none: the notes about it in the log are normal) and checks that `mpirun` spreads the MPI ranks over all nodes (HPE MPT: else
 `mpiexec_mpt`); both are kept in `RUN_N12/lmp.auto` for the next jobs (delete it to search again). Each stop at the wall time also writes the current
 structure to `<stage>.latest.data` (e.g. `01_equil.latest.data`; opens in OVITO).
+Trajectories (OVITO; clay atoms and Na, unwrapped, `id mol type xu yu zu`; each job appends to the file of its stage): `01_equil.dump` every 5 ps, `02_dehydrate.dump` every 20 ps,
+`03_consolidate_<σ>.dump` every 10 ps, `shear_<σ>.dump` every 100 ps (strain 0.01), `heal_<σ>.dump` every 25 ps. Other intervals or all atoms (with the water, ~10× larger):
+`EXTRA="-var dump_every 1000 -var dump_group all"` in `RUN_N67/config.env` (`-var dump_every 0` = none). New `in.*` files reach a run folder with `./go.sh` (or `submit_chain.sh`);
+they replace the old files, so a LAMMPS running now is not disturbed and the next job uses them.
 If the centre does not allow `depend`, submit the jobs by hand in the order of the table: `cd RUN_N12; qsub -v STAGE=01 job.sh`, etc. (`job.sh` reads `STAGE`, `SIGMA`).
 
 Size (N = 12, m_w/m_c = 3): about 12 × 2,292 + 3 × 80,000 ≈ 268,000 atoms at the start (the builder takes seconds; S ≈ 0.13 of 300 configurations) and ≈ 40,000 after the dehydration to m_w/m_c = 0.2.
@@ -71,8 +75,8 @@ python3 order_parameter.py RUN_N12/01_equil.data RUN_N12/02_dehydrate.data RUN_N
 python3 shear_curve.py RUN_N12/shear_5.6.dat RUN_N12/shear_56.dat                                                              # mu(gamma), shear_curve.png
 ```
 
-`RUN_N12/dehydrate.dat` lists the water number, m_w/m_c, dry bulk density and Lz of every dehydration step; `RUN_N12/shear_<σ>.dump` holds the clay atoms (unwrapped, every 0.1 ns = strain 0.01) for the pore-size and stacking analysis; it is the only trajectory
-(150 k – 1.5 M atoms: a full frame is 7–70 MB). Structures to look at: `dehyd_snap_<k>.data` (every 5 dehydration cycles), the `.data` file at the end of each
+`RUN_N12/dehydrate.dat` lists the water number, m_w/m_c, dry bulk density and Lz of every dehydration step; `RUN_N12/shear_<σ>.dump` holds the clay atoms (unwrapped, every 0.1 ns = strain 0.01) for the pore-size and stacking analysis; the other stages have their own `.dump` (see above)
+(150 k – 1.5 M atoms: a frame of all atoms is 7–70 MB; of the clay atoms only, ~10× less). Structures to look at: `dehyd_snap_<k>.data` (every 5 dehydration cycles), the `.data` file at the end of each
 stage, and `<stage>.latest.data` at each job stop.
 
 ## Notes and limits

@@ -12,6 +12,7 @@ variable final_mwmc index 0.2       # stop at this water / clay mass ratio
 variable snap_every index 5         # write a data file of the configuration every this many cycles
 variable rest_every index 10000     # also a restart every this many steps
 variable nw0 index -1               # water molecules at the start of stage 02 (given when continuing)
+variable dump_every index 20000    # trajectory 02_dehydrate.dump (OVITO; id mol type xu yu zu) every this many steps (20 ps); 0 = none
 variable tmin index 120             # s: a new cycle (a water removal) starts only with more time than this left in the job
 log log.02_dehydrate append
 thermo 1000
@@ -23,6 +24,7 @@ fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
 compute_modify fnpt_temp dynamic/dof yes
 compute_modify thermo_temp dynamic/dof yes
 restart ${rest_every} dehyd.restart.1 dehyd.restart.2
+if "${dump_every} > 0" then "dump dm ${dump_group} custom ${dump_every} 02_dehydrate.dump id mol type xu yu zu" "dump_modify dm append yes"
 if "$(step%v_ncyc) != 0" then "jump SELF runcycle"
 label top
 if "${tout} == 1 || ($(timeremain) > 0 && $(timeremain) < ${tmin})" then "write_restart dehyd.restart.stop" "write_data dehyd.latest.data nocoeff" "quit 0"

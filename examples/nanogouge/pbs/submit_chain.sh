@@ -10,7 +10,9 @@ set -eu
 HERE=$(cd "$(dirname "$0")" && pwd); TOP=$(dirname "$HERE")
 RUNDIR=$1; SIGMAS=${2:-"5.6 56"}; STAGES=${3:-all}
 mkdir -p "$RUNDIR"
-if ls "$HERE"/in.* >/dev/null 2>&1; then cp "$HERE"/in.* "$RUNDIR"/; else cp "$TOP"/lammps/in.* "$RUNDIR"/; fi
+# new inputs replace the old files (mv), not overwrite them: a LAMMPS running now keeps reading its own copy
+if ls "$HERE"/in.* >/dev/null 2>&1; then INS="$HERE"; else INS="$TOP/lammps"; fi
+for f in "$INS"/in.*; do cp "$f" "$RUNDIR/.new.$$" && mv -f "$RUNDIR/.new.$$" "$RUNDIR/$(basename "$f")"; done
 cp "$HERE"/job.sh "$HERE"/run.sh "$RUNDIR"/
 [ -f "$HERE/status.sh" ] && cp "$HERE/status.sh" "$RUNDIR"/
 [ -f "$RUNDIR/config.env" ] || cp "$HERE/config.env" "$RUNDIR/"

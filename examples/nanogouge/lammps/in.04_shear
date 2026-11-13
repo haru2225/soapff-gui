@@ -11,7 +11,7 @@ variable Pn equal ${sigma}*9.86923
 
 variable Pdamp index 10000.0        # fs
 variable rest_every index 10000     # a restart every this many steps (besides the one written at the time limit)
-variable dump_every index 100000
+variable dump_every index 100000   # trajectory shear_<sigma>.dump every this many steps (100 ps = strain 0.01); 0 = none
 log log.04_shear_${sigma} append
 if "${resume} == 0" then "change_box all triclinic" "kspace_style pppm ${acc}"
 thermo 1000
@@ -35,8 +35,7 @@ if "${resume} == 0" then "print '# TimeStep v_gam v_ss v_sn v_mu v_lzv v_dens' f
 variable nextpr equal (floor((step+999)/1000)+1)*1000
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g) $(f_av[5]:%.6g) $(f_av[6]:%.6g)" append shear_${sigma}.dat screen no
 restart ${rest_every} shear_${sigma}.restart.1 shear_${sigma}.restart.2
-dump dm clay custom ${dump_every} shear_${sigma}.dump id mol type xu yu zu
-dump_modify dm append yes
+if "${dump_every} > 0" then "dump dm ${dump_group} custom ${dump_every} shear_${sigma}.dump id mol type xu yu zu" "dump_modify dm append yes"
 variable nsteps equal round(${gmax}/(${rate}*${dt}))
 run ${nsteps} upto
 if "$(step) < ${nsteps}" then "write_restart shear_${sigma}.restart.stop" "write_data shear_${sigma}.latest.data nocoeff" "quit 0"

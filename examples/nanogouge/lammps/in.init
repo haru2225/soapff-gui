@@ -9,6 +9,7 @@ variable nclay index 18         # clay atom types are 1..nclay
 variable thw index 19           # hw
 variable tow index 20           # ow
 variable seed index 12345
+variable dump_group index clay   # atoms in the trajectories <stage>.dump: clay (particles + Na, small files) or all (with the water: ~10 x larger)
 variable tlimit index off       # wall time LAMMPS may use in this job (s); job.sh sets it from the PBS wall time. Runs stop cleanly and write a restart
 variable tcheck index 10        # the time limit is checked every this many steps (cheap; a slow run still stops in time)
 timer timeout ${tlimit} every ${tcheck}
