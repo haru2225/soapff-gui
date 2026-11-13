@@ -25,7 +25,7 @@ NEWWALL=""
 if [ -n "${WALLTIME:-}" ]; then
   W=$WALLTIME; case $W in *:*:*) ;; *:*) W="$W:00";; *) W="$W:00:00";; esac
   echo "$W" | grep -qE '^[0-9]+:[0-9]+:[0-9]+$' || { echo "WALLTIME=$WALLTIME: give hours (WALLTIME=3) or h:mm:ss (WALLTIME=3:00:00)"; exit 1; }
-  echo "$W" > walltime; NEWWALL=1; echo "wall time of the jobs of this folder: $W (kept in $RUNDIR/walltime)"
+  OLDWALL=$(cat walltime 2>/dev/null || true); echo "$W" > walltime; NEWWALL=1; echo "wall time of the jobs of this folder: $W (kept in $RUNDIR/walltime)"
 fi
 [ -f walltime ] && QSUB_OPTS=$(set_walltime "$QSUB_OPTS" "$(cat walltime)")
 # jobs of this user that work in this folder, in the given states (qselect -s: R running, QH waiting)
@@ -55,7 +55,15 @@ if [ -z "$J" ]; then
 fi
 for i in $(seq 1 ${N_JOBS}); do
   dep=""; [ -n "$J" ] && dep="-W depend=afterany:$J"
-  J=$(qsub -N ng_$i ${QSUB_OPTS} $dep -v "SUBDIR_PHYS=$(pwd -P),SUBDIR_LOGICAL=$PWD" job.sh)
+  if ! J=$(qsub -N ng_$i ${QSUB_OPTS} $dep -v "SUBDIR_PHYS=$(pwd -P),SUBDIR_LOGICAL=$PWD" job.sh 2>&1); then
+    echo "ERROR: qsub refused job $i: $J"
+    if [ -n "$NEWWALL" ] && [ "$i" = 1 ]; then
+      # e.g. "Job exceeds queue resource limits": nothing was changed; the old wall time stays for this folder
+      if [ -n "$OLDWALL" ]; then echo "$OLDWALL" > walltime; else rm -f walltime; fi
+      echo "the wall time is not changed, the waiting jobs stay.  The longest wall time of the queues: qstat -Qf | grep -E 'Queue:|walltime'"
+    fi
+    exit 1
+  fi
   echo "$J" > chain.tail; echo "job $i: $J"
 done
 [ -n "$OLD" ] && { qdel $OLD && echo "deleted the waiting jobs with the old wall time: $OLD"; }
