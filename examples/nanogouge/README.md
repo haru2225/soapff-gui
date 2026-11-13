@@ -34,6 +34,9 @@ numpy and scipy are installed with `pip --user` if missing. `./go.sh 12 "5.6 56"
 `./go.sh 67 "5.6 56" all 4 RUN_N67_b` (5th argument = run folder) runs the same calculation again in another folder: the initial structure, `config.env` and `lmp.auto`
 of `RUN_N67` are copied. `./go.sh 67 "5.6 56" all 4 RUN_N67_s2 2` (6th argument = seed, default 1) is an independent run: another random initial structure,
 and LAMMPS uses the seed too (velocities, water removal, thermostat; `RUN_N67_s2/lammps_seed`). Each folder has its own chain and can run at the same time as the others.
+Wall time of the jobs: `env WALLTIME=3 ./go.sh 67 "5.6 56" all 4` (hours, or `3:00:00`) replaces every `walltime` of the qsub options for this folder and keeps it in
+`RUN_N67/walltime` (later jobs and `./go.sh` runs use it). The waiting jobs of this folder (old wall time) are deleted and new ones queued after the job working now;
+the running job goes on. The queue must allow that wall time: `qstat -Qf <queue> | grep walltime`.
 The pack is made by `make_pack.sh` from this folder (the particle is `particle.data` / `particle.settings`, a copy of `../montmorillonite_edge/out_clay_montmorillonite/system.*`);
 from a clone of the repository the same steps are `python3 build_gouge.py -n 12 -o RUN_N12/gouge` and `pbs/submit_chain.sh RUN_N12 "5.6 56"`.
 

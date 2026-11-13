@@ -23,7 +23,7 @@ if [ -n "$L" ]; then
     else if (L ~ /02_dehyd/) { split(D, d, " "); r=d[3]+0; if (r <= 0) r=3.0
       cyc = (r > 1 ? (r-1)/(3*0.02) + 0.8/(3*0.01) : (r-0.2)/(3*0.01)); tgt = step + cyc*200000 }
     left = tgt - step; if (left < 0) left = 0
-    printf "-- speed %.2f steps/s = %.3f ns/day (1 fs).  This stage: step %d of %d, about %.1f h of computing left (= jobs of 1 h minus ~8 min each)\n", sp, sp*86400/1e6, step, tgt, left/sp/3600 }'
+    printf "-- speed %.2f steps/s = %.3f ns/day (1 fs).  This stage: step %d of %d, about %.1f h of computing left (= jobs of the wall time minus ~8 min each)\n", sp, sp*86400/1e6, step, tgt, left/sp/3600 }'
 fi
 if [ -f jobs.log ]; then
   echo "-- jobs.log (what the jobs print, also while they run; the last 12 lines):"; tail -12 jobs.log | cut -c1-160

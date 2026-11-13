@@ -24,6 +24,9 @@ LMP_LIBDIRS=""; MPIRUN_OK=""
 # lmp.auto: the LAMMPS build and the MPI launcher an earlier job of this folder found and checked (no search again; delete lmp.auto to search again)
 [ -f ./lmp.auto ] && source ./lmp.auto
 [ -f ./config.env ] && source ./config.env
+# the wall time of the jobs (file "walltime" of the run folder, written by WALLTIME=3 ./go.sh): every walltime in the qsub options is replaced by it
+set_walltime() { echo "$1" | sed -E 's/walltime=[0-9:]+,//g; s/,walltime=[0-9:]+//g; s/-l[[:space:]]*walltime=[0-9:]+//g' | awk -v w="$2" '{ if (NF) { $1 = $1; print $0 " -l walltime=" w } else print "-l walltime=" w }'; }
+[ -f ./walltime ] && QSUB_OPTS=$(set_walltime "${QSUB_OPTS:-}" "$(cat ./walltime)")
 # a command with a time limit (a search through a large shared file system must not eat the job's wall time)
 tmo() { local t=$1; shift; if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi; }
 SEARCH_ROOTS=${SEARCH_ROOTS:-"/home/app /opt /usr/local $HOME /work"}   # where other LAMMPS builds and libraries are looked for
