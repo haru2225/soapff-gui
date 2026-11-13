@@ -62,13 +62,20 @@ if [ -z "${SIF}" ]; then
   [ -z "$LMPABS" ] && [ -x "$LB" ] && LMPABS=$(readlink -f "$LB" 2>/dev/null || echo "$LB")
   if [ -z "$LMPABS" ]; then
     echo "note: '$LB' (from the centre's sample script) is not in PATH on this node; searching for it ..."
-    for root in $SEARCH_ROOTS; do
-      [ -d "$root" ] || continue
-      LMPABS=$(tmo 120 find "$root" -maxdepth 6 -type f -name "$(basename "$LB")" 2>/dev/null | head -1); [ -n "$LMPABS" ] && break
+    BN=$(basename "$LB")
+    # the usual places first (a find through the shared file system can be slow and was cut by its time limit), then find
+    for f in /home/app/lammps/*/bin/$BN /home/app/*/bin/$BN /home/app/*/*/bin/$BN /opt/*/bin/$BN /usr/local/*/bin/$BN "$HOME"/*/bin/$BN "$HOME"/bin/$BN; do
+      [ -f "$f" ] && [ -x "$f" ] && { LMPABS=$f; break; }
     done
+    if [ -z "$LMPABS" ]; then
+      for root in $SEARCH_ROOTS; do
+        [ -d "$root" ] || continue
+        LMPABS=$(tmo 300 find "$root" -maxdepth 6 -type f -name "$BN" 2>/dev/null | head -1); [ -n "$LMPABS" ] && break
+      done
+    fi
   fi
   if [ -z "$LMPABS" ]; then
-    echo "ERROR: LAMMPS executable '$LB' not found. Run on the login node:  which $LB;  module avail 2>&1 | grep -i lammps;  cat /home/app/lammps/run.sh"
+    echo "ERROR: LAMMPS executable '$LB' not found on $(hostname) (lmp.auto: $([ -f lmp.auto ] && echo there || echo missing)). Run on the login node:  which $LB;  ls /home/app/lammps/*/bin;  cat /home/app/lammps/run.sh"
     echo "then put the module/PATH lines in config.env (MODULES=...) or the full path (LMP=/full/path/$LB)"; exit 1
   fi
   echo "LAMMPS: $LMPABS"; LMPCMD="$LMPABS"
@@ -104,7 +111,9 @@ if [ -z "${SIF}" ]; then
   # "symbol lookup error: undefined symbol: mpi_sgi_status_ignore"), stops before LAMMPS begins.  ldd -r resolves every symbol without running it.
   load_errors() { command -v ldd >/dev/null 2>&1 || return 0; ldd -r "$1" 2>&1 | grep -E 'not found|undefined symbol' | sort -u | head -5; }
   E=$(load_errors "$LMPABS")
-  if ! has_pl "$LMPABS" || [ -n "$E" ]; then
+  if [ -z "$E" ] && ! has_pl "$LMPABS" && [ "${PL_SEARCHED:-}" = "$LMPABS" ]; then
+    echo "note: $LMPABS has no 'fix press/langevin'; an earlier job found no other LAMMPS with it (lmp.auto; delete lmp.auto to search again). Stages 01-03 run; stage 04 needs a newer LAMMPS (LMP=... in config.env)"
+  elif ! has_pl "$LMPABS" || [ -n "$E" ]; then
     # normal on the first job with the centre's lmp_icex (3Mar20): another build is chosen here and kept in lmp.auto for the next jobs
     has_pl "$LMPABS" || echo "note: $LMPABS has no 'fix press/langevin' (LAMMPS older than 21Nov2023)"
     [ -n "$E" ] && { echo "note: $LMPABS cannot start in this environment:"; echo "$E" | sed 's/^/    /'; }
@@ -158,11 +167,12 @@ if [ -z "${SIF}" ]; then
       [ -z "$MPIRUN_OK" ] && echo "WARNING: the ranks do not reach every node of the job (see the lines above).  Set MPIRUN (and HOSTFILE_FMT) in config.env."
     fi
   fi
-  # keep what was found for the next jobs (no search, no check)
-  if [ -z "$(load_errors "$LMPABS")" ] && has_pl "$LMPABS"; then
+  # keep what was found for the next jobs (no search, no check): the full path of LAMMPS, also of a build without press/langevin
+  if [ -z "$(load_errors "$LMPABS")" ]; then
     {
       echo "# written by job.sh $(date): the LAMMPS build and MPI launcher found and checked in this folder.  Delete this file to search again."
       echo "LMP=\"$LMPABS\""
+      has_pl "$LMPABS" || echo "PL_SEARCHED=\"$LMPABS\""
       echo "LMP_LIBDIRS=\"${ADDED_LIBDIRS}${LMP_LIBDIRS:+${ADDED_LIBDIRS:+:}$LMP_LIBDIRS}\""
       [ -n "${MPIRUN_OK}" ] && echo "MPIRUN_FROM=\"${MPIRUN_FROM_NOW}\"; MPIRUN_OK=\"${MPIRUN_OK}\""
     } > lmp.auto
