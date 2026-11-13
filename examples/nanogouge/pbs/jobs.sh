@@ -1,11 +1,11 @@
 #!/bin/bash
 # Usage (in examples/nanogouge):
-#   bash pbs/jobs.sh                  your PBS jobs: id, name, state (R running, Q/H waiting), wall time and the run folder each one works in
-#   bash pbs/jobs.sh keep RUN_N67     delete every job of yours that does NOT work in RUN_N67 (other run folders, other jobs too); asks first
+#   ./pbs/jobs.sh                     your PBS jobs: id, name, state (R running, Q/H waiting), wall time and the run folder each one works in
+#   ./pbs/jobs.sh keep RUN_N67        delete every job of yours that does NOT work in RUN_N67 (other run folders, other jobs too); asks first
 U=${USER:-$(whoami)}
 MODE=${1:-list}; KEEP=${2:-}
 if [ "$MODE" = keep ]; then
-  [ -n "$KEEP" ] && [ -d "$KEEP" ] || { echo "usage: bash pbs/jobs.sh keep RUN_FOLDER   (no folder '$KEEP' here: $(ls -d RUN_* 2>/dev/null | tr '\n' ' '))"; exit 1; }
+  [ -n "$KEEP" ] && [ -d "$KEEP" ] || { echo "usage: ./pbs/jobs.sh keep RUN_FOLDER   (no folder '$KEEP' here: $(ls -d RUN_* 2>/dev/null | tr '\n' ' '))"; exit 1; }
   KL=$(cd "$KEEP" && pwd); KP=$(cd "$KEEP" && pwd -P)
 fi
 command -v qselect >/dev/null 2>&1 || { echo "qselect not found (run this on the login node)"; exit 1; }
