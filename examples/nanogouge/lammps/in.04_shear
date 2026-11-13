@@ -28,17 +28,17 @@ variable mu equal v_ss/v_sn
 variable dens equal mass(clay)*1.66054/vol
 variable wat equal count(wO)
 variable lzv equal lz
-# 5000-step averages; written by fix print (append) so that the file grows across jobs
-fix av all ave/time 100 50 5000 v_gam v_ss v_sn v_mu v_lzv v_dens
+# 1000-step averages (a job that continues a run loses at most 2000 steps of them); written by fix print (append) so that the file grows across jobs
+fix av all ave/time 100 10 1000 v_gam v_ss v_sn v_mu v_lzv v_dens
 if "${resume} == 0" then "print '# TimeStep v_gam v_ss v_sn v_mu v_lzv v_dens' file shear_${sigma}.dat"
-# first line one whole averaging window after the (re)start, then every 5000 steps
-variable nextpr equal (floor((step+4999)/5000)+1)*5000
+# first line one whole averaging window after the (re)start, then every 1000 steps
+variable nextpr equal (floor((step+999)/1000)+1)*1000
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g) $(f_av[5]:%.6g) $(f_av[6]:%.6g)" append shear_${sigma}.dat screen no
 restart ${rest_every} shear_${sigma}.restart.1 shear_${sigma}.restart.2
 dump dm clay custom ${dump_every} shear_${sigma}.dump id mol type xu yu zu
 dump_modify dm append yes
 variable nsteps equal round(${gmax}/(${rate}*${dt}))
 run ${nsteps} upto
-if "$(step) < ${nsteps}" then "write_restart shear_${sigma}.restart.stop" "quit 0"
+if "$(step) < ${nsteps}" then "write_restart shear_${sigma}.restart.stop" "write_data shear_${sigma}.latest.data nocoeff" "quit 0"
 write_data shear_${sigma}_final.data
 print "DONE 04" file shear_${sigma}.done

@@ -15,13 +15,13 @@ variable dens equal mass(clay)*1.66054/vol
 variable lzv equal lz
 variable nst equal round(v_t_ps*1000/v_dt)
 fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
-fix av all ave/time 100 50 5000 v_ss v_sn v_lzv v_dens
+fix av all ave/time 100 10 1000 v_ss v_sn v_lzv v_dens
 if "${resume} == 0" then "print '# TimeStep v_ss v_sn v_lzv v_dens' file heal_${sigma}.dat"
-# first line one whole averaging window after the (re)start, then every 5000 steps
-variable nextpr equal (floor((step+4999)/5000)+1)*5000
+# first line one whole averaging window after the (re)start, then every 1000 steps
+variable nextpr equal (floor((step+999)/1000)+1)*1000
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g)" append heal_${sigma}.dat screen no
 restart ${rest_every} heal_${sigma}.restart.1 heal_${sigma}.restart.2
 run ${nst} upto
-if "$(step) < ${nst}" then "write_restart heal_${sigma}.restart.stop" "quit 0"
+if "$(step) < ${nst}" then "write_restart heal_${sigma}.restart.stop" "write_data heal_${sigma}.latest.data nocoeff" "quit 0"
 write_data heal_${sigma}_final.data
 print "DONE 05" file heal_${sigma}.done

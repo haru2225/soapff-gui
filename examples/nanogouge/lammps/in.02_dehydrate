@@ -25,7 +25,7 @@ compute_modify thermo_temp dynamic/dof yes
 restart ${rest_every} dehyd.restart.1 dehyd.restart.2
 if "$(step%v_ncyc) != 0" then "jump SELF runcycle"
 label top
-if "$(timeremain) != 0 && $(timeremain) < ${tmin}" then "write_restart dehyd.restart.stop" "quit 0"
+if "$(is_timeout()) == 1 || ($(timeremain) > 0 && $(timeremain) < ${tmin})" then "write_restart dehyd.restart.stop" "write_data dehyd.latest.data nocoeff" "quit 0"
 variable ratio equal $(mass(water)/mass(clay))
 if "${ratio} <= ${final_mwmc}" then "jump SELF done"
 if "${ratio} > 1.0" then "variable ndel equal round(${dfrac1}*${nw0})" else "variable ndel equal round(${dfrac2}*${nw0})"
@@ -35,7 +35,7 @@ label runcycle
 variable kc equal $(floor(step/v_ncyc)+1)
 variable kend equal $(v_kc*v_ncyc)
 run ${kend} upto
-if "$(step) < ${kend}" then "write_restart dehyd.restart.stop" "quit 0"
+if "$(step) < ${kend}" then "write_restart dehyd.restart.stop" "write_data dehyd.latest.data nocoeff" "quit 0"
 print "${kc} $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
 if "$(v_kc%v_snap_every) == 0" then "write_data dehyd_snap_${kc}.data"
 jump SELF top

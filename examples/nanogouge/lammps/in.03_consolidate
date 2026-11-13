@@ -19,6 +19,6 @@ variable nextpr equal (floor((step+999)/1000)+1)*1000
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g)" append 03_consolidate_${sigma}.dat screen no
 restart ${rest_every} 03_consolidate_${sigma}.restart.1 03_consolidate_${sigma}.restart.2
 run ${nst} upto
-if "$(step) < ${nst}" then "write_restart 03_consolidate_${sigma}.restart.stop" "quit 0"
+if "$(step) < ${nst}" then "write_restart 03_consolidate_${sigma}.restart.stop" "write_data 03_consolidate_${sigma}.latest.data nocoeff" "quit 0"
 write_data 03_consolidate_${sigma}.data
 print "DONE 03" file 03_consolidate_${sigma}.done

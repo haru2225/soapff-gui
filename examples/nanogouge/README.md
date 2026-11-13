@@ -12,7 +12,7 @@ Lin & Hatano (2024; σn = 5.6 and 56 MPa, rate ~1e8 /s) and with the two-plate r
 | 01 | `lammps/in.01_equil` | minimisation, 100 ps NVT, NPzT (only z moves) at 1 atm |
 | 02 | `lammps/in.02_dehydrate` | every `step_ps` delete 2 % of the initial water (1 % below m_w/m_c = 1) and run NPzT: compaction, particles stack (paper: 1 % every 1 ns, 134 ns); stops at `final_mwmc` |
 | 03 | `lammps/in.03_consolidate` | hold at the normal stress σn (z only; x, y fixed) |
-| 04 | `lammps/in.04_shear` | SLLOD shear (box tilt xz, rate 1e-7 /fs = 1e8 /s) at constant σn (`fix press/langevin` in z); `shear_<σ>.dat` = strain, shear stress, normal stress, μ, Lz, ρb; restart files every 0.5 ns |
+| 04 | `lammps/in.04_shear` | SLLOD shear (box tilt xz, rate 1e-7 /fs = 1e8 /s) at constant σn (`fix press/langevin` in z); `shear_<σ>.dat` = strain, shear stress, normal stress, μ, Lz, ρb; restart files every 10 ps and at each job stop |
 | 05 | `lammps/in.05_heal` | stop the shear, hold (static contact time): stress relaxation, re-stacking |
 
 Everything ran on a small test system (3 particles, 27,000 atoms; every stage, the restart of stage 04, `analysis/`) with LAMMPS 7 Feb 2024; the real-size runs have not been done yet.
@@ -45,7 +45,11 @@ To run one stage by hand like the centre's sample: edit the marked lines of `run
 `qsub -W depend=afterany`; each job works on the first unfinished stage, continues it from its last restart, stops LAMMPS cleanly `TIME_MARGIN` (360 s) before the
 end of its wall time (`timer timeout`, restart `*.restart.stop`), goes on with the next stage when one is finished, and the last job of the chain submits the next one
 while work is left (if the compute nodes cannot `qsub`, run `./go.sh` again; it continues). A LAMMPS error stops the chain (`chain.failed`, the following jobs end at once).
-`./status.sh RUN_N12` shows the speed and the computing time left of the current stage.
+`./status.sh RUN_N12` shows the speed and the computing time left of the current stage. What the jobs print goes at once to `RUN_N12/jobs.log` (the PBS
+output files `ng_*.o*` appear only when a job has ended). The first job finds a LAMMPS with `fix press/langevin` that starts on the node (the centre's old
+`lmp_icex` 3Mar20 has none: the notes about it in the log are normal) and checks that `mpirun` spreads the MPI ranks over all nodes (HPE MPT: else
+`mpiexec_mpt`); both are kept in `RUN_N12/lmp.auto` for the next jobs (delete it to search again). Each stop at the wall time also writes the current
+structure to `<stage>.latest.data` (e.g. `01_equil.latest.data`; opens in OVITO).
 If the centre does not allow `depend`, submit the jobs by hand in the order of the table: `cd RUN_N12; qsub -v STAGE=01 job.sh`, etc. (`job.sh` reads `STAGE`, `SIGMA`).
 
 Size (N = 12, m_w/m_c = 3): about 12 × 2,292 + 3 × 80,000 ≈ 268,000 atoms at the start (the builder takes seconds; S ≈ 0.13 of 300 configurations) and ≈ 40,000 after the dehydration to m_w/m_c = 0.2.
@@ -59,7 +63,9 @@ python3 order_parameter.py RUN_N12/01_equil.data RUN_N12/02_dehydrate.data RUN_N
 python3 shear_curve.py RUN_N12/shear_5.6.dat RUN_N12/shear_56.dat                                                              # mu(gamma), shear_curve.png
 ```
 
-`RUN_N12/dehydrate.dat` lists the water number, m_w/m_c, dry bulk density and Lz of every dehydration step; `RUN_N12/shear_<σ>.dump` holds the clay atoms (unwrapped, every 0.2 ns) for the pore-size and stacking analysis.
+`RUN_N12/dehydrate.dat` lists the water number, m_w/m_c, dry bulk density and Lz of every dehydration step; `RUN_N12/shear_<σ>.dump` holds the clay atoms (unwrapped, every 0.1 ns = strain 0.01) for the pore-size and stacking analysis; it is the only trajectory
+(150 k – 1.5 M atoms: a full frame is 7–70 MB). Structures to look at: `dehyd_snap_<k>.data` (every 5 dehydration cycles), the `.data` file at the end of each
+stage, and `<stage>.latest.data` at each job stop.
 
 ## Notes and limits
 

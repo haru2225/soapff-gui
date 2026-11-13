@@ -25,7 +25,13 @@ if [ -n "$L" ]; then
     left = tgt - step; if (left < 0) left = 0
     printf "-- speed %.2f steps/s = %.3f ns/day (1 fs).  This stage: step %d of %d, about %.1f h of computing left (= jobs of 1 h minus ~8 min each)\n", sp, sp*86400/1e6, step, tgt, left/sp/3600 }'
 fi
-echo "-- job outputs (last line each):"; for f in $(ls -t ng*.o* 2>/dev/null | head -3); do echo "$f: $(tail -1 $f | cut -c1-150)"; done
+if [ -f jobs.log ]; then
+  echo "-- jobs.log (what the jobs print, also while they run; the last 12 lines):"; tail -12 jobs.log | cut -c1-160
+else
+  echo "-- job outputs (last line each):"; for f in $(ls -t ng*.o* 2>/dev/null | head -3); do echo "$f: $(tail -1 $f | cut -c1-150)"; done
+fi
+[ -f lmp.auto ] && echo "-- lmp.auto: $(grep -v '^#' lmp.auto | tr '\n' ' ' | cut -c1-200)"
+LD=$(ls -t *.latest.data 2>/dev/null | head -1); [ -n "$LD" ] && echo "-- structure at the last stop (opens in OVITO): $PWD/$LD"
 [ -f dehydrate.dat ] && { echo "-- dehydration (k n_water mw/mc rho_b Lz):"; tail -2 dehydrate.dat; }
 for f in shear_*.dat; do [ -f "$f" ] && { echo "-- $f (step gamma tau sigma_n mu):"; tail -1 "$f" | cut -c1-100; }; done
 if [ -f procs.txt ]; then

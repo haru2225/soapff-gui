@@ -10,7 +10,7 @@ variable thw index 19           # hw
 variable tow index 20           # ow
 variable seed index 12345
 variable tlimit index off       # wall time LAMMPS may use in this job (s); job.sh sets it from the PBS wall time. Runs stop cleanly and write a restart
-variable tcheck index 100       # the time limit is checked every this many steps
+variable tcheck index 10        # the time limit is checked every this many steps (cheap; a slow run still stops in time)
 timer timeout ${tlimit} every ${tcheck}
 processors * * * file procs.txt  # rank -> node of this job (status.sh counts the MPI ranks per node)
 if "${resume} == 0" then "include in.new" else "read_restart ${rfile}"
