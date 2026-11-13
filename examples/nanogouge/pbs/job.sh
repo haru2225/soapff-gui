@@ -29,7 +29,8 @@ set_walltime() { echo "$1" | sed -E 's/walltime=[0-9:]+,//g; s/,walltime=[0-9:]+
 [ -f ./walltime ] && QSUB_OPTS=$(set_walltime "${QSUB_OPTS:-}" "$(cat ./walltime)")
 # a command with a time limit (a search through a large shared file system must not eat the job's wall time)
 tmo() { local t=$1; shift; if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi; }
-SEARCH_ROOTS=${SEARCH_ROOTS:-"/home/app /opt /usr/local $HOME /work"}   # where other LAMMPS builds and libraries are looked for
+APP=${APP_ROOT:-/home/app}                     # the centre's software area
+SEARCH_ROOTS=${SEARCH_ROOTS:-"$APP /opt /usr/local $HOME /work"}   # where other LAMMPS builds and libraries are looked for
 # safety: MPI_OPTS must hold launcher options only; cut at the first word that is the program name or a redirect (old config.auto files)
 if [ -n "${MPI_OPTS}" ]; then
   MPI_OPTS=$(echo "${MPI_OPTS}" | awk '{o=""; for(i=1;i<=NF;i++){ if ($i ~ /(^|\/)(lmp[_a-z0-9]*|lammps[_a-z0-9]*)$/ || $i ~ /^[<>]/ || $i ~ /^\$/ ) break; o=o" "$i } sub(/^ /,"",o); print o}')
@@ -64,7 +65,7 @@ if [ -z "${SIF}" ]; then
     echo "note: '$LB' (from the centre's sample script) is not in PATH on this node; searching for it ..."
     BN=$(basename "$LB")
     # the usual places first (a find through the shared file system can be slow and was cut by its time limit), then find
-    for f in /home/app/lammps/*/bin/$BN /home/app/*/bin/$BN /home/app/*/*/bin/$BN /opt/*/bin/$BN /usr/local/*/bin/$BN "$HOME"/*/bin/$BN "$HOME"/bin/$BN; do
+    for f in "$APP"/lammps/*/bin/$BN "$APP"/*/bin/$BN "$APP"/*/*/bin/$BN /opt/*/bin/$BN /usr/local/*/bin/$BN "$HOME"/*/bin/$BN "$HOME"/bin/$BN; do
       [ -f "$f" ] && [ -x "$f" ] && { LMPABS=$f; break; }
     done
     if [ -z "$LMPABS" ]; then
@@ -88,7 +89,11 @@ if [ -z "${SIF}" ]; then
     LMPDIR=$(dirname "$(dirname "$BIN")")
     for l in $MISS; do
       f=""
-      for root in "$LMPDIR" "$(dirname "$LMPDIR")" /home/app /opt /usr/lib64 /usr/local "$HOME" /work; do
+      # the usual places first (seconds), then find (a find through the shared file system can be slow)
+      for g in "$LMPDIR"/lib*/"$l"* "$(dirname "$LMPDIR")"/*/lib*/"$l"* "$APP"/*/lib*/"$l"* "$APP"/*/*/lib*/"$l"* "$APP"/*/*/*/lib*/"$l"* "$APP"/*/*/*/*/lib*/"$l"*; do
+        [ -e "$g" ] && { f=$g; break; }
+      done
+      [ -z "$f" ] && for root in "$LMPDIR" "$(dirname "$LMPDIR")" /home/app /opt /usr/lib64 /usr/local "$HOME" /work; do
         [ -d "$root" ] && f=$(tmo 60 find "$root" -maxdepth 8 -name "${l}*" 2>/dev/null | head -1) && [ -n "$f" ] && break
       done
       if [ -n "$f" ]; then
@@ -110,25 +115,35 @@ if [ -z "${SIF}" ]; then
   # can it start here?  A library not found, or a build made with another MPI version (lmp_icex 3Mar20 with HPE MPT 2.33:
   # "symbol lookup error: undefined symbol: mpi_sgi_status_ignore"), stops before LAMMPS begins.  ldd -r resolves every symbol without running it.
   load_errors() { command -v ldd >/dev/null 2>&1 || return 0; ldd -r "$1" 2>&1 | grep -E 'not found|undefined symbol' | sort -u | head -5; }
+  # the first program of the list with press/langevin that can start here becomes LAMMPS (missing libraries are looked for)
+  pick() {
+    local c CE OLDLD OLDADD
+    for c in "$@"; do
+      [ -f "$c" ] && [ -x "$c" ] && [ "$c" != "$LMPABS" ] || continue
+      has_pl "$c" || continue
+      OLDLD=${LD_LIBRARY_PATH:-}; OLDADD=$ADDED_LIBDIRS; fixlibs "$c" >/dev/null 2>&1
+      CE=$(load_errors "$c")
+      if [ -z "$CE" ]; then
+        LMPABS=$c; LMPCMD=$c; echo "using $c (has press/langevin; the notes above are no problem)"
+        [ -n "$ADDED_LIBDIRS" ] && echo "  libraries from: $ADDED_LIBDIRS"; return 0
+      fi
+      echo "  skipped $c:"; echo "$CE" | sed 's/^/    /'; export LD_LIBRARY_PATH="$OLDLD"; ADDED_LIBDIRS=$OLDADD
+    done
+    return 1
+  }
   E=$(load_errors "$LMPABS")
-  if [ -z "$E" ] && ! has_pl "$LMPABS" && [ "${PL_SEARCHED:-}" = "$LMPABS" ]; then
-    echo "note: $LMPABS has no 'fix press/langevin'; an earlier job found no other LAMMPS with it (lmp.auto; delete lmp.auto to search again). Stages 01-03 run; stage 04 needs a newer LAMMPS (LMP=... in config.env)"
-  elif ! has_pl "$LMPABS" || [ -n "$E" ]; then
+  if ! has_pl "$LMPABS" || [ -n "$E" ]; then
     # normal on the first job with the centre's lmp_icex (3Mar20): another build is chosen here and kept in lmp.auto for the next jobs
     has_pl "$LMPABS" || echo "note: $LMPABS has no 'fix press/langevin' (LAMMPS older than 21Nov2023)"
     [ -n "$E" ] && { echo "note: $LMPABS cannot start in this environment:"; echo "$E" | sed 's/^/    /'; }
     echo "looking for another LAMMPS build (with press/langevin, starting here) ..."
-    for root in $SEARCH_ROOTS; do
-      [ -d "$root" ] || continue
-      for c in $(tmo 120 find "$root" -maxdepth 7 -type f \( -name 'lmp' -o -name 'lmp_*' \) -perm -u+x 2>/dev/null | grep -v '\.so' | sort -r | head -30); do
-        [ "$c" = "$LMPABS" ] && continue
-        has_pl "$c" || continue
-        OLDLD=${LD_LIBRARY_PATH:-}; OLDADD=$ADDED_LIBDIRS; fixlibs "$c" >/dev/null 2>&1
-        CE=$(load_errors "$c")
-        if [ -z "$CE" ]; then LMPABS=$c; LMPCMD=$c; echo "using $c (has press/langevin; the notes above are no problem)"; break 2; fi
-        echo "  skipped $c:"; echo "$CE" | sed 's/^/    /'; export LD_LIBRARY_PATH="$OLDLD"; ADDED_LIBDIRS=$OLDADD
-      done
-    done
+    # the centre's LAMMPS folders first (/home/app/lammps/<version>/..., e.g. 29Aug2024/lammps-29Aug2024_cpu/install_cpu/bin/lmp): seconds
+    G=$(ls -d "$APP"/lammps*/bin/lmp* "$APP"/lammps*/*/bin/lmp* "$APP"/lammps*/*/*/bin/lmp* "$APP"/lammps*/*/*/*/bin/lmp* "$APP"/lammps*/*/*/*/*/bin/lmp* 2>/dev/null | grep -v '\.so' | sort -r)
+    if ! pick $G; then
+      # then a search of the disks (slow: up to 2 min per folder), not again when an earlier job searched in vain
+      if [ "${PL_SEARCHED:-}" = "$LMPABS" ]; then echo "  (an earlier job searched the disks in vain: not again; delete lmp.auto to search again)"
+      else for root in $SEARCH_ROOTS; do [ -d "$root" ] || continue; pick $(tmo 120 find "$root" -maxdepth 7 -type f \( -name 'lmp' -o -name 'lmp_*' \) -perm -u+x 2>/dev/null | grep -v '\.so' | sort -r | head -30) && break; done; fi
+    fi
     has_pl "$LMPABS" || echo "WARNING: no LAMMPS with press/langevin found; stages 01-03 run, stage 04 (shear) will fail. Put LMP=/path/to/newer/lmp in config.env"
   fi
   E=$(load_errors "$LMPABS")
