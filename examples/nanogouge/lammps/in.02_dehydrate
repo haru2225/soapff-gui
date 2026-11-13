@@ -25,7 +25,7 @@ compute_modify thermo_temp dynamic/dof yes
 restart ${rest_every} dehyd.restart.1 dehyd.restart.2
 if "$(step%v_ncyc) != 0" then "jump SELF runcycle"
 label top
-if "$(is_timeout()) == 1 || ($(timeremain) > 0 && $(timeremain) < ${tmin})" then "write_restart dehyd.restart.stop" "write_data dehyd.latest.data nocoeff" "quit 0"
+if "${tout} == 1 || ($(timeremain) > 0 && $(timeremain) < ${tmin})" then "write_restart dehyd.restart.stop" "write_data dehyd.latest.data nocoeff" "quit 0"
 variable ratio equal $(mass(water)/mass(clay))
 if "${ratio} <= ${final_mwmc}" then "jump SELF done"
 if "${ratio} > 1.0" then "variable ndel equal round(${dfrac1}*${nw0})" else "variable ndel equal round(${dfrac2}*${nw0})"

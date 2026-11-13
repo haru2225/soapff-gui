@@ -14,6 +14,10 @@ variable tcheck index 10        # the time limit is checked every this many step
 timer timeout ${tlimit} every ${tcheck}
 processors * * * file procs.txt  # rank -> node of this job (status.sh counts the MPI ranks per node)
 if "${resume} == 0" then "include in.new" else "read_restart ${rfile}"
+# tout = 1 when the time limit of this job is reached (any LAMMPS version; is_timeout() exists only since 2024).
+# timeremain is > 0 while a limit is set and not reached, and <= 0 after it (0 also when no limit is set: tset)
+variable tset equal $(timeremain>0)
+variable tout equal "v_tset > 0 && timeremain <= 0"
 kspace_style pppm ${acc}
 neighbor 2.0 bin
 neigh_modify delay 0 every 1 check yes

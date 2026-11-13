@@ -14,7 +14,7 @@ variable n1 equal round(v_t_nvt_ps*1000/v_dt)
 variable n2 equal round((v_t_nvt_ps+v_t_npt_ps)*1000/v_dt)
 if "${resume} == 1 && ${domin} == 0" then "jump SELF md"
 minimize 1.0e-4 1.0e-6 2000 20000
-if "$(is_timeout()) == 1" then "write_restart 01_equil.restart.min" "write_data 01_equil.latest.data nocoeff" "quit 0"
+if "${tout} == 1" then "write_restart 01_equil.restart.min" "write_data 01_equil.latest.data nocoeff" "quit 0"
 reset_timestep 0
 velocity all create ${T} ${seed} dist gaussian mom yes rot yes
 label md
