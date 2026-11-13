@@ -168,6 +168,7 @@ fi
 RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
 [ -f ./chain.env ] && source ./chain.env          # SIGMAS and STAGES of the chain (written by submit_chain.sh)
+[ -f ./lammps_seed ] && EXTRA="-var seed $(cat ./lammps_seed) ${EXTRA}"   # an independent run (go.sh, 6th argument)
 SIGMAS=${SIGMAS:-$SIGMA}; STAGES=${STAGES:-all}
 echo "MPI ${NP} (${C:-?} per node)  $(date)"
 echo "${RUN}"
