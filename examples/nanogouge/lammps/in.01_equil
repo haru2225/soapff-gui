@@ -29,7 +29,8 @@ if "$(step) < ${n1}" then "write_restart 01_equil.restart.stop" "write_data 01_e
 unfix fnvt
 label npt
 fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
-run ${n2} upto
+# a shorter t_npt_ps given later (EXTRA="-var t_npt_ps 200") ends the stage at once if the run is already past it
+if "$(step) < ${n2}" then "run ${n2} upto"
 if "$(step) < ${n2}" then "write_restart 01_equil.restart.stop" "write_data 01_equil.latest.data nocoeff" "quit 0"
 write_data 01_equil.data
 print "DONE 01" file 01_equil.done

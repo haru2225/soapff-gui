@@ -62,6 +62,8 @@ Trajectories (OVITO; clay atoms and Na, unwrapped, `id mol type xu yu zu`; each 
 `03_consolidate_<σ>.dump` every 10 ps, `shear_<σ>.dump` every 100 ps (strain 0.01), `heal_<σ>.dump` every 25 ps. Other intervals or all atoms (with the water, ~10× larger):
 `EXTRA="-var dump_every 1000 -var dump_group all"` in `RUN_N67/config.env` (`-var dump_every 0` = none). New `in.*` files reach a run folder with `./go.sh` (or `submit_chain.sh`);
 they replace the old files, so a LAMMPS running now is not disturbed and the next job uses them.
+Stage 01 is 100 ps NVT + 1000 ps NPzT (1.1 M steps); `EXTRA="-var t_npt_ps 200"` in `RUN_N67/config.env` shortens it (a run already past the new end finishes the stage at once).
+Each job prints the step it reached and the speed in `jobs.log` (`grep -E "== stage|   step" RUN_N67/jobs.log | tail`); stage 01 is done at step `(t_nvt_ps + t_npt_ps) × 1000`, then the same job goes on with 02.
 If the centre does not allow `depend`, submit the jobs by hand in the order of the table: `cd RUN_N12; qsub -v STAGE=01 job.sh`, etc. (`job.sh` reads `STAGE`, `SIGMA`).
 
 Size (N = 12, m_w/m_c = 3): about 12 × 2,292 + 3 × 80,000 ≈ 268,000 atoms at the start (the builder takes seconds; S ≈ 0.13 of 300 configurations) and ≈ 40,000 after the dehydration to m_w/m_c = 0.2.
