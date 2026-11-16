@@ -30,7 +30,7 @@ qstat -u $USER
 
 `go.sh` needs no settings: `autoconfig.sh` reads the centre's sample script (`/home/app/lammps/run.sh`, or `CONFIG_SRC=/path/run.sh ./go.sh`) and takes from it every `#PBS` line (queue, resources, wall time), the `module` lines,
 the Singularity image and the MPI launcher, and writes `RUN_N12/config.auto` (it prints what it found). `NODES=8 ./go.sh` rescales `select=<n>`. `pbs/config.env` holds optional overrides only (all commented out).
-numpy and scipy are installed with `pip --user` if missing. `./go.sh 12 "5.6 56" "01 02"` = N particles, normal stresses in MPa, stages (here only the compaction).
+Python (numpy and scipy for `build_gouge.py`, matplotlib for the figures) is `./sifpy`: python 3.11 in a Singularity / Apptainer image that `make_sif.sh` makes once (go.sh calls it when it is missing: pulls python:3.11-slim, no root; the image's pip installs numpy, scipy, matplotlib into `sifpy_lib/`; a few minutes; no pip on the centre's python). Without internet on the login node: run make_sif.sh on a computer with internet and Singularity, copy `sifpy.sif` and `sifpy_lib/` here, run it again. `PYTHON=/path/python3 ./go.sh` uses another python. `./go.sh 12 "5.6 56" "01 02"` = N particles, normal stresses in MPa, stages (here only the compaction).
 `./go.sh 67 "5.6 56" all 4 RUN_N67_b` (5th argument = run folder) runs the same calculation again in another folder: the initial structure, `config.env` and `lmp.auto`
 of `RUN_N67` are copied. `./go.sh 67 "5.6 56" all 4 RUN_N67_s2 2` (6th argument = seed, default 1) is an independent run: another random initial structure,
 and LAMMPS uses the seed too (velocities, water removal, thermostat; `RUN_N67_s2/lammps_seed`). Each folder has its own chain and can run at the same time as the others.
@@ -94,7 +94,7 @@ particle) and `prof_<σ>.<step>.dat` (averaged over `prof_dg` = 0.05 of strain, 
 ~8 % more time): the shear stress against the slip velocity (their Fig. 8, 10) from one run, like a velocity-step test of a friction experiment.
 At the start and at the end of each phase it writes the whole system with the water (`shear_<σ>_all_<step>.dump`, for their Fig. 9; the trajectory
 `shear_<σ>.dump` stays clay only). After every job of the shear, the job draws the figures into `RUN_N67/figs/` (`hot_spots.py`, copied into the run folder;
-a trajectory frame is analysed once and kept in `figs/.cache`, so the jobs stay quick). For that, go.sh looks for a python with numpy and matplotlib after the jobs are submitted (this python, the centre's pythons in /home/app); none: `./make_sif.sh` makes one in a Singularity / Apptainer image (pulls python:3.11-slim, no root; its pip installs numpy, scipy, matplotlib into `figs_pylib/`; a few minutes, once) and writes `figs_python`, which every `RUN_*/config.env` gets as `PYTHON=...` (a running chain draws the figures from its next job on). Without internet on the login node: run make_sif.sh on a computer with internet and Singularity, copy `figs.sif` and `figs_pylib/` here, run it again. A shear begun
+a trajectory frame is analysed once and kept in `figs/.cache`, so the jobs stay quick). They use `./sifpy` (see above), which every `RUN_*/config.env` gets as `PYTHON=...` (`./make_sif.sh` run later: a running chain draws the figures from its next job on). A shear begun
 with an older `in.04_shear` (no `shear_<σ>.v2`) is done again: its files, and those of the healing after it, are moved to `old_04_<σ>/`.
 Options: `env NVS=0` (no velocity steps), `NVS=2`, `VFAC=10` (×10 each), `RATE=1e9` (1/s), `GMAX=2`.
 
@@ -102,10 +102,10 @@ A quick test of the whole chain (all stages, all outputs, the figures): `env NRU
 run of every stage for 1000 steps (02: one water removal; 04: each of its 5 phases; outputs every 100 steps) in its own folder `RUN_N22_test1000`
 (the structure of `RUN_N22` is copied when it is there). The numbers mean nothing; it shows that everything runs and is written.
 
-To draw them by hand (any computer; also several folders together): `python3 analysis/hot_spots.py RUN_N67 --outdir figs`.
+To draw them by hand (also several folders together): `./sifpy analysis/hot_spots.py RUN_N67 --outdir figs` (any other computer: `python3 ...`).
 Several folders at other rates from the same compacted gouge are possible too (each its own chain):
 `env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9` (after `RUN_N22/03_consolidate_5.6.done`; `FROM` copies its stages 01-03 and settings),
-then `python3 analysis/hot_spots.py RUN_N22 RUN_N22_r1e9 --sigma 5.6`.
+then `./sifpy analysis/hot_spots.py RUN_N22 RUN_N22_r1e9 --sigma 5.6`.
 
 The slip velocity across the box is V = γ̇ Lz (1e8 /s with Lz = 10 nm: 1 m/s). `hot_spots.py` writes
 `fig6_interface_slip.png` (relative in-plane displacement of stacked particle pairs in time over all phases, the fastest, median and slowest interface at
@@ -117,7 +117,7 @@ snapshot) and `fig10_viscosity.png` (τ / shear rate against the shear rate), wi
 figure in `fig6_interfaces.csv`, `fig7_profiles.csv`, `fig8_fig10_points.csv` and `fig9_water.csv` (to plot them again elsewhere). The steady state of
 each rate is the second half of its strain (`--gmin` for phase 0).
 
-## Analysis (any computer; numpy and matplotlib; `analysis/` in the repository, next to `go.sh` in the pack)
+## Analysis (on the supercomputer `./sifpy` in place of `python3`; any other computer: numpy and matplotlib; `analysis/` in the repository, next to `go.sh` in the pack)
 
 ```
 python3 order_parameter.py RUN_N12/01_equil.data RUN_N12/02_dehydrate.data RUN_N12/03_consolidate_5.6.data RUN_N12/gouge.json   # S, m_w/m_c, dry bulk density

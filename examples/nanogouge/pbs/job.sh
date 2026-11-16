@@ -339,6 +339,6 @@ if [ -f hot_spots.py ] && ls shear_*.dat >/dev/null 2>&1; then
     mkdir -p figs
     if tmo "$FT" $PYF hot_spots.py "$PWD" --outdir figs --budget "$FT" > figs/hot_spots.log 2>&1; then echo "figures: $PWD/figs  ($(tail -1 figs/hot_spots.log))"
     else echo "note: hot_spots.py did not finish (figs/hot_spots.log): $(tail -2 figs/hot_spots.log | tr '\n' ' ')"; fi
-  else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $PWD; python3 hot_spots.py . --outdir figs"; fi
+  else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $PWD; ../sifpy hot_spots.py . --outdir figs (../make_sif.sh first)"; fi
 fi
 echo "end $(date)"

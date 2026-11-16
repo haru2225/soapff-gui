@@ -16,9 +16,9 @@
 #                 every 100 steps; in its own folder RUN_N<N>_test1000 (the structure of RUN_N<N> is copied if there).  Checks that all runs and
 #                 all outputs work; the numbers mean nothing.   env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
-#   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear, with a python with matplotlib that go.sh looks for
-#   after submitting, else makes one in a Singularity image (./make_sif.sh; PYTHON=... in RUN_<..>/config.env); a shear begun
-#   with an older input is done again.
+#   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
+#   Python (build_gouge.py: numpy, scipy; the figures: matplotlib) = ./sifpy, python 3.11 in a Singularity image that make_sif.sh makes once
+#   (go.sh calls it; no pip).  PYTHON=/path/python3 uses another one.
 #   FROM=RUN_N22  start from the compacted gouge of another folder (its stages 01-03 are copied; only 03 of a missing sigma, 04, 05 run):
 #                 a series of shear rates on the same gouge, e.g.
 #                 env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9
@@ -29,7 +29,21 @@ N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; B
 # NRUN (a short test of the whole chain) never goes into a running folder: its own folder RUN_N<N>_test<NRUN> unless a 5th argument is given
 if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
 [ -n "${4:-}" ] && export NODES=$4      # 4th argument = number of nodes (works in any shell, no "NODES=4 ./go.sh" needed)
-PY=${PYTHON:-python3}
+# ---- one python for everything: ./sifpy (Singularity image of make_sif.sh: python 3.11, numpy, scipy, matplotlib), made once when missing;
+#      PYTHON=... overrides it.  No pip.  A failed make_sif.sh (no internet?) is not tried again by go.sh (.sifpy_failed): run ./make_sif.sh by hand.
+tmo() { local t=$1; shift; if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi; }
+py_ok() { tmo 120 "$@" -c "import numpy, scipy, matplotlib" >/dev/null 2>&1 </dev/null; }
+PY=""
+get_py() {
+  [ -n "$PY" ] && return 0
+  if [ -n "${PYTHON:-}" ]; then PY=$PYTHON; return 0; fi
+  if ! { [ -x sifpy ] && py_ok ./sifpy; } && [ ! -f .sifpy_failed ]; then
+    echo "making ./sifpy, the python of this folder (numpy, scipy, matplotlib in a Singularity image; once, a few minutes): ./make_sif.sh"
+    ./make_sif.sh || { touch .sifpy_failed; echo "make_sif.sh failed (see above); go.sh does not try again: ./make_sif.sh by hand"; }
+  fi
+  if [ -x sifpy ] && py_ok ./sifpy; then PY=$PWD/sifpy; return 0; fi
+  return 1
+}
 # FROM: the new folder starts where the other one finished the compaction
 if [ -n "${FROM:-}" ]; then
   FROM=${FROM%/}
@@ -45,8 +59,6 @@ if [ -n "${FROM:-}" ]; then
 fi
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
 NCONF=${NCONF:-$([ "$N" -gt 20 ] && echo 30 || echo 300)}
-# a command with a time limit (pip without internet waits for ever)
-tmo() { local t=$1; shift; if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi; }
 if [ ! -f "$RUN/gouge.data" ]; then
   mkdir -p "$RUN"
   if [ "$SEED" = 1 ] && [ "$RUN" != "$BASE" ] && [ -f "$BASE/gouge.data" ]; then
@@ -54,8 +66,9 @@ if [ ! -f "$RUN/gouge.data" ]; then
     cp "$BASE/gouge.data" "$BASE/gouge.settings" "$RUN/"; [ -f "$BASE/gouge.json" ] && cp "$BASE/gouge.json" "$RUN/"
     echo "$RUN: the same initial structure as $BASE (copied)"
   else
-    # numpy and scipy are needed only here (building a new structure); pip is tried for at most 2 min
-    $PY -c "import numpy, scipy" 2>/dev/null || { echo "installing numpy and scipy for $PY (pip --user, at most 2 min)"; tmo 120 $PY -m pip install --user -q --timeout 10 --retries 0 numpy scipy </dev/null || echo "pip failed (no internet here?): give a python with numpy and scipy: env PYTHON=/path/to/python3 ./go.sh ..."; }
+    # numpy and scipy are needed only here (building a new structure)
+    get_py || { [ -z "${PYTHON:-}" ] && python3 -c "import numpy, scipy" 2>/dev/null </dev/null && PY=python3 && echo "(using python3 of this node, which has numpy and scipy)"; } \
+      || { echo "no python with numpy and scipy to build the structure: ./sifpy could not be made (see above; ./make_sif.sh needs internet once)"; exit 1; }
     # seed 1 in another folder (a test, a rate series): built in RUN_N<N> and copied, so all of them start from the same structure
     OUT=$RUN; if [ "$SEED" = 1 ] && [ "$RUN" != "$BASE" ]; then OUT=$BASE; mkdir -p "$BASE"; fi
     $PY build_gouge.py -n $N --mwmc 3.0 --nconf $NCONF --seed $SEED -o "$OUT/gouge" || { echo "build_gouge.py failed"; exit 1; }
@@ -85,24 +98,11 @@ if [ -n "${VFAC:-}" ]; then set_opt vfac "$VFAC"; fi
 $S $RUN "$SIG" "$ST"
 echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; figures in $RUN/figs)"
 
-# ---- the figures (hot_spots.py, drawn by the jobs in $RUN/figs) need a python with numpy and matplotlib; the runs do not.  Looked for after the
-#      jobs are submitted: figs_python (Singularity image made by make_sif.sh), this python, the centre's pythons; none: make_sif.sh makes the image
-#      (python 3.11 + numpy, scipy, matplotlib; a few minutes once).  The one found is kept in $RUN/config.env (PYTHON=...) for the jobs.
-has_mpl() { tmo 120 "$@" -c "import numpy, matplotlib" >/dev/null 2>&1 </dev/null; }
-FIGPY=""
-for c in "$PWD/figs_python" $(sed -n 's/^PYTHON="\(.*\)" *# go.sh: python for the figures.*/\1/p' "$RUN/config.env" 2>/dev/null | tail -1) "$PY" python3 \
-         $(ls -d /home/app/*/bin/python3 /home/app/*/*/bin/python3 /home/app/*/*/*/bin/python3 /opt/*/bin/python3 2>/dev/null | head -20 || true); do
-  command -v "$c" >/dev/null 2>&1 || continue
-  if has_mpl "$c"; then FIGPY=$(command -v "$c"); break; fi
-done
-if [ -z "$FIGPY" ] && [ ! -f "$RUN/.figpy_none" ]; then
-  echo "no python with matplotlib here: making one in a Singularity image (./make_sif.sh; the jobs are already submitted) ..."
-  if ./make_sif.sh && has_mpl "$PWD/figs_python"; then FIGPY="$PWD/figs_python"; fi
-fi
-if [ -n "$FIGPY" ]; then
-  { grep -v "# go.sh: python for the figures" "$RUN/config.env" || true; echo "PYTHON=\"$FIGPY\"   # go.sh: python for the figures"; } > "$RUN/config.env.tmp" && mv -f "$RUN/config.env.tmp" "$RUN/config.env"
-  echo "figures: drawn by the jobs with $FIGPY in $RUN/figs"
+# ---- the figures (hot_spots.py, drawn by the jobs in $RUN/figs) need numpy and matplotlib: ./sifpy (made now if missing; the jobs are already
+#      submitted), kept in $RUN/config.env (PYTHON=...) for the jobs.  None: the jobs run without figures.
+if get_py && tmo 120 $PY -c "import numpy, matplotlib" >/dev/null 2>&1 </dev/null; then
+  { grep -v "# go.sh: python" "$RUN/config.env" || true; echo "PYTHON=\"$PY\"   # go.sh: python"; } > "$RUN/config.env.tmp" && mv -f "$RUN/config.env.tmp" "$RUN/config.env"
+  echo "figures: drawn by the jobs with $PY in $RUN/figs"
 else
-  touch "$RUN/.figpy_none"
-  echo "note: no python with matplotlib (and no Singularity image, see above): the jobs run without figures.  Try again: ./make_sif.sh"
+  echo "note: no python with matplotlib (./sifpy could not be made, see above): the jobs run without figures.  ./make_sif.sh, then they draw them"
 fi

@@ -1,3 +1,4 @@
-figs.sif
-figs_pylib/
-figs_python
+sifpy.sif
+sifpy_lib/
+sifpy
+.sifpy_failed
