@@ -1,9 +1,11 @@
 #!/bin/bash
 # One command: build the system and submit the whole PBS chain.
 #   ./go.sh [N particles = 12] ["normal stresses in MPa" = "5.6 56"] [stages = all]
-#   atoms ≈ 22,300 × N  (N=12: 0.27 M, N=67: 1.49 M).  ./go.sh 67 "5.6 56" all 4   uses 4 nodes (4th argument).
+#   atoms ≈ 22,300 × N  (N=12: 0.27 M, N=22: 0.49 M, N=67: 1.49 M).  ./go.sh 67 "5.6 56" all 4   uses 4 nodes (4th argument).
 #   ./go.sh 67 "5.6 56" all 4 RUN_N67_b      the same run in another folder (5th argument; the initial structure of RUN_N67 is copied)
 #   ./go.sh 67 "5.6 56" all 4 RUN_N67_s2 2   an independent run: another random initial structure and LAMMPS seed (6th argument, default 1)
+#   env DT=0.5 DUMP=all ./go.sh 22 "5.6 56" all 4   time step 0.5 fs (default 1) and the water in the trajectories (default: clay and Na only);
+#                                            both are kept in RUN_N22/config.env for every job of the folder (WALLTIME=... too, in RUN_N22/walltime)
 # Before the first run, put the supercomputer's settings in config.env (copy them from /home/app/lammps/run.sh).
 set -eu
 cd "$(dirname "$0")"
@@ -27,6 +29,14 @@ if [ ! -f "$RUN/gouge.data" ]; then
 fi
 # a new folder takes the settings the jobs of RUN_N<N> found and checked (your config.env, the LAMMPS build and MPI launcher in lmp.auto)
 if [ "$RUN" != "$BASE" ]; then for f in config.env lmp.auto; do [ -f "$BASE/$f" ] && [ ! -f "$RUN/$f" ] && cp "$BASE/$f" "$RUN/"; done; fi
-if [ -f submit_chain.sh ]; then S=./submit_chain.sh; else S=pbs/submit_chain.sh; fi
+if [ -f submit_chain.sh ]; then S=./submit_chain.sh; CE=./config.env; else S=pbs/submit_chain.sh; CE=pbs/config.env; fi
+# DT / DUMP: one line each in $RUN/config.env (job.sh passes EXTRA to LAMMPS); given again, the line is replaced
+set_opt() {
+  local f=$RUN/config.env; [ -f "$f" ] || cp "$CE" "$f"
+  { grep -v "# go.sh: $1\$" "$f" || true; echo "EXTRA=\"\${EXTRA:-} -var $1 $2\"   # go.sh: $1"; } > "$f.tmp" && mv -f "$f.tmp" "$f"
+  echo "$RUN: LAMMPS -var $1 $2 for every job of this folder ($f)"
+}
+if [ -n "${DT:-}" ]; then set_opt dt "$DT"; fi
+if [ -n "${DUMP:-}" ]; then set_opt dump_group "$DUMP"; fi
 $S $RUN "$SIG" "$ST"
 echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; python3 shear_curve.py $RUN/shear_5.6.dat)"

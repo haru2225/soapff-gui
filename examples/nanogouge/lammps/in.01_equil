@@ -7,7 +7,8 @@ include in.init
 variable t_nvt_ps index 100
 variable t_npt_ps index 1000
 variable rest_every index 10000     # also a restart every this many steps (a job killed without warning loses less)
-variable dump_every index 5000     # trajectory 01_equil.dump (OVITO; id mol type xu yu zu) every this many steps (5 ps); 0 = none
+variable dump_ps index 5        # trajectory 01_equil.dump (OVITO; id mol type xu yu zu) every this many ps; 0 = none
+variable dump_every index $(round(v_dump_ps*1000/v_dt))   # ... in steps (-var dump_every N sets it directly)
 variable domin index 1              # 1 = minimise first (a new start, or a minimisation that the time limit stopped)
 log log.01_equil append
 thermo 100                          # minimisation: a line every 100 iterations

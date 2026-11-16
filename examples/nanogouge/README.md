@@ -10,7 +10,7 @@ Lin & Hatano (2024; σn = 5.6 and 56 MPa, rate ~1e8 /s) and with the two-plate r
 |---|---|---|
 | build | `build_gouge.py` | N particles, random position and orientation, no overlap; 300 random configurations, the lowest order parameter S is kept (paper: S ≈ 0.1); water at m_w/m_c ≈ 3 (paper) |
 | 01 | `lammps/in.01_equil` | minimisation, 100 ps NVT, NPzT (only z moves) at 1 atm |
-| 02 | `lammps/in.02_dehydrate` | every `step_ps` delete 2 % of the initial water (1 % below m_w/m_c = 1) and run NPzT: compaction, particles stack (paper: 1 % every 1 ns, 134 ns); stops at `final_mwmc` |
+| 02 | `lammps/in.02_dehydrate` | every `step_ps` delete 2 % of the initial water (1 % below m_w/m_c = 1; each molecule with that probability, any LAMMPS version) and run NPzT: compaction, particles stack (paper: 1 % every 1 ns, 134 ns); stops at `final_mwmc` |
 | 03 | `lammps/in.03_consolidate` | hold at the normal stress σn (z only; x, y fixed) |
 | 04 | `lammps/in.04_shear` | SLLOD shear (box tilt xz, rate 1e-7 /fs = 1e8 /s) at constant σn (`fix press/langevin` in z); `shear_<σ>.dat` = strain, shear stress, normal stress, μ, Lz, ρb; restart files every 10 ps and at each job stop |
 | 05 | `lammps/in.05_heal` | stop the shear, hold (static contact time): stress relaxation, re-stacking |
@@ -59,8 +59,10 @@ output files `ng_*.o*` appear only when a job has ended). The first job finds a 
 `mpiexec_mpt`); both are kept in `RUN_N12/lmp.auto` for the next jobs (delete it to search again). Each stop at the wall time also writes the current
 structure to `<stage>.latest.data` (e.g. `01_equil.latest.data`; opens in OVITO).
 Trajectories (OVITO; clay atoms and Na, unwrapped, `id mol type xu yu zu`; each job appends to the file of its stage): `01_equil.dump` every 5 ps, `02_dehydrate.dump` every 20 ps,
-`03_consolidate_<σ>.dump` every 10 ps, `shear_<σ>.dump` every 100 ps (strain 0.01), `heal_<σ>.dump` every 25 ps. Other intervals or all atoms (with the water, ~10× larger):
-`EXTRA="-var dump_every 1000 -var dump_group all"` in `RUN_N67/config.env` (`-var dump_every 0` = none). New `in.*` files reach a run folder with `./go.sh` (or `submit_chain.sh`);
+`03_consolidate_<σ>.dump` every 10 ps, `shear_<σ>.dump` every 100 ps (strain 0.01), `heal_<σ>.dump` every 25 ps (`dump_ps`; the steps follow the time step).
+With the water (all atoms, ~10× larger files): `env DUMP=all ./go.sh ...`. Time step 0.5 fs instead of 1: `env DT=0.5 ./go.sh ...` (all times stay in ps, so there are twice as many steps).
+Both are kept in `RUN_N<N>/config.env` (`EXTRA=... # go.sh: ...` lines) for every job of the folder; other LAMMPS variables the same way, e.g. `EXTRA="${EXTRA:-} -var dump_ps 0"` (no trajectories).
+Example, about 0.5 M atoms (N = 22: 490,599 atoms), 0.5 fs, water in the trajectories, 30 min jobs: `env WALLTIME=0:30:00 DT=0.5 DUMP=all ./go.sh 22 "5.6 56" all 4`. New `in.*` files reach a run folder with `./go.sh` (or `submit_chain.sh`);
 they replace the old files, so a LAMMPS running now is not disturbed and the next job uses them.
 Stage 01 is 100 ps NVT + 1000 ps NPzT (1.1 M steps); `EXTRA="-var t_npt_ps 200"` in `RUN_N67/config.env` shortens it (a run already past the new end finishes the stage at once).
 Each job prints the step it reached and the speed in `jobs.log` (`grep -E "== stage|   step" RUN_N67/jobs.log | tail`); stage 01 is done at step `(t_nvt_ps + t_npt_ps) × 1000`, then the same job goes on with 02.

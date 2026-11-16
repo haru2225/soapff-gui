@@ -5,7 +5,8 @@ include in.init
 variable sigma index 5.6
 variable t_ps index 5000
 variable rest_every index 10000
-variable dump_every index 25000    # trajectory heal_<sigma>.dump every this many steps (25 ps); 0 = none
+variable dump_ps index 25        # trajectory heal_<sigma>.dump (OVITO; id mol type xu yu zu) every this many ps; 0 = none
+variable dump_every index $(round(v_dump_ps*1000/v_dt))   # ... in steps (-var dump_every N sets it directly)
 variable Pn equal ${sigma}*9.86923
 log log.05_heal_${sigma} append
 thermo 1000

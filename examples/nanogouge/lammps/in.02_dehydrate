@@ -12,7 +12,8 @@ variable final_mwmc index 0.2       # stop at this water / clay mass ratio
 variable snap_every index 5         # write a data file of the configuration every this many cycles
 variable rest_every index 10000     # also a restart every this many steps
 variable nw0 index -1               # water molecules at the start of stage 02 (given when continuing)
-variable dump_every index 20000    # trajectory 02_dehydrate.dump (OVITO; id mol type xu yu zu) every this many steps (20 ps); 0 = none
+variable dump_ps index 20        # trajectory 02_dehydrate.dump (OVITO; id mol type xu yu zu) every this many ps; 0 = none
+variable dump_every index $(round(v_dump_ps*1000/v_dt))   # ... in steps (-var dump_every N sets it directly)
 variable tmin index 120             # s: a new cycle (a water removal) starts only with more time than this left in the job
 log log.02_dehydrate append
 thermo 1000
@@ -32,7 +33,14 @@ variable ratio equal $(mass(water)/mass(clay))
 if "${ratio} <= ${final_mwmc}" then "jump SELF done"
 if "${ratio} > 1.0" then "variable ndel equal round(${dfrac1}*${nw0})" else "variable ndel equal round(${dfrac2}*${nw0})"
 variable sd equal ${seed}+$(floor(step/v_ncyc))+1
-delete_atoms random count ${ndel} yes wO NULL ${sd} mol yes bond yes compress yes
+# each water molecule is removed with probability ndel / n_water (about ndel of them; any LAMMPS version:
+# delete_atoms random exists only since 2022, older ones stop with "Illegal delete_atoms command")
+variable pdel equal ${ndel}/$(count(wO))
+variable rsel atom type==${tow}&&random(0,1,${sd})<${pdel}
+group gdel variable rsel
+delete_atoms group gdel mol yes bond yes compress yes
+group gdel delete
+variable rsel delete
 label runcycle
 variable kc equal $(floor(step/v_ncyc)+1)
 variable kend equal $(v_kc*v_ncyc)
