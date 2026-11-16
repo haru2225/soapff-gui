@@ -12,6 +12,9 @@
 #                 (Lin's thesis); 2 the same with the Langevin thermostat on vy only; 3 no thermostat; 0 SLLOD
 #   RATE=1e9      shear rate of 04 in 1/s (default 1e8)
 #   GMAX=2        final shear strain of 04 (default 3)
+#   NRUN=1000     a test of the whole chain: every run of every stage is 1000 steps (02: one water removal; 04: each of its 5 phases), outputs
+#                 every 100 steps; in its own folder RUN_N<N>_test1000 (the structure of RUN_N<N> is copied if there).  Checks that all runs and
+#                 all outputs work; the numbers mean nothing.   env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear, with a python with matplotlib that go.sh looks for
 #   after submitting, else makes one in a Singularity image (./make_sif.sh; PYTHON=... in RUN_<..>/config.env); a shear begun
@@ -23,6 +26,8 @@
 set -eu
 cd "$(dirname "$0")"
 N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; BASE=RUN_N$N
+# NRUN (a short test of the whole chain) never goes into a running folder: its own folder RUN_N<N>_test<NRUN> unless a 5th argument is given
+if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
 [ -n "${4:-}" ] && export NODES=$4      # 4th argument = number of nodes (works in any shell, no "NODES=4 ./go.sh" needed)
 PY=${PYTHON:-python3}
 # FROM: the new folder starts where the other one finished the compaction
@@ -72,6 +77,7 @@ if [ -n "${FLOW:-}" ]; then set_opt flow "$FLOW"; fi
 if [ -n "${RATE:-}" ]; then set_opt rate "$(awk -v r="$RATE" 'BEGIN{printf "%.6g", r/1e15}')"; fi   # 1/s -> 1/fs
 if [ -n "${GMAX:-}" ]; then set_opt gmax "$GMAX"; fi
 if [ -n "${NVS:-}" ]; then set_opt nvs "$NVS"; fi
+if [ -n "${NRUN:-}" ]; then set_opt nrun "$NRUN"; fi
 if [ -n "${VFAC:-}" ]; then set_opt vfac "$VFAC"; fi
 $S $RUN "$SIG" "$ST"
 echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; figures in $RUN/figs)"

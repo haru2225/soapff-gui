@@ -6,6 +6,7 @@ variable sigma index 5.6
 variable t_ps index 5000
 variable rest_every index 10000
 variable dump_ps index 25        # trajectory heal_<sigma>.dump (OVITO; id mol type xu yu zu) every this many ps; 0 = none
+if "${nrun} > 0" then "variable dump_every index ${nout}"   # test: 10 frames per run
 variable dump_every index $(round(v_dump_ps*1000/v_dt))   # ... in steps (-var dump_every N sets it directly)
 variable Pn equal ${sigma}*9.86923
 log log.05_heal_${sigma} append
@@ -16,6 +17,7 @@ variable sn equal c_pt[3]*0.101325      # compression > 0
 variable dens equal mass(clay)*1.66054/vol
 variable lzv equal lz
 variable nst equal round(v_t_ps*1000/v_dt)
+if "${nrun} > 0" then "variable nst equal ${nrun}"
 fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
 fix av all ave/time 100 10 1000 v_ss v_sn v_lzv v_dens
 if "${resume} == 0" then "print '# TimeStep v_ss v_sn v_lzv v_dens' file heal_${sigma}.dat"

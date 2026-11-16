@@ -35,6 +35,7 @@ variable Pn equal ${sigma}*9.86923
 
 variable Pdamp index 10000.0        # fs
 variable rest_every index 10000     # a restart every this many steps (besides the one written at the time limit)
+if "${nrun} > 0" then "variable dump_every index ${nout}"   # test: 10 frames per run
 variable dump_every index $(round(v_dump_dg/(v_rate*v_dt)))   # steps between trajectory frames in phase 0 (-var dump_every N sets it directly); x5 in strain in the velocity steps
 log log.04_shear_${sigma} append
 if "${resume} == 0" then "change_box all triclinic" "kspace_style pppm ${acc}"
@@ -66,10 +67,12 @@ variable lzv equal lz
 variable lxv equal lx
 variable lyv equal ly
 # 1000-step averages (a job that continues a run loses at most 2000 steps of them); written by fix print (append) so that the file grows across jobs
-fix av all ave/time 100 10 1000 v_gam v_ss v_sn v_mu v_lzv v_dens c_tdef v_lxv v_lyv
+variable avf equal $(10*ceil(v_nout/10))
+if "${nrun} == 0" then "variable avf equal 1000"
+fix av all ave/time $(v_avf/10) 10 ${avf} v_gam v_ss v_sn v_mu v_lzv v_dens c_tdef v_lxv v_lyv
 if "${resume} == 0" then "print '# TimeStep gamma tau(MPa) sigma_n(MPa) mu Lz(A) rho_b(g/cm3) T(K) Lx(A) Ly(A) rate(1/s)' file shear_${sigma}.dat"
 # first line one whole averaging window after the (re)start, then every 1000 steps
-variable nextpr equal (floor((step+999)/1000)+1)*1000
+variable nextpr equal (floor((step+v_avf-1)/v_avf)+1)*v_avf
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g) $(f_av[5]:%.6g) $(f_av[6]:%.6g) $(f_av[7]:%.5g) $(f_av[8]:%.6g) $(f_av[9]:%.6g) $(v_rk*1e15:%.5g)" append shear_${sigma}.dat screen no
 # particles (clay without Na: the Na ions move on their own): centre of mass, velocity, shape, internal temperature
 variable isna atom abs(mass-22.98977)<0.01
@@ -100,6 +103,7 @@ variable rk equal $(v_rate*v_vfac^v_kk)
 if "${kk} == 0" then "variable dgk equal ${gmax}" else "variable dgk equal ${vstep_dg}"
 variable Se equal $(v_Sb+round(v_dgk/(v_rk*v_dt)))
 variable Ge equal $(v_Gb+v_dgk)
+if "${nrun} > 0" then "variable Se equal $(v_Sb+v_nrun)" "variable Ge equal $(v_Gb+v_nrun*v_rk*v_dt)"
 if "$(step) >= ${Se}" then "variable ran equal 0" "jump SELF phase_end"
 print "04: phase ${kk}: rate $(v_rk*1e15:%.4g) /s, strain ${Gb} -> ${Ge}, steps ${Sb} -> ${Se} (now $(step))"
 # the shear: the box tilt grows at rk*Lz; a new rate also adds its change of the flow profile to the velocities (once: when the phase before ended in this job,
@@ -109,9 +113,10 @@ if "${flow} > 0 && ((${kk} == 0 && ${resume} == 0 && $(step) == 0) || (${kk} > 0
 # outputs every so much strain (steps at this rate): particles, profiles; the trajectory 5 x less often in the velocity steps
 variable npart equal $((round(v_part_dg/(v_rk*v_dt))+(round(v_part_dg/(v_rk*v_dt))<1)))
 variable nrep equal $((round(v_prof_dg/(v_rk*v_dt)/100)+(round(v_prof_dg/(v_rk*v_dt)/100)<1)))
+if "${nrun} > 0" then "variable npart equal ${nout}" "variable nrep equal 1"
 fix fpart part ave/time ${npart} 1 ${npart} c_pcom[1] c_pcom[2] c_pcom[3] c_pvcm[1] c_pvcm[2] c_pvcm[3] c_pgyr[1] c_pgyr[2] c_pgyr[3] c_pgyr[4] c_pgyr[5] c_pgyr[6] c_ptmp[1] mode vector file particles_${sigma}.$(step).dat
 fix fprof all ave/time 100 ${nrep} $(100*v_nrep) c_zpw[2] c_zpw[1] c_zvw[1] c_zpc c_zvc[1] c_zta[1] mode vector file prof_${sigma}.$(step).dat
-if "${dump_every} > 0 && ${kk} > 0" then "dump_modify dm every $((round(5*v_dump_dg/(v_rk*v_dt))+(round(5*v_dump_dg/(v_rk*v_dt))<1)))"
+if "${dump_every} > 0 && ${kk} > 0 && ${nrun} == 0" then "dump_modify dm every $((round(5*v_dump_dg/(v_rk*v_dt))+(round(5*v_dump_dg/(v_rk*v_dt))<1)))"
 run ${Se} upto
 if "$(step) < ${Se}" then "write_restart shear_${sigma}.restart.stop" "write_data shear_${sigma}.latest.data nocoeff" "quit 0"
 variable ran equal 1

@@ -10,6 +10,8 @@ variable thw index 19           # hw
 variable tow index 20           # ow
 variable seed index 12345
 variable dump_group index clay   # atoms in the trajectories <stage>.dump: clay (particles + Na, small files) or all (with the water: ~10 x larger)
+variable nrun index 0           # > 0: a test of the whole chain: every run of every stage is nrun steps (02: one water removal; 04: each phase), outputs every nrun/10 steps (env NRUN=1000 ./go.sh ...)
+variable nout equal round(v_nrun/10)+(round(v_nrun/10)<1)
 variable tlimit index off       # wall time LAMMPS may use in this job (s); job.sh sets it from the PBS wall time. Runs stop cleanly and write a restart
 variable tcheck index 10        # the time limit is checked every this many steps (cheap; a slow run still stops in time)
 timer timeout ${tlimit} every ${tcheck}

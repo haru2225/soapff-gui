@@ -13,7 +13,10 @@ variable snap_every index 5         # write a data file of the configuration eve
 variable rest_every index 10000     # also a restart every this many steps
 variable nw0 index -1               # water molecules at the start of stage 02 (given when continuing)
 variable dump_ps index 20        # trajectory 02_dehydrate.dump (OVITO; id mol type xu yu zu) every this many ps; 0 = none
+if "${nrun} > 0" then "variable dump_every index ${nout}"   # test: 10 frames per run
 variable dump_every index $(round(v_dump_ps*1000/v_dt))   # ... in steps (-var dump_every N sets it directly)
+if "${nrun} > 0" then "variable maxcyc index 1"
+variable maxcyc index 1000000       # at most this many cycles (the test: 1)
 variable tmin index 120             # s: a new cycle (a water removal) starts only with more time than this left in the job
 log log.02_dehydrate append
 thermo 1000
@@ -21,6 +24,7 @@ if "${resume} == 0" then "print '# k  n_water  mw/mc  rho_b(g/cm3)  lz(A)  S-fre
 if "${nw0} < 0" then "variable nw0 delete" "variable nw0 equal $(count(wO))"
 print "${nw0}" file dehyd_nw0.txt
 variable ncyc equal round(v_step_ps*1000/v_dt)
+if "${nrun} > 0" then "variable ncyc equal ${nrun}"
 fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
 compute_modify fnpt_temp dynamic/dof yes
 compute_modify thermo_temp dynamic/dof yes
@@ -29,6 +33,7 @@ if "${dump_every} > 0" then "dump dm ${dump_group} custom ${dump_every} 02_dehyd
 if "$(step%v_ncyc) != 0" then "jump SELF runcycle"
 label top
 if "${tout} == 1 || ($(timeremain) > 0 && $(timeremain) < ${tmin})" then "write_restart dehyd.restart.stop" "write_data dehyd.latest.data nocoeff" "quit 0"
+if "$(floor(step/v_ncyc)) >= ${maxcyc}" then "jump SELF done"
 variable ratio equal $(mass(water)/mass(clay))
 if "${ratio} <= ${final_mwmc}" then "jump SELF done"
 if "${ratio} > 1.0" then "variable ndel equal round(${dfrac1}*${nw0})" else "variable ndel equal round(${dfrac2}*${nw0})"

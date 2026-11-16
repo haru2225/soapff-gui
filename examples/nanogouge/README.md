@@ -98,6 +98,10 @@ a trajectory frame is analysed once and kept in `figs/.cache`, so the jobs stay 
 with an older `in.04_shear` (no `shear_<σ>.v2`) is done again: its files, and those of the healing after it, are moved to `old_04_<σ>/`.
 Options: `env NVS=0` (no velocity steps), `NVS=2`, `VFAC=10` (×10 each), `RATE=1e9` (1/s), `GMAX=2`.
 
+A quick test of the whole chain (all stages, all outputs, the figures): `env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4` runs every
+run of every stage for 1000 steps (02: one water removal; 04: each of its 5 phases; outputs every 100 steps) in its own folder `RUN_N22_test1000`
+(the structure of `RUN_N22` is copied when it is there). The numbers mean nothing; it shows that everything runs and is written.
+
 To draw them by hand (any computer; also several folders together): `python3 analysis/hot_spots.py RUN_N67 --outdir figs`.
 Several folders at other rates from the same compacted gouge are possible too (each its own chain):
 `env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9` (after `RUN_N22/03_consolidate_5.6.done`; `FROM` copies its stages 01-03 and settings),
