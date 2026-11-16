@@ -14,7 +14,8 @@
 #   GMAX=2        final shear strain of 04 (default 3)
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear, with a python with matplotlib that go.sh looks for
-#   after submitting (never blocks; PYTHON=... in RUN_<..>/config.env); a shear begun with an older input is done again.
+#   after submitting, else makes one in a Singularity image (./make_sif.sh; PYTHON=... in RUN_<..>/config.env); a shear begun
+#   with an older input is done again.
 #   FROM=RUN_N22  start from the compacted gouge of another folder (its stages 01-03 are copied; only 03 of a missing sigma, 04, 05 run):
 #                 a series of shear rates on the same gouge, e.g.
 #                 env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9
@@ -76,39 +77,23 @@ $S $RUN "$SIG" "$ST"
 echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; figures in $RUN/figs)"
 
 # ---- the figures (hot_spots.py, drawn by the jobs in $RUN/figs) need a python with numpy and matplotlib; the runs do not.  Looked for after the
-#      jobs are submitted, each try with a time limit: this python, the centre's pythons, Singularity/Apptainer images of the centre, then pip once.
-#      The one found is kept in $RUN/config.env (PYTHON=...) for the jobs.  None found: the jobs run without figures.
-has_mpl() { tmo 60 "$@" -c "import numpy, matplotlib" >/dev/null 2>&1 </dev/null; }
+#      jobs are submitted: figs_python (Singularity image made by make_sif.sh), this python, the centre's pythons; none: make_sif.sh makes the image
+#      (python 3.11 + numpy, scipy, matplotlib; a few minutes once).  The one found is kept in $RUN/config.env (PYTHON=...) for the jobs.
+has_mpl() { tmo 120 "$@" -c "import numpy, matplotlib" >/dev/null 2>&1 </dev/null; }
 FIGPY=""
-if [ -f "$RUN/config.env" ] && grep -q "# go.sh: python for the figures" "$RUN/config.env"; then
-  FIGPY=$(sed -n 's/^PYTHON="\(.*\)" *# go.sh: python for the figures.*/\1/p' "$RUN/config.env" | tail -1)
-  has_mpl $FIGPY || FIGPY=""
-fi
+for c in "$PWD/figs_python" $(sed -n 's/^PYTHON="\(.*\)" *# go.sh: python for the figures.*/\1/p' "$RUN/config.env" 2>/dev/null | tail -1) "$PY" python3 \
+         $(ls -d /home/app/*/bin/python3 /home/app/*/*/bin/python3 /home/app/*/*/*/bin/python3 /opt/*/bin/python3 2>/dev/null | head -20 || true); do
+  command -v "$c" >/dev/null 2>&1 || continue
+  if has_mpl "$c"; then FIGPY=$(command -v "$c"); break; fi
+done
 if [ -z "$FIGPY" ] && [ ! -f "$RUN/.figpy_none" ]; then
-  echo "looking for a python with matplotlib for the figures (the jobs are already submitted) ..."
-  for c in "$PY" python3 $(ls -d /home/app/*/bin/python3 /home/app/*/*/bin/python3 /home/app/*/*/*/bin/python3 /opt/*/bin/python3 "$HOME"/*/bin/python3 2>/dev/null | head -20 || true); do
-    command -v "$c" >/dev/null 2>&1 || continue
-    if has_mpl "$c"; then FIGPY=$(command -v "$c"); break; fi
-  done
-  SING=$(command -v singularity 2>/dev/null || command -v apptainer 2>/dev/null || true)
-  if [ -z "$FIGPY" ] && [ -n "$SING" ]; then
-    for img in $(tmo 60 find /home/app /opt "$HOME" -maxdepth 4 -name '*.sif' 2>/dev/null | head -10 || true); do
-      echo "  trying $img"
-      if has_mpl "$SING" exec "$img" python3; then FIGPY="$SING exec $img python3"; break; fi
-    done
-  fi
-  if [ -z "$FIGPY" ]; then
-    echo "  none found; trying pip --user for at most 1 min"
-    tmo 60 $PY -m pip install --user -q --timeout 10 --retries 0 matplotlib </dev/null >/dev/null 2>&1 || true
-    has_mpl $PY && FIGPY=$(command -v $PY)
-  fi
+  echo "no python with matplotlib here: making one in a Singularity image (./make_sif.sh; the jobs are already submitted) ..."
+  if ./make_sif.sh && has_mpl "$PWD/figs_python"; then FIGPY="$PWD/figs_python"; fi
 fi
 if [ -n "$FIGPY" ]; then
   { grep -v "# go.sh: python for the figures" "$RUN/config.env" || true; echo "PYTHON=\"$FIGPY\"   # go.sh: python for the figures"; } > "$RUN/config.env.tmp" && mv -f "$RUN/config.env.tmp" "$RUN/config.env"
   echo "figures: drawn by the jobs with $FIGPY in $RUN/figs"
 else
   touch "$RUN/.figpy_none"
-  echo "note: no python with matplotlib here (pip has no internet on this node): the jobs run without figures."
-  echo "      Figures on your PC: copy $RUN/shear_*.dat particles_* prof_* shear_*_all_*.dump gouge.data and run  python3 hot_spots.py <folder> --outdir figs"
-  echo "      (to search again: rm $RUN/.figpy_none; ./go.sh ...)"
+  echo "note: no python with matplotlib (and no Singularity image, see above): the jobs run without figures.  Try again: ./make_sif.sh"
 fi
