@@ -106,7 +106,8 @@ box is V = γ̇ Lz (1e8 /s with Lz = 10 nm: 1 m/s); 1e8 /s to γ = 3 is 30 ns, 1
 than the gouge the water films shear: (v/h)/γ̇), `fig7_velocity_profile.png` (vx(z) of water and clay, T(z)), `fig8_tau_v.png` (τ against the slip velocity
 of the gouge and of the fastest 10 % of the interfaces, log-log fit), `fig9_water_structure.png` (hydrogen bonds per water molecule, with their criteria,
 and g_OO(r) of the water between two particles, at one surface and in the pores; needs `DUMP=all`) and `fig10_viscosity.png` (τ / shear rate against the
-shear rate), with the numbers in `hot_spots_summary.txt`.
+shear rate), with the main numbers in `hot_spots_summary.txt` and the numbers behind each figure in `fig6_interfaces.csv`, `fig7_profiles.csv`,
+`fig8_fig10_points.csv` and `fig9_water.csv` (to plot them again elsewhere). Fig. 7 shows vx / (γ̇ Lz) against z / Lz: the gray diagonal is uniform shear, a step is a shear band.
 
 ## Analysis (any computer; numpy and matplotlib; `analysis/` in the repository, next to `go.sh` in the pack)
 

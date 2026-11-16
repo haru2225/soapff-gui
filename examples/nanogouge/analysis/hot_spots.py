@@ -4,12 +4,13 @@ Figures of the same kind as theirs, from the files that in.04_shear writes in ea
 
   fig6_interface_slip.png    relative in-plane displacement s(t) of stacked particle pairs (their Fig. 6: stationary, stepwise, steady sliding)
                              + how much faster the water films shear than the gouge: (v / h) / gamma_dot of every interface
-  fig7_velocity_profile.png  vx(z) of the water and of the clay across the gouge, and T(z) (their Fig. 7)
+  fig7_velocity_profile.png  vx(z) / (gamma_dot Lz) of the water and of the clay across the gouge (diagonal = uniform shear; a step = a shear band),
+                             water share and T(z) (their Fig. 7)
   fig8_tau_v.png             shear stress against slip velocity, log-log, ln tau = k ln v + ln tau_i (their Fig. 8; one point per run folder)
   fig9_water_structure.png   hydrogen bonds per water molecule and g_OO(r) of water between two particles / at one surface / in pores
                              (their Fig. 9; needs the water in the trajectory: env DUMP=all ./go.sh ...)
   fig10_viscosity.png        effective viscosity tau / shear rate against the shear rate, of the gouge and of the sliding films (their Fig. 10)
-  hot_spots_summary.txt      the numbers
+  fig*.csv                   the numbers behind each figure (to plot them again elsewhere);  hot_spots_summary.txt  the main numbers
 
   python3 hot_spots.py RUN_N22                                   one run
   python3 hot_spots.py RUN_N22 RUN_N22_r3e8 RUN_N22_r1e9 RUN_N22_r3e9 --sigma 5.6    a series of shear rates (env FROM=RUN_N22 RATE=... ./go.sh)
@@ -19,9 +20,121 @@ numpy, matplotlib; scipy for fig9.
 import argparse, glob, mmap, os, re, sys
 import numpy as np
 import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch, PathPatch
+from matplotlib.path import Path
+from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 
 A2NM = 0.1
 V_MS = 1e5          # 1 A/fs = 1e5 m/s
+
+# ---------------- look of the figures: one palette, thin marks, recessive grid ----------------
+DPI = 150
+PX = 72.0 / DPI                                       # one pixel in points
+SURF, INK, INK2, MUTED, GRID, AXIS = '#fcfcfb', '#0b0b0b', '#52514e', '#898781', '#e1e0d9', '#c3c2b7'
+# categorical colours in a fixed order (checked for colour-blind readers: the first three are distinct in every pair); never cycled
+SLOT = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948']
+C_GOUGE, C_IFC = SLOT[0], SLOT[1]                     # the same meaning in fig8 and fig10
+LW, MS, RING = 2 * PX, 10 * PX, 2 * PX
+plt.rcParams.update({'figure.facecolor': SURF, 'axes.facecolor': SURF, 'savefig.facecolor': SURF, 'figure.dpi': DPI, 'savefig.dpi': DPI,
+                     'font.family': 'sans-serif', 'font.size': 8, 'axes.edgecolor': AXIS, 'axes.linewidth': PX, 'axes.labelcolor': INK2,
+                     'axes.spines.top': False, 'axes.spines.right': False, 'axes.axisbelow': True,
+                     'lines.linewidth': LW, 'lines.solid_capstyle': 'round', 'lines.solid_joinstyle': 'round',
+                     'legend.frameon': False, 'xtick.color': AXIS, 'ytick.color': AXIS})
+
+
+def style(ax, title=None):
+    ax.tick_params(which='both', colors=MUTED, labelsize=7, width=PX)
+    ax.tick_params(which='minor', length=0)
+    ax.grid(True, which='major', color=GRID, lw=PX, ls='-')
+    ax.grid(False, which='minor')
+    if title:
+        ax.set_title(title, color=INK, loc='left', fontsize=8)
+
+
+def handles(items):
+    """legend keys: (label, colour, 'line' | 'dot' | 'bar')"""
+    h = []
+    for lab, c, kind in items:
+        if kind == 'line':
+            h.append(Line2D([], [], color=c, lw=2 * LW, label=lab))
+        elif kind == 'dot':
+            h.append(Line2D([], [], color=c, marker='o', ls='none', ms=MS, mec=SURF, mew=RING, label=lab))
+        else:
+            h.append(Patch(facecolor=c, edgecolor='none', label=lab))
+    return h
+
+
+HEAD = 0.62                                           # inches at the top of a figure for its title and legend
+
+
+def head(fig, title, items):
+    h = fig.get_figheight()
+    fig.text(0.008, 1 - 0.1 / h, title, color=INK, fontsize=10, fontweight='bold', va='top')
+    if items:
+        leg = fig.legend(handles=handles(items), loc='upper left', bbox_to_anchor=(0.004, 1 - 0.3 / h), ncol=len(items), fontsize=8,
+                         handlelength=1.6, columnspacing=1.8, borderaxespad=0)
+        for t in leg.get_texts():
+            t.set_color(INK2)
+
+
+def layout(fig):
+    fig.tight_layout(rect=(0, 0, 1, 1 - HEAD / fig.get_figheight()), w_pad=1.6, h_pad=1.4)
+
+
+def end_labels(ax, xs, ys, labels):
+    """names at the line ends, only if they do not collide (else the legend carries them)"""
+    y0, y1 = ax.get_ylim(); ys = np.asarray(ys, float)
+    if len(ys) > 1 and np.min(np.diff(np.sort(ys))) < 0.08 * (y1 - y0):
+        return
+    for x, y, l in zip(xs, ys, labels):
+        ax.annotate(l, (x, y), xytext=(4, 0), textcoords='offset points', va='center', fontsize=7, color=INK2)
+
+
+def _num(v, _=None):
+    if v <= 0:
+        return ''
+    if 1e-2 <= v < 1e4:
+        return f'{v:g}'
+    e = int(np.floor(np.log10(v) + 1e-9)); m = v / 10 ** e
+    return f'$10^{{{e}}}$' if abs(m - 1) < 1e-6 else f'${m:g}\\times10^{{{e}}}$'
+
+
+def logaxes(ax, x, y):
+    """log-log axes whose ticks are clean numbers, two or three per decade when the data span less than about a decade"""
+    ax.set_xscale('log'); ax.set_yscale('log')
+    for axis, d in ((ax.xaxis, x), (ax.yaxis, y)):
+        d = np.asarray([v for v in np.ravel(d) if np.isfinite(v) and v > 0])
+        dec = np.log10(d.max() / d.min()) if len(d) > 1 else 0
+        axis.set_major_locator(LogLocator(base=10, subs=(1, 1.5, 2, 3, 4, 5, 6, 8) if dec < 0.4 else (1, 2, 3, 5) if dec < 0.8 else (1, 2, 5) if dec < 2 else (1.0,)))
+        axis.set_major_formatter(FuncFormatter(_num)); axis.set_minor_formatter(NullFormatter())
+
+
+def px_data(ax):
+    bb = ax.get_window_extent(); (x0, x1), (y0, y1) = ax.get_xlim(), ax.get_ylim()
+    return (x1 - x0) / bb.width, (y1 - y0) / bb.height
+
+
+def bar(ax, x, w, h, color):
+    """a bar from the baseline 0 to h: 4 px rounded data end, square at the baseline (draw after the limits and the layout are fixed)"""
+    if not np.isfinite(h) or h == 0:
+        return
+    dx, dy = px_data(ax)
+    rx, ry = min(4 * dx, w / 2), min(4 * dy, abs(h)); s = 1 if h > 0 else -1; a, b = x - w / 2, x + w / 2
+    v = [(a, 0), (a, h - s * ry), (a, h), (a + rx, h), (b - rx, h), (b, h), (b, h - s * ry), (b, 0), (a, 0)]
+    c = [Path.MOVETO, Path.LINETO, Path.CURVE3, Path.CURVE3, Path.LINETO, Path.CURVE3, Path.CURVE3, Path.LINETO, Path.CLOSEPOLY]
+    ax.add_patch(PathPatch(Path(v, c), facecolor=color, edgecolor='none', lw=0))
+
+
+def dots(ax, x, y, c, **kw):
+    ax.plot(x, y, 'o', ls='none', color=c, ms=MS, mec=SURF, mew=RING, zorder=3, **kw)
+
+
+def csv(fn, header, rows):
+    with open(fn, 'w') as f:
+        f.write(','.join(header) + '\n')
+        for r in rows:
+            f.write(','.join(x if isinstance(x, str) else f'{x:.6g}' for x in r) + '\n')
 
 
 def run_params(run):
@@ -126,119 +239,18 @@ def interfaces(run, sig, sh, dt, gmin, args):
     win = gam >= gmin
     if win.sum() < 3:
         win = np.ones_like(win)
+    gdot = rate_dt / dt * 1e15                                   # 1/s
     out = []
     for (i, j, img, nb, d0, h) in pairs:
         d = np.array([com[k, j] - com[k, i] - H(k) @ img for k in range(len(steps))])
         dd = d - d0
         s = dd - np.outer(dd @ nb, nb)                           # in-plane relative displacement (A)
-        # affine part: a homogeneous shear moves the two centres apart by (X(t)-X(0))/lz * dz in x
-        aff = np.zeros_like(s); aff[:, 0] = (np.array([X(st) for st in steps]) - X(steps[0])) / lz * d0[2]
-        aff = aff - np.outer(aff @ nb, nb)
         smag = np.linalg.norm(s, axis=1)
         v = np.polyfit(time_ns[win], smag[win], 1)[0] if win.sum() > 2 else np.nan   # A/ns
-        out.append(dict(i=i, j=j, h=h, s=s, na=s - aff, smag=smag, v=v * 1e-6 * V_MS))     # v in m/s
-    gdot = rate_dt / dt * 1e15                                   # 1/s
+        # what a uniform shear would give: the two centres move apart by gamma * dz in x (its in-plane part)
+        a1 = np.array([d0[2], 0.0, 0.0]); a1 = a1 - (a1 @ nb) * nb
+        out.append(dict(i=i, j=j, h=h, s=s, smag=smag, v=v * 1e-6 * V_MS, vaff=gdot * np.linalg.norm(a1) * 1e-10))     # m/s
     return dict(t=time_ns, gam=gam, pairs=out, gdot=gdot, win=win)
-
-
-def fig6(res, fn):
-    runs = [(k, r) for k, r in res.items() if r.get('ifc')]
-    if not runs:
-        return
-    fig, ax = plt.subplots(len(runs), 4, figsize=(17, 3.6 * len(runs)), squeeze=False)
-    for row, (key, r) in enumerate(runs):
-        I = r['ifc']; ps = sorted(I['pairs'], key=lambda p: -p['v'])
-        pick = [('fastest', ps[0]), ('median', ps[len(ps) // 2]), ('slowest', ps[-1])]
-        for c, (lab, p) in enumerate(pick):
-            a = ax[row, c]
-            a.plot(I['t'], p['s'][:, 0] * A2NM, label='x (flow)'); a.plot(I['t'], p['s'][:, 1] * A2NM, label='y')
-            a.plot(I['t'], p['smag'] * A2NM, 'k', lw=0.8, label='|s|')
-            a.set_title(f'{key}: {lab} interface ({p["i"]+1}-{p["j"]+1}), v = {p["v"]:.3g} m/s, film {p["h"]:.1f} A', fontsize=8)
-            a.set_xlabel('t (ns)'); a.set_ylabel('in-plane slip s (nm)'); a.legend(fontsize=7)
-        # hot spot factor: shear rate in the film over the shear rate of the gouge
-        f = np.array([abs(p['v']) / (p['h'] * 1e-10) / I['gdot'] for p in ps])
-        a = ax[row, 3]
-        a.hist(np.log10(np.clip(f, 1e-3, None)), bins=20)
-        a.axvline(0, color='k', ls='--', lw=0.8)
-        a.set_xlabel('log10[(v/h) / gamma_dot]  (>0: the film shears faster than the gouge)'); a.set_ylabel('interfaces')
-        a.set_title(f'{key}: {len(ps)} interfaces; {np.mean(f > 1) * 100:.0f} % faster than the gouge', fontsize=8)
-    plt.tight_layout(); plt.savefig(fn, dpi=110); plt.close()
-
-
-def profiles(run, sig, sh, gmin):
-    steps, P = read_avetime(job_files(run, 'prof', sig))
-    if steps is None:
-        return None
-    gam = np.interp(steps, sh['step'], sh['gamma']); m = gam >= gmin
-    if m.sum() == 0:
-        m[:] = True
-    lz = np.interp(steps[m], sh['step'], sh['lz']).mean()
-    D = P[m]                                                     # coord, n_water, vx_water, n_clay, vx_clay, T
-    nw, nc = D[:, :, 1], D[:, :, 3]
-    vw = (D[:, :, 2] * nw).sum(0) / np.maximum(nw.sum(0), 1e-9)
-    vc = (D[:, :, 4] * nc).sum(0) / np.maximum(nc.sum(0), 1e-9)
-    T = D[:, :, 5].mean(0)
-    rate_dt = np.polyfit(sh['step'], sh['gamma'], 1)[0]
-    return dict(z=D[0, :, 0] * lz, vw=vw * V_MS, vc=vc * V_MS, nw=nw.mean(0), nc=nc.mean(0), T=T, lz=lz)
-
-
-def fig7(res, fn):
-    runs = [(k, r) for k, r in res.items() if r.get('prof')]
-    if not runs:
-        return
-    fig, ax = plt.subplots(1, 3, figsize=(15, 4.2))
-    for key, r in runs:
-        p = r['prof']
-        l, = ax[0].plot(p['vw'], p['z'] * A2NM, 'o-', ms=3, label=f'{key} water')
-        ax[0].plot(p['vc'], p['z'] * A2NM, 's--', ms=3, color=l.get_color(), label=f'{key} clay')
-        ax[1].plot(p['nw'], p['z'] * A2NM, color=l.get_color(), label=f'{key} water'); ax[1].plot(p['nc'], p['z'] * A2NM, '--', color=l.get_color(), label=f'{key} clay')
-        ax[2].plot(p['T'], p['z'] * A2NM, color=l.get_color(), label=key)
-    ax[0].set_xlabel('vx (m/s)'); ax[0].set_ylabel('z (nm)'); ax[0].legend(fontsize=7); ax[0].set_title('velocity profile (steady state)', fontsize=9)
-    ax[1].set_xlabel('atoms per layer'); ax[1].legend(fontsize=7); ax[1].set_title('where the water and the clay are', fontsize=9)
-    ax[2].set_xlabel('T of the layer (K)'); ax[2].legend(fontsize=7); ax[2].set_title('temperature (flow of the layer removed)', fontsize=9)
-    plt.tight_layout(); plt.savefig(fn, dpi=110); plt.close()
-
-
-def fig8_10(res, fn8, fn10, summary):
-    by_sig = {}
-    for key, r in res.items():
-        by_sig.setdefault(r['sig'], []).append((key, r))
-    fig8, ax8 = plt.subplots(1, len(by_sig), figsize=(5.5 * len(by_sig), 4.2), squeeze=False)
-    fig10, ax10 = plt.subplots(1, len(by_sig), figsize=(5.5 * len(by_sig), 4.2), squeeze=False)
-    for c, (sig, lst) in enumerate(sorted(by_sig.items(), key=lambda kv: float(kv[0]))):
-        V, tau, vh, gd, gdf = [], [], [], [], []
-        for key, r in lst:
-            V.append(r['V']); tau.append(r['tau']); gd.append(r['gdot'])
-            I = r.get('ifc')
-            if I:
-                vs = np.sort([abs(p['v']) for p in I['pairs']])[::-1]
-                hs = np.array([p['h'] for p in sorted(I['pairs'], key=lambda p: -abs(p['v']))])
-                k = max(1, len(vs) // 10)                            # the fastest 10 % (at least one): the hot spots
-                vh.append(vs[:k].mean()); gdf.append((vs[:k] / (hs[:k] * 1e-10)).mean())
-            else:
-                vh.append(np.nan); gdf.append(np.nan)
-        V, tau, vh, gd, gdf = map(np.array, (V, tau, vh, gd, gdf))
-        a = ax8[0, c]
-        a.loglog(V, tau, 'o', label='gouge: V = gamma_dot Lz')
-        ok = np.isfinite(vh) & (vh > 0)
-        if ok.any():
-            a.loglog(vh[ok], tau[ok], 's', label='hot interfaces (fastest 10 %)')
-        for x, lab in ((V, 'gouge'), (vh, 'interfaces')):
-            m = np.isfinite(x) & (x > 0) & (tau > 0)
-            if m.sum() >= 2:
-                k, lti = np.polyfit(np.log(x[m]), np.log(tau[m]), 1)
-                xx = np.logspace(np.log10(x[m].min()), np.log10(x[m].max()), 20)
-                a.loglog(xx, np.exp(lti) * xx ** k, '--', lw=0.8)
-                summary.append(f'sigma {sig} {lab}: ln tau = {k:.3f} ln v + {lti:.3f}  (k = {k:.3f}, tau_i = {np.exp(lti):.3g} MPa at 1 m/s)')
-        a.set_xlabel('v (m/s)'); a.set_ylabel('shear stress (MPa)'); a.set_title(f'sigma_n = {sig} MPa', fontsize=9); a.legend(fontsize=7)
-        a = ax10[0, c]
-        a.loglog(gd, tau * 1e6 / gd * 1e3, 'o', label='gouge: tau / gamma_dot')
-        m = np.isfinite(gdf) & (gdf > 0)
-        if m.any():
-            a.loglog(gdf[m], tau[m] * 1e6 / gdf[m] * 1e3, 's', label='sliding films: tau / (v/h)')
-        a.set_xlabel('shear rate (1/s)'); a.set_ylabel('effective viscosity (mPa s)'); a.set_title(f'sigma_n = {sig} MPa', fontsize=9); a.legend(fontsize=7)
-    fig8.tight_layout(); fig8.savefig(fn8, dpi=110); fig10.tight_layout(); fig10.savefig(fn10, dpi=110)
-    plt.close(fig8); plt.close(fig10)
 
 
 # ---------------- fig 9: water structure from the trajectory ----------------
@@ -377,28 +389,211 @@ def water_structure(run, sig, args):
     return out
 
 
+
+
+def profiles(run, sig, sh, gmin):
+    """steady-state profiles across the gouge, the velocity as a fraction of the uniform shear: u = vx / (gamma_dot Lz)"""
+    steps, P = read_avetime(job_files(run, 'prof', sig))
+    if steps is None:
+        return None
+    gam = np.interp(steps, sh['step'], sh['gamma']); m = gam >= gmin
+    if m.sum() == 0:
+        m[:] = True
+    lz = np.interp(steps[m], sh['step'], sh['lz']).mean()
+    D = P[m]                                                     # coord (reduced), n_water, vx_water, n_clay, vx_clay, T
+    nw, nc = D[:, :, 1], D[:, :, 3]
+    vw = (D[:, :, 2] * nw).sum(0) / np.maximum(nw.sum(0), 1e-9)
+    vc = (D[:, :, 4] * nc).sum(0) / np.maximum(nc.sum(0), 1e-9)
+    V = np.polyfit(sh['step'], sh['gamma'], 1)[0] / sh.get('dt', 1.0) * lz     # A/fs: velocity difference across the box, rate * Lz
+    return dict(zr=D[0, :, 0], uw=vw / V, uc=vc / V, share=nw.sum(0) / np.maximum((nw + nc).sum(0), 1e-9), T=D[:, :, 5].mean(0), lz=lz,
+                nw=nw.mean(0), nc=nc.mean(0))
+
+
+def fig6(res, fn, out_csv):
+    keys = [k for k, r in res.items() if r.get('ifc')]
+    if not keys:
+        return
+    h_in = 2.5
+    fig, ax = plt.subplots(len(keys), 4, figsize=(15, h_in * len(keys) + HEAD), squeeze=False)
+    comp = [('along the flow (x)', SLOT[0]), ('across the flow (y)', SLOT[1])]
+    hist, rows = [], []
+    for row, key in enumerate(keys):
+        I = res[key]['ifc']; ps = sorted(I['pairs'], key=lambda p: -p['v'])
+        idx = sorted({0, len(ps) // 2, len(ps) - 1}); names = {0: 'fastest', len(ps) // 2: 'median', len(ps) - 1: 'slowest'}
+        for c in range(3):
+            a = ax[row, c]
+            if c >= len(idx):
+                a.axis('off'); continue
+            p = ps[idx[c]]
+            ys = [p['s'][:, 0] * A2NM, p['s'][:, 1] * A2NM]
+            for y, (lab, col) in zip(ys, comp):
+                a.plot(I['t'], y, color=col)
+            a.set_xlim(I['t'][0], I['t'][-1] + 0.12 * (I['t'][-1] - I['t'][0]))
+            style(a, f'{key} · {names[idx[c]]} of {len(ps)} interfaces (particles {p["i"]+1}-{p["j"]+1})\n' + (
+                     f'slip {p["v"]:.3g} m/s' if p['v'] > 0 else 'no steady slip (stuck)') + f', film {p["h"]:.1f} Å')
+            a.set_xlabel('time (ns)'); a.set_ylabel('in-plane slip (nm)')
+            end_labels(a, [I['t'][-1]] * 2, [y[-1] for y in ys], ['x', 'y'])
+        # how much faster than the gouge the film between the two particles is sheared
+        f = np.array([abs(p['v']) / (p['h'] * 1e-10) / I['gdot'] for p in ps])
+        lf = np.log10(np.clip(f, 1e-3, None))
+        hist.append((ax[row, 3], lf, key, f))
+        for p, fi in zip(ps, f):
+            rows.append([res[key]['run'], res[key]['sig'], p['i'] + 1, p['j'] + 1, p['h'], p['v'], p['vaff'], fi, abs(p['v']) / p['vaff'] if p['vaff'] > 0 else np.nan])
+    head(fig, 'Slip between stacked clay particles (cf. Zhou et al. 2023, Fig. 6)', [(l, c, 'line') for l, c in comp])
+    for a, lf, key, f in hist:                                   # limits first, then the layout, then the bars (their rounding is in pixels)
+        nb = int(min(24, max(6, len(lf) // 3)))
+        cnt, edges = np.histogram(lf, bins=nb, range=(min(lf.min(), -0.5), max(lf.max(), 0.5)))
+        a.set_xlim(edges[0] - 0.05 * (edges[-1] - edges[0]), edges[-1] + 0.05 * (edges[-1] - edges[0])); a.set_ylim(0, cnt.max() * 1.18)
+        a._hs = (cnt, edges)
+        style(a, f'{key} · film shear rate / gouge shear rate\n{np.mean(f > 1) * 100:.0f} % of the films shear faster than the gouge')
+        a.set_xlabel('log10 [ (v / h) / γ̇ ]'); a.set_ylabel('interfaces')
+    layout(fig)
+    for a, lf, key, f in hist:
+        cnt, edges = a._hs; dx, dy = px_data(a); bw = edges[1] - edges[0]; w = min(bw - 2 * dx, 24 * dx)
+        for k, n in enumerate(cnt):
+            bar(a, 0.5 * (edges[k] + edges[k + 1]), w, n, SLOT[0])
+        a.axvline(0, color=INK2, lw=PX, zorder=4)
+        a.annotate('gouge rate', (0, a.get_ylim()[1]), xytext=(3, -2), textcoords='offset points', va='top', fontsize=7, color=INK2)
+    fig.savefig(fn); plt.close(fig)
+    csv(out_csv, ['run', 'sigma_MPa', 'particle_i', 'particle_j', 'film_h_A', 'slip_v_m_s', 'uniform_shear_v_m_s', 'film_rate_over_gouge_rate', 'v_over_uniform'], rows)
+
+
+def fig7(res, runcol, fn, out_csv):
+    keys = [k for k, r in res.items() if r.get('prof')]
+    if not keys:
+        return
+    sigs = sorted({res[k]['sig'] for k in keys}, key=float)
+    fig, ax = plt.subplots(len(sigs), 4, figsize=(14, 3.3 * len(sigs) + HEAD), sharey=True, squeeze=False)
+    rows, seen = [], {}
+    for row, sig in enumerate(sigs):
+        for k in [k for k in keys if res[k]['sig'] == sig]:
+            p = res[k]['prof']; run = res[k]['run']; c = runcol[run]
+            seen[run] = c
+            ax[row, 0].plot(p['uw'], p['zr'], color=c)
+            ax[row, 1].plot(p['uc'], p['zr'], color=c)
+            ax[row, 2].plot(p['share'], p['zr'], color=c)
+            ax[row, 3].plot(p['T'], p['zr'], color=c)
+            for z, uw, uc, s, T in zip(p['zr'], p['uw'], p['uc'], p['share'], p['T']):
+                rows.append([run, sig, z, uw, uc, s, T])
+        for a in ax[row, :2]:
+            a.plot([0, 1], [0, 1], color=AXIS, lw=1.5 * LW, zorder=1)
+        style(ax[row, 0], f'σn = {sig} MPa · water velocity\ngray diagonal: uniform shear; a step: a shear band')
+        style(ax[row, 1], f'σn = {sig} MPa · clay velocity')
+        style(ax[row, 2], f'σn = {sig} MPa · where the water is')
+        style(ax[row, 3], f'σn = {sig} MPa · temperature (flow removed)')
+        ax[row, 0].set_xlabel('vx / (γ̇ Lz)'); ax[row, 1].set_xlabel('vx / (γ̇ Lz)')
+        ax[row, 2].set_xlabel('water atoms / all atoms of the layer'); ax[row, 3].set_xlabel('T (K)')
+        ax[row, 0].set_ylabel('z / Lz'); ax[row, 0].set_ylim(0, 1)
+    items = [(run, c, 'line') for run, c in seen.items()]
+    head(fig, 'Velocity profile across the gouge, steady state (cf. Zhou et al. 2023, Fig. 7)', items if len(items) > 1 else [])
+    if len(items) == 1:
+        fig.text(0.008, 1 - 0.3 / fig.get_figheight(), items[0][0], color=INK2, fontsize=8, va='top')
+    layout(fig); fig.savefig(fn); plt.close(fig)
+    csv(out_csv, ['run', 'sigma_MPa', 'z_over_Lz', 'vx_water_over_gdotLz', 'vx_clay_over_gdotLz', 'water_share', 'T_K'], rows)
+
+
+def fig8_10(res, fn8, fn10, out_csv, summary):
+    by_sig = {}
+    for key, r in res.items():
+        by_sig.setdefault(r['sig'], []).append((key, r))
+    sigs = sorted(by_sig, key=float)
+    wid = max(6.4, 4.6 * len(sigs) + 0.4)
+    fig8, ax8 = plt.subplots(1, len(sigs), figsize=(wid, 3.6 + HEAD), squeeze=False)
+    fig10, ax10 = plt.subplots(1, len(sigs), figsize=(wid, 3.6 + HEAD), squeeze=False)
+    rows = []
+    for c, sig in enumerate(sigs):
+        lst = by_sig[sig]
+        V, tau, vh, gd, gdf = [], [], [], [], []
+        for key, r in lst:
+            V.append(r['V']); tau.append(r['tau']); gd.append(r['gdot'])
+            I = r.get('ifc')
+            if I:
+                ps = sorted(I['pairs'], key=lambda p: -abs(p['v']))
+                k = max(1, len(ps) // 10)                           # the fastest 10 % (at least one): the hot spots
+                vh.append(np.mean([abs(p['v']) for p in ps[:k]])); gdf.append(np.mean([abs(p['v']) / (p['h'] * 1e-10) for p in ps[:k]]))
+            else:
+                vh.append(np.nan); gdf.append(np.nan)
+        V, tau, vh, gd, gdf = map(np.array, (V, tau, vh, gd, gdf))
+        for (key, r), a, b, e, f, g in zip(lst, V, tau, vh, gd, gdf):
+            rows.append([r['run'], sig, f, a, b, r['sn'], e, g, b * 1e6 / f, b * 1e6 / g if np.isfinite(g) else np.nan])
+        a = ax8[0, c]; ks = []
+        logaxes(a, np.r_[V, vh], tau)
+        for x, col, lab in ((V, C_GOUGE, 'gouge'), (vh, C_IFC, 'hot interfaces')):
+            m = np.isfinite(x) & (x > 0) & (tau > 0)
+            if not m.any():
+                continue
+            dots(a, x[m], tau[m], col)
+            if m.sum() >= 2:
+                k, lti = np.polyfit(np.log(x[m]), np.log(tau[m]), 1)
+                xx = np.logspace(np.log10(x[m].min()), np.log10(x[m].max()), 20)
+                a.plot(xx, np.exp(lti) * xx ** k, color=col, lw=LW, alpha=0.6, zorder=2)
+                ks.append(f'{lab} {k:.3f}')
+                summary.append(f'sigma {sig} {lab}: ln tau = {k:.3f} ln v + {lti:.3f}  (k = {k:.3f}, tau_i = {np.exp(lti):.3g} MPa at 1 m/s)')
+        a.margins(x=0.25, y=0.2)
+        style(a, f'σn = {sig} MPa · lines: ln τ = k ln v + ln τi' + ('\nk: ' + ', '.join(ks) if ks else '')); a.set_xlabel('slip velocity v (m/s)'); a.set_ylabel('shear stress τ (MPa)')
+        a = ax10[0, c]
+        logaxes(a, np.r_[gd, gdf], np.r_[tau * 1e6 / gd * 1e3, tau * 1e6 / gdf * 1e3])
+        dots(a, gd, tau * 1e6 / gd * 1e3, C_GOUGE)
+        m = np.isfinite(gdf) & (gdf > 0)
+        if m.any():
+            dots(a, gdf[m], tau[m] * 1e6 / gdf[m] * 1e3, C_IFC)
+        a.margins(x=0.25, y=0.2)
+        style(a, f'σn = {sig} MPa'); a.set_xlabel('shear rate (1/s)'); a.set_ylabel('effective viscosity τ / rate (mPa s)')
+    head(fig8, 'Shear stress against slip velocity (cf. Zhou et al. 2023, Fig. 8)',
+         [('gouge: V = γ̇ Lz', C_GOUGE, 'dot'), ('hot interfaces: fastest 10 %', C_IFC, 'dot')])
+    head(fig10, 'Effective viscosity against shear rate (cf. Zhou et al. 2023, Fig. 10)',
+         [('gouge: τ / γ̇', C_GOUGE, 'dot'), ('sliding films: τ / (v / h)', C_IFC, 'dot')])
+    layout(fig8); fig8.savefig(fn8); layout(fig10); fig10.savefig(fn10)
+    plt.close(fig8); plt.close(fig10)
+    csv(out_csv, ['run', 'sigma_MPa', 'gouge_rate_1_s', 'V_m_s', 'tau_MPa', 'sigma_n_MPa', 'hot_interface_v_m_s', 'film_rate_1_s',
+                  'viscosity_gouge_Pa_s', 'viscosity_film_Pa_s'], rows)
+
+
 CLS = {0: 'between two particles', 1: 'at one surface', 2: 'pore'}
 
 
-def fig9(res, fn, summary):
-    runs = [(k, r) for k, r in res.items() if r.get('water')]
-    if not runs:
+def fig9(res, fn, out_csv, summary):
+    keys = [k for k, r in res.items() if r.get('water')]
+    if not keys:
         return
-    fig, ax = plt.subplots(len(runs), 2, figsize=(12, 3.8 * len(runs)), squeeze=False)
-    for row, (key, r) in enumerate(runs):
-        W = r['water']
-        x = np.arange(3); wbar = 0.8 / len(W)
-        for n, fr in enumerate(W):
-            gam = r['gamma_of'](fr['step'])
-            ax[row, 0].bar(x + n * wbar, [fr['nhb'].get(c, np.nan) for c in (0, 1, 2)], wbar, label=f'gamma {gam:.2f}')
+    ng = max(min(2, len(res[k]['water'])) for k in keys)
+    fig, ax = plt.subplots(len(keys), 1 + ng, figsize=(4.4 * (1 + ng), 3.2 * len(keys) + HEAD), squeeze=False)
+    rows, barsets = [], []
+    for row, key in enumerate(keys):
+        W = res[key]['water']; gof = res[key]['gamma_of']
+        for fr in W:
+            gam = gof(fr['step'])
             summary.append(f'{key} gamma {gam:.2f}: H-bonds per water ' + ', '.join(f'{CLS[c]} {fr["nhb"][c]:.2f} ({fr["frac"][c]*100:.0f} %)' for c in fr['nhb']))
-        ax[row, 0].set_xticks(x + 0.4 - wbar / 2); ax[row, 0].set_xticklabels([CLS[c] for c in (0, 1, 2)], fontsize=8)
-        ax[row, 0].set_ylabel('H-bonds per water molecule'); ax[row, 0].legend(fontsize=7); ax[row, 0].set_title(key, fontsize=9)
-        for n, fr in enumerate(W):
+            for c in (0, 1, 2):
+                rows.append([res[key]['run'], res[key]['sig'], gam, CLS[c], fr['frac'][c], fr['nhb'].get(c, np.nan)])
+        # bars: one group per trajectory frame (strain), one bar per class of water
+        a = ax[row, 0]
+        top = max(max(fr['nhb'].values()) for fr in W)
+        a.set_xlim(-0.6, len(W) - 0.4); a.set_ylim(0, top * 1.18)
+        a.set_xticks(range(len(W))); a.set_xticklabels([f'γ = {gof(fr["step"]):.2f}' for fr in W])
+        style(a, f'{key} · hydrogen bonds per water molecule\nO–O < 3.5 Å, H···O < 2.45 Å, angle < 30°'); a.set_ylabel('H-bonds per molecule')
+        barsets.append((a, W))
+        show = [W[0]] + ([W[-1]] if len(W) > 1 else [])
+        for n, fr in enumerate(show):
+            a = ax[row, 1 + n]
             for c, g in fr['g'].items():
-                ax[row, 1].plot(fr['r'], g, ls=['-', '--', ':'][n % 3], label=f'{CLS[c]}, gamma {r["gamma_of"](fr["step"]):.2f}')
-        ax[row, 1].set_xlabel('r (A)'); ax[row, 1].set_ylabel('g_OO(r)'); ax[row, 1].legend(fontsize=6)
-    plt.tight_layout(); plt.savefig(fn, dpi=110); plt.close()
+                a.plot(fr['r'], g, color=SLOT[c])
+            a.axhline(1, color=AXIS, lw=PX, zorder=1)
+            style(a, f'{key} · g_OO(r) at γ = {gof(fr["step"]):.2f}'); a.set_xlabel('r (Å)'); a.set_ylabel('g_OO(r)')
+        for n in range(len(show), ng):
+            ax[row, 1 + n].axis('off')
+        if ng == 2 and len(show) == 2:                          # the same scale for the two frames
+            y1 = max(ax[row, 1].get_ylim()[1], ax[row, 2].get_ylim()[1])
+            ax[row, 1].set_ylim(0, y1); ax[row, 2].set_ylim(0, y1)
+    head(fig, 'Water between and around the clay particles (cf. Zhou et al. 2023, Fig. 9)', [(CLS[c], SLOT[c], 'bar') for c in (0, 1, 2)])
+    layout(fig)
+    for a, W in barsets:
+        dx, dy = px_data(a); w = min(0.26, 24 * dx); gap = 2 * dx
+        for n, fr in enumerate(W):
+            for c in (0, 1, 2):
+                bar(a, n + (c - 1) * (w + gap), w, fr['nhb'].get(c, np.nan), SLOT[c])
+    fig.savefig(fn); plt.close(fig)
+    csv(out_csv, ['run', 'sigma_MPa', 'gamma', 'water_class', 'fraction_of_water', 'hbonds_per_molecule'], rows)
 
 
 def main():
@@ -416,6 +611,11 @@ def main():
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
     res, summary = {}, []
+    names = [os.path.basename(r.rstrip('/')) for r in args.runs]
+    # one colour per run folder, in the order given, the same in every figure; past eight runs: gray
+    runcol = {n: (SLOT[k] if k < len(SLOT) else MUTED) for k, n in enumerate(dict.fromkeys(names))}
+    if len(runcol) > len(SLOT):
+        print(f'note: more than {len(SLOT)} runs: the runs after the {len(SLOT)}th are gray in fig7 (fig7_profiles.csv has them all)')
     for run in args.runs:
         run = run.rstrip('/')
         dt, opts = run_params(run)
@@ -427,11 +627,12 @@ def main():
             sh = read_shear(fn)
             if sh is None:
                 print(f'{fn}: too few lines yet'); continue
+            sh['dt'] = dt
             gmin = args.gmin if args.gmin is not None else 0.5 * sh['gamma'].max()
             m = sh['gamma'] >= gmin
             rate_dt = np.polyfit(sh['step'], sh['gamma'], 1)[0]
             key = f'{os.path.basename(run)} {sig} MPa'
-            r = dict(sig=sig, tau=sh['tau'][m].mean(), sn=sh['sn'][m].mean(), lz=sh['lz'][m].mean(), gdot=rate_dt / dt * 1e15)
+            r = dict(run=os.path.basename(run), sig=sig, tau=sh['tau'][m].mean(), sn=sh['sn'][m].mean(), lz=sh['lz'][m].mean(), gdot=rate_dt / dt * 1e15)
             r['V'] = rate_dt / dt * r['lz'] * V_MS
             r['gamma_of'] = lambda st, sh=sh: float(np.interp(st, sh['step'], sh['gamma']))
             print(f'{key}: gamma up to {sh["gamma"].max():.3f}, steady state from {gmin:.3f}: tau {r["tau"]:.3g} MPa, sigma_n {r["sn"]:.3g} MPa, '
@@ -450,10 +651,12 @@ def main():
     if not res:
         sys.exit('nothing to analyse yet')
     o = lambda n: os.path.join(args.outdir, n)
-    fig6(res, o('fig6_interface_slip.png')); fig7(res, o('fig7_velocity_profile.png'))
-    fig8_10(res, o('fig8_tau_v.png'), o('fig10_viscosity.png'), summary); fig9(res, o('fig9_water_structure.png'), summary)
+    fig6(res, o('fig6_interface_slip.png'), o('fig6_interfaces.csv'))
+    fig7(res, runcol, o('fig7_velocity_profile.png'), o('fig7_profiles.csv'))
+    fig8_10(res, o('fig8_tau_v.png'), o('fig10_viscosity.png'), o('fig8_fig10_points.csv'), summary)
+    fig9(res, o('fig9_water_structure.png'), o('fig9_water.csv'), summary)
     open(o('hot_spots_summary.txt'), 'w').write('\n'.join(summary) + '\n')
-    print('\n'.join(summary)); print(f'figures in {os.path.abspath(args.outdir)}')
+    print('\n'.join(summary)); print(f'figures and their numbers (.csv) in {os.path.abspath(args.outdir)}')
 
 
 if __name__ == '__main__':
