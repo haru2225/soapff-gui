@@ -12,18 +12,22 @@ Figures of the same kind as theirs, from the files that in.04_shear writes in ea
   fig10_viscosity.png        effective viscosity tau / shear rate against the shear rate, of the gouge and of the sliding films (their Fig. 10)
   fig*.csv                   the numbers behind each figure (to plot them again elsewhere);  hot_spots_summary.txt  the main numbers
 
-  python3 hot_spots.py RUN_N22                                   one run
+  One run is enough: in.04_shear shears at 1e8 /s, then steps the rate up to 1e10 /s (velocity steps: one point per rate in fig8, fig10), and writes
+  the whole system with the water at the start and at the end of each phase (shear_<s>_all_<step>.dump, for fig9).  The jobs run this script
+  after each job of the shear (RUN/figs); the analysed trajectory frames are kept in <outdir>/.cache.
+
+  python3 hot_spots.py RUN_N67 --outdir figs                     one run
   python3 hot_spots.py RUN_N22 RUN_N22_r3e8 RUN_N22_r1e9 RUN_N22_r3e9 --sigma 5.6    a series of shear rates (env FROM=RUN_N22 RATE=... ./go.sh)
 Options: --gmin  strain from which the steady state is averaged (default: half of the strain reached);  --outdir  where the figures go
 numpy, matplotlib; scipy for fig9.
 """
-import argparse, glob, mmap, os, re, sys
+import argparse, glob, json, mmap, os, re, sys, time
 import numpy as np
 import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch, PathPatch
 from matplotlib.path import Path
-from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
+from matplotlib.ticker import FuncFormatter, LogLocator, MaxNLocator, NullFormatter
 
 A2NM = 0.1
 V_MS = 1e5          # 1 A/fs = 1e5 m/s
@@ -148,11 +152,46 @@ def run_params(run):
 
 
 def read_shear(fn):
-    d = np.loadtxt(fn, comments='#', ndmin=2)
-    if d.shape[0] < 2:
+    """shear_<s>.dat: step gamma tau sigma_n mu Lz rho T Lx Ly rate(1/s).  Lines of older inputs have fewer columns (the missing ones are nan)."""
+    rows = []
+    with open(fn) as f:
+        for l in f:
+            if l.startswith('#') or not l.strip():
+                continue
+            try:
+                v = [float(x) for x in l.split()]
+            except ValueError:
+                continue
+            rows.append((v + [np.nan] * 11)[:11])
+    if len(rows) < 2:
         return None
-    cols = ['step', 'gamma', 'tau', 'sn', 'mu', 'lz', 'rho', 'T', 'lx', 'ly']
-    return {c: d[:, i] for i, c in enumerate(cols) if i < d.shape[1]}
+    d = np.array(rows)
+    sh = {c: d[:, i] for i, c in enumerate(['step', 'gamma', 'tau', 'sn', 'mu', 'lz', 'rho', 'T', 'lx', 'ly', 'rate'])}
+    if np.nanmedian(sh['sn']) < 0:                                # an older input wrote the normal stress with the opposite sign
+        sh['sn'] = -sh['sn']; sh['mu'] = sh['tau'] / sh['sn']
+    return sh
+
+
+def rl(rate):
+    """1e8 -> '1e8 /s', 3.16e8 -> '3.2e8 /s'"""
+    m, e = f'{rate:.1e}'.split('e')
+    return f'{m.rstrip("0").rstrip(".")}e{int(e)} /s'
+
+
+def segments(sh, dt, gmin=None):
+    """the phases of the shear, one rate each (phase 0, then the velocity steps): rate (1/s), its rows, the rows of its steady state
+    (the second half of its strain; phase 0 from gmin if given)"""
+    st, g, rate = sh['step'], sh['gamma'], sh['rate'].copy()
+    if not np.isfinite(rate).all():                              # an older input: one rate, from gamma = rate * dt * step
+        rate[:] = np.polyfit(st, g, 1)[0] / dt * 1e15
+    out, a = [], 0
+    for b in range(1, len(st) + 1):
+        if b == len(st) or abs(rate[b] / rate[a] - 1) > 1e-3:
+            idx = np.arange(a, b)
+            gm = gmin if (gmin is not None and not out) else g[a] + 0.5 * (g[b - 1] - g[a])
+            out.append(dict(rate=rate[a], rows=idx, win=idx[g[idx] >= gm], s0=st[a]))
+            a = b
+    return out
 
 
 def read_avetime(files):
@@ -182,11 +221,10 @@ def job_files(run, kind, sig):
     return sorted(fs, key=lambda f: int(f.rsplit('.', 2)[-2]))
 
 
-def tilt_of(sh, rate_dt):
-    """cumulative tilt X(step) = integral of rate * lz d(step*dt) (the box flips do not matter for unwrapped positions)."""
-    st, lz = sh['step'], sh['lz']
-    st0 = np.concatenate([[0.0], st]); lz0 = np.concatenate([[lz[0]], lz])
-    X = np.concatenate([[0.0], np.cumsum(0.5 * (lz0[1:] + lz0[:-1]) * np.diff(st0) * rate_dt)])
+def tilt_of(sh):
+    """cumulative tilt X(step) = integral of Lz d(gamma) (the box flips do not matter for unwrapped positions; any sequence of rates)"""
+    st0 = np.r_[0.0, sh['step']]; lz0 = np.r_[sh['lz'][0], sh['lz']]; g0 = np.r_[0.0, sh['gamma']]
+    X = np.r_[0.0, np.cumsum(0.5 * (lz0[1:] + lz0[:-1]) * np.diff(g0))]
     return lambda s: np.interp(s, st0, X)
 
 
@@ -203,17 +241,16 @@ def particle_frame(gyr):
     return normal, thick, radius
 
 
-def interfaces(run, sig, sh, dt, gmin, args):
-    """stacked pairs at the first frame, their relative in-plane displacement in time and slip velocity in the steady state."""
+def interfaces(run, sig, sh, dt, args):
+    """stacked particle pairs at the first frame and their relative in-plane displacement s(t) over the whole shear (all phases)"""
     steps, P = read_avetime(job_files(run, 'particles', sig))
     if steps is None or len(steps) < 3:
         return None
-    rate_dt = np.polyfit(sh['step'], sh['gamma'], 1)[0]            # gamma = rate * dt * step
-    X = tilt_of(sh, rate_dt)
-    lx = np.interp(steps, sh['step'], sh['lx']) if 'lx' in sh else None
-    if lx is None:
+    if not np.isfinite(sh['lx']).any():
         print(f'  {run}: shear_{sig}.dat has no Lx/Ly columns (older in.04_shear): no interface analysis'); return None
-    ly = np.interp(steps, sh['step'], sh['ly']); lz = np.interp(steps, sh['step'], sh['lz'])
+    X = tilt_of(sh)
+    ok = np.isfinite(sh['lx'])
+    lx = np.interp(steps, sh['step'][ok], sh['lx'][ok]); ly = np.interp(steps, sh['step'][ok], sh['ly'][ok]); lz = np.interp(steps, sh['step'], sh['lz'])
     com, gyr = P[:, :, 0:3], P[:, :, 6:12]
     n0, t0, R0 = particle_frame(gyr[0])
     H = lambda k: np.array([[lx[k], 0, X(steps[k])], [0, ly[k], 0], [0, 0, lz[k]]])
@@ -222,8 +259,7 @@ def interfaces(run, sig, sh, dt, gmin, args):
     pairs = []
     for i in range(N):
         for j in range(i + 1, N):
-            ci = abs(n0[i] @ n0[j])
-            if ci < np.cos(np.radians(args.angle)):
+            if abs(n0[i] @ n0[j]) < np.cos(np.radians(args.angle)):
                 continue
             d = com[0, j] - com[0, i]
             img = np.round(H0inv @ d); d = d - H(0) @ img
@@ -234,23 +270,24 @@ def interfaces(run, sig, sh, dt, gmin, args):
                 pairs.append((i, j, img, nb, d, max(hc - tt, 2.0)))
     if not pairs:
         print(f'  {run} sigma {sig}: no stacked particle pairs (face to face, film < {args.hmax} A) at the first frame'); return None
-    time_ns = steps * dt * 1e-6
-    gam = np.interp(steps, sh['step'], sh['gamma'])
-    win = gam >= gmin
-    if win.sum() < 3:
-        win = np.ones_like(win)
-    gdot = rate_dt / dt * 1e15                                   # 1/s
     out = []
     for (i, j, img, nb, d0, h) in pairs:
         d = np.array([com[k, j] - com[k, i] - H(k) @ img for k in range(len(steps))])
         dd = d - d0
         s = dd - np.outer(dd @ nb, nb)                           # in-plane relative displacement (A)
-        smag = np.linalg.norm(s, axis=1)
-        v = np.polyfit(time_ns[win], smag[win], 1)[0] if win.sum() > 2 else np.nan   # A/ns
-        # what a uniform shear would give: the two centres move apart by gamma * dz in x (its in-plane part)
+        # a uniform shear moves the two centres apart by gamma * dz in x: its in-plane part per unit strain (A)
         a1 = np.array([d0[2], 0.0, 0.0]); a1 = a1 - (a1 @ nb) * nb
-        out.append(dict(i=i, j=j, h=h, s=s, smag=smag, v=v * 1e-6 * V_MS, vaff=gdot * np.linalg.norm(a1) * 1e-10))     # m/s
-    return dict(t=time_ns, gam=gam, pairs=out, gdot=gdot, win=win)
+        out.append(dict(i=i, j=j, h=h, s=s, smag=np.linalg.norm(s, axis=1), a1n=np.linalg.norm(a1)))
+    return dict(t=steps * dt * 1e-6, steps=steps, pairs=out)
+
+
+def slip(I, s0, s1, gdot):
+    """slip velocity (m/s; slope of |s|) of every interface between the steps s0 and s1 (one phase), and what a uniform shear would give"""
+    m = (I['steps'] >= s0) & (I['steps'] <= s1)
+    if m.sum() < 3:
+        return None
+    return [dict(n=n, i=p['i'], j=p['j'], h=p['h'], v=np.polyfit(I['t'][m], p['smag'][m], 1)[0] * 1e-6 * V_MS, vaff=gdot * p['a1n'] * 1e-10)
+            for n, p in enumerate(I['pairs'])]
 
 
 # ---------------- fig 9: water structure from the trajectory ----------------
@@ -317,135 +354,167 @@ def images(pos, lo, H, rc):
     return lo + s @ H.T, np.concatenate(P), np.concatenate(I)
 
 
-def water_structure(run, sig, args):
-    from scipy.spatial import cKDTree
+def water_frames(run, sig, args):
+    """(file, offset) of the frames with water: the all-atom snapshots shear_<s>_all_<step>.dump (start and end of each phase),
+    else the first and last frame of shear_<s>.dump (env DUMP=all ./go.sh ...)"""
+    snaps = glob.glob(os.path.join(run, f'shear_{sig}_all_*.dump'))
+    if snaps:
+        return [(f, 0) for f in sorted(snaps, key=lambda f: int(f.rsplit('_', 1)[1].split('.')[0]))]
     fn = os.path.join(run, f'shear_{sig}.dump')
     if not os.path.exists(fn):
-        return None
-    names = type_names(run)
+        return []
+    offs = dump_frames(fn)
+    sel = sorted(set([0, len(offs) - 1] + [k for k in args.frames if 0 <= k < len(offs)])) if offs else []
+    return [(fn, offs[k]) for k in sel]
+
+
+def water_frame(fn, off, names, args):
+    """one frame: class of each water molecule (between two particles / at one surface / pore), H-bonds per molecule, g_OO(r) of each class"""
+    from scipy.spatial import cKDTree
     tow = [t for t, n in names.items() if n.lower() == 'ow'] or [20]
     thw = [t for t, n in names.items() if n.lower() == 'hw'] or [19]
     tna = [t for t, n in names.items() if n.lower() == 'na']
-    offs = dump_frames(fn)
-    if not offs:
-        return None
-    sel = sorted(set([0, len(offs) - 1] + [k for k in args.frames if 0 <= k < len(offs)]))
-    out = []
-    for k in sel:
-        step, lo, H, c = read_frame(fn, offs[k])
-        typ = c['type'].astype(int); mol = c['mol'].astype(int)
-        r = np.c_[c['xu'], c['yu'], c['zu']]
-        isO = np.isin(typ, tow); isH = np.isin(typ, thw)
-        if isO.sum() == 0:
-            print(f'  {fn}: no water in the trajectory (env DUMP=all ./go.sh ... writes it): no fig9'); return None
-        clay = ~(isO | isH | np.isin(typ, tna))
-        # the two H of each water O (same molecule ID), as vectors from the O (unwrapped: the molecule is whole)
-        iO = np.nonzero(isO)[0]; iH = np.nonzero(isH)[0]
-        order = np.argsort(mol[iH], kind='stable'); iH = iH[order]
-        mH = mol[iH]; first = np.searchsorted(mH, mol[iO]); okH = (first + 1 < len(mH))
-        okH[okH] &= (mH[first[okH]] == mol[iO[okH]]) & (mH[first[okH] + 1] == mol[iO[okH]])
-        iO = iO[okH]; first = first[okH]
-        vOH = np.stack([r[iH[first]] - r[iO], r[iH[first + 1]] - r[iO]], 1)    # (nO, 2, 3)
-        O, Oimg, Oidx = images(r[iO], lo, H, max(args.rmax, 3.5))
-        tO = cKDTree(Oimg)
-        # class of each water: clay atoms of how many particles within rc
-        Cw, Cimg, Cidx = images(r[clay], lo, H, args.rc)
-        cmol = mol[clay][Cidx]
-        tC = cKDTree(Cimg)
-        nb = tC.query_ball_point(O, args.rc)
-        npart = np.array([len(set(cmol[l])) for l in nb])
-        cls = np.where(npart >= 2, 0, np.where(npart == 1, 1, 2))          # 0 between particles, 1 at one surface, 2 pore
-        # hydrogen bonds (Zhou et al.: O-O < 3.5 A, H...O < 2.45 A, angle H-Od...Oa < 30 deg)
-        nhb = np.zeros(len(O))
-        lists = tO.query_ball_point(O, 3.5)
-        cos30 = np.cos(np.radians(30))
-        for i, l in enumerate(lists):
-            l = np.array(l)
-            if len(l) == 0:
-                continue
-            d = Oimg[l] - O[i]; dn = np.linalg.norm(d, axis=1)
-            keep = dn > 0.5; l, d, dn = l[keep], d[keep], dn[keep]
-            for h in vOH[i]:
-                hn = np.linalg.norm(h)
-                hb = (np.linalg.norm(d - h, axis=1) < 2.45) & ((d @ h) / (dn * hn) > cos30)
-                if hb.any():
-                    nhb[i] += hb.sum(); np.add.at(nhb, Oidx[l[hb]], 1)
-        # g_OO(r) of each class, normalised with the mean water O density of the box
-        dr = 0.1; edges = np.arange(0, args.rmax + dr, dr); rr = 0.5 * (edges[1:] + edges[:-1])
-        rho = len(O) / abs(np.linalg.det(H))
-        g = {}
-        far = tO.query_ball_point(O, args.rmax)
-        for ccl in (0, 1, 2):
-            idx = np.nonzero(cls == ccl)[0]
-            if len(idx) == 0:
-                continue
-            h = np.zeros(len(rr))
-            for i in idx:
-                dist = np.linalg.norm(Oimg[far[i]] - O[i], axis=1)
-                h += np.histogram(dist[dist > 0.5], edges)[0]
-            g[ccl] = h / (len(idx) * 4 * np.pi * rr ** 2 * dr * rho)
-        out.append(dict(step=step, frame=k, nhb={ccl: nhb[cls == ccl].mean() for ccl in (0, 1, 2) if (cls == ccl).any()},
-                        frac={ccl: (cls == ccl).mean() for ccl in (0, 1, 2)}, r=rr, g=g))
-    return out
+    step, lo, H, c = read_frame(fn, off)
+    typ = c['type'].astype(int); mol = c['mol'].astype(int)
+    r = np.c_[c['xu'], c['yu'], c['zu']]
+    isO = np.isin(typ, tow); isH = np.isin(typ, thw)
+    if isO.sum() == 0:
+        return dict(step=step, nowater=True)
+    clay = ~(isO | isH | np.isin(typ, tna))
+    # the two H of each water O (same molecule ID), as vectors from the O (unwrapped: the molecule is whole)
+    iO = np.nonzero(isO)[0]; iH = np.nonzero(isH)[0]
+    order = np.argsort(mol[iH], kind='stable'); iH = iH[order]
+    mH = mol[iH]; first = np.searchsorted(mH, mol[iO]); okH = (first + 1 < len(mH))
+    okH[okH] &= (mH[first[okH]] == mol[iO[okH]]) & (mH[first[okH] + 1] == mol[iO[okH]])
+    iO = iO[okH]; first = first[okH]
+    vOH = np.stack([r[iH[first]] - r[iO], r[iH[first + 1]] - r[iO]], 1)    # (nO, 2, 3)
+    O, Oimg, Oidx = images(r[iO], lo, H, max(args.rmax, 3.5))
+    tO = cKDTree(Oimg)
+    # class of each water: clay atoms of how many particles within rc
+    Cw, Cimg, Cidx = images(r[clay], lo, H, args.rc)
+    cmol = mol[clay][Cidx]
+    nb = cKDTree(Cimg).query_ball_point(O, args.rc)
+    npart = np.array([len(set(cmol[l])) for l in nb])
+    cls = np.where(npart >= 2, 0, np.where(npart == 1, 1, 2))          # 0 between particles, 1 at one surface, 2 pore
+    # hydrogen bonds (Zhou et al.: O-O < 3.5 A, H...O < 2.45 A, angle H-Od...Oa < 30 deg)
+    nhb = np.zeros(len(O))
+    cos30 = np.cos(np.radians(30))
+    for i, l in enumerate(tO.query_ball_point(O, 3.5)):
+        l = np.array(l)
+        if len(l) == 0:
+            continue
+        d = Oimg[l] - O[i]; dn = np.linalg.norm(d, axis=1)
+        keep = dn > 0.5; l, d, dn = l[keep], d[keep], dn[keep]
+        for h in vOH[i]:
+            hb = (np.linalg.norm(d - h, axis=1) < 2.45) & ((d @ h) / (dn * np.linalg.norm(h)) > cos30)
+            if hb.any():
+                nhb[i] += hb.sum(); np.add.at(nhb, Oidx[l[hb]], 1)
+    # g_OO(r) of each class, normalised with the mean water O density of the box
+    dr = 0.1; edges = np.arange(0, args.rmax + dr, dr); rr = 0.5 * (edges[1:] + edges[:-1])
+    rho = len(O) / abs(np.linalg.det(H))
+    g = {}
+    far = tO.query_ball_point(O, args.rmax)
+    for ccl in (0, 1, 2):
+        idx = np.nonzero(cls == ccl)[0]
+        if len(idx) == 0:
+            continue
+        hh = np.zeros(len(rr))
+        for i in idx:
+            dist = np.linalg.norm(Oimg[far[i]] - O[i], axis=1)
+            hh += np.histogram(dist[dist > 0.5], edges)[0]
+        g[ccl] = (hh / (len(idx) * 4 * np.pi * rr ** 2 * dr * rho)).tolist()
+    return dict(step=int(step), nhb={ccl: float(nhb[cls == ccl].mean()) for ccl in (0, 1, 2) if (cls == ccl).any()},
+                frac={ccl: float((cls == ccl).mean()) for ccl in (0, 1, 2)}, r=rr.tolist(), g=g)
 
 
+def water_cached(fn, off, names, args, cache_dir, allowed):
+    """water_frame, kept in cache_dir (a frame is analysed once: the figures after every job stay quick); allowed = False: only from the cache"""
+    st = os.stat(fn)
+    cf = os.path.join(cache_dir, re.sub(r'[^A-Za-z0-9._-]', '_', f'{os.path.abspath(fn)}_{off}')[-150:] + '.json')
+    key = [st.st_size, int(st.st_mtime), args.rc, args.rmax]
+    if os.path.exists(cf):
+        try:
+            d = json.load(open(cf))
+            if d.get('key') == key:
+                w = d['w']
+                for k in ('nhb', 'frac', 'g'):
+                    if k in w:
+                        w[k] = {int(a): b for a, b in w[k].items()}
+                return w
+        except Exception:
+            pass
+    if not allowed:
+        return 'later'
+    try:
+        w = water_frame(fn, off, names, args)
+    except (ValueError, IndexError) as e:                          # a snapshot still being written
+        print(f'  {fn}: not readable ({e}): skipped'); return None
+    os.makedirs(cache_dir, exist_ok=True)
+    json.dump(dict(key=key, w=w), open(cf, 'w'))
+    return w
 
 
-def profiles(run, sig, sh, gmin):
-    """steady-state profiles across the gouge, the velocity as a fraction of the uniform shear: u = vx / (gamma_dot Lz)"""
+def profiles(run, sig, s0, s1, V):
+    """profiles across the gouge averaged between the steps s0 and s1 (a steady state); the velocity as a fraction of the uniform shear:
+    u = vx / (gamma_dot Lz), V = gamma_dot Lz in A/fs"""
     steps, P = read_avetime(job_files(run, 'prof', sig))
     if steps is None:
         return None
-    gam = np.interp(steps, sh['step'], sh['gamma']); m = gam >= gmin
+    m = (steps >= s0) & (steps <= s1)
     if m.sum() == 0:
-        m[:] = True
-    lz = np.interp(steps[m], sh['step'], sh['lz']).mean()
+        return None
     D = P[m]                                                     # coord (reduced), n_water, vx_water, n_clay, vx_clay, T
     nw, nc = D[:, :, 1], D[:, :, 3]
     vw = (D[:, :, 2] * nw).sum(0) / np.maximum(nw.sum(0), 1e-9)
     vc = (D[:, :, 4] * nc).sum(0) / np.maximum(nc.sum(0), 1e-9)
-    V = np.polyfit(sh['step'], sh['gamma'], 1)[0] / sh.get('dt', 1.0) * lz     # A/fs: velocity difference across the box, rate * Lz
-    return dict(zr=D[0, :, 0], uw=vw / V, uc=vc / V, share=nw.sum(0) / np.maximum((nw + nc).sum(0), 1e-9), T=D[:, :, 5].mean(0), lz=lz,
-                nw=nw.mean(0), nc=nc.mean(0))
+    return dict(zr=D[0, :, 0], uw=vw / V, uc=vc / V, share=nw.sum(0) / np.maximum((nw + nc).sum(0), 1e-9), T=D[:, :, 5].mean(0))
 
 
-def fig6(res, fn, out_csv):
-    keys = [k for k, r in res.items() if r.get('ifc')]
-    if not keys:
+def fig6(combos, fn, out_csv):
+    rows_ = []
+    for cb in combos:
+        seg = next((r for r in cb['segs'] if r.get('ifc')), None)      # phase 0 (the main rate) when it has enough frames
+        if cb['I'] and seg:
+            rows_.append((cb, seg))
+    if not rows_:
         return
-    h_in = 2.5
-    fig, ax = plt.subplots(len(keys), 4, figsize=(15, h_in * len(keys) + HEAD), squeeze=False)
+    fig, ax = plt.subplots(len(rows_), 4, figsize=(15, 2.6 * len(rows_) + HEAD), squeeze=False)
     comp = [('along the flow (x)', SLOT[0]), ('across the flow (y)', SLOT[1])]
     hist, rows = [], []
-    for row, key in enumerate(keys):
-        I = res[key]['ifc']; ps = sorted(I['pairs'], key=lambda p: -p['v'])
+    for row, (cb, seg) in enumerate(rows_):
+        I = cb['I']; key = f'{cb["run"]} {cb["sig"]} MPa'
+        ps = sorted(seg['ifc'], key=lambda p: -p['v'])
         idx = sorted({0, len(ps) // 2, len(ps) - 1}); names = {0: 'fastest', len(ps) // 2: 'median', len(ps) - 1: 'slowest'}
+        starts = [r['seg_start'] * cb['dt'] * 1e-6 for r in cb['segs'][1:]]   # the velocity steps begin (ns)
         for c in range(3):
             a = ax[row, c]
             if c >= len(idx):
                 a.axis('off'); continue
-            p = ps[idx[c]]
-            ys = [p['s'][:, 0] * A2NM, p['s'][:, 1] * A2NM]
+            p = ps[idx[c]]; s = I['pairs'][p['n']]['s']
+            ys = [s[:, 0] * A2NM, s[:, 1] * A2NM]
+            for t0 in starts:
+                a.axvline(t0, color=AXIS, lw=PX, zorder=1)
             for y, (lab, col) in zip(ys, comp):
                 a.plot(I['t'], y, color=col)
             a.set_xlim(I['t'][0], I['t'][-1] + 0.12 * (I['t'][-1] - I['t'][0]))
             style(a, f'{key} · {names[idx[c]]} of {len(ps)} interfaces (particles {p["i"]+1}-{p["j"]+1})\n' + (
-                     f'slip {p["v"]:.3g} m/s' if p['v'] > 0 else 'no steady slip (stuck)') + f', film {p["h"]:.1f} Å')
-            a.set_xlabel('time (ns)'); a.set_ylabel('in-plane slip (nm)')
+                     f'slip {p["v"]:.3g} m/s at {seg["rl"]}' if p['v'] > 0 else f'no steady slip at {seg["rl"]} (stuck)') + f', film {p["h"]:.1f} Å')
+            a.set_xlabel('time (ns)' + ('; gray lines: velocity steps' if starts else '')); a.set_ylabel('in-plane slip (nm)')
             end_labels(a, [I['t'][-1]] * 2, [y[-1] for y in ys], ['x', 'y'])
         # how much faster than the gouge the film between the two particles is sheared
-        f = np.array([abs(p['v']) / (p['h'] * 1e-10) / I['gdot'] for p in ps])
-        lf = np.log10(np.clip(f, 1e-3, None))
-        hist.append((ax[row, 3], lf, key, f))
-        for p, fi in zip(ps, f):
-            rows.append([res[key]['run'], res[key]['sig'], p['i'] + 1, p['j'] + 1, p['h'], p['v'], p['vaff'], fi, abs(p['v']) / p['vaff'] if p['vaff'] > 0 else np.nan])
+        f = np.array([abs(p['v']) / (p['h'] * 1e-10) / seg['gdot'] for p in ps])
+        hist.append((ax[row, 3], np.log10(np.clip(f, 1e-3, None)), f'{key}, {seg["rl"]}', f))
+        for r in cb['segs']:
+            for p in (r['ifc'] or []):
+                fi = abs(p['v']) / (p['h'] * 1e-10) / r['gdot']
+                rows.append([cb['run'], cb['sig'], r['rate'], p['i'] + 1, p['j'] + 1, p['h'], p['v'], p['vaff'], fi, abs(p['v']) / p['vaff'] if p['vaff'] > 0 else np.nan])
     head(fig, 'Slip between stacked clay particles (cf. Zhou et al. 2023, Fig. 6)', [(l, c, 'line') for l, c in comp])
     for a, lf, key, f in hist:                                   # limits first, then the layout, then the bars (their rounding is in pixels)
         nb = int(min(24, max(6, len(lf) // 3)))
         cnt, edges = np.histogram(lf, bins=nb, range=(min(lf.min(), -0.5), max(lf.max(), 0.5)))
         a.set_xlim(edges[0] - 0.05 * (edges[-1] - edges[0]), edges[-1] + 0.05 * (edges[-1] - edges[0])); a.set_ylim(0, cnt.max() * 1.18)
         a._hs = (cnt, edges)
-        style(a, f'{key} · film shear rate / gouge shear rate\n{np.mean(f > 1) * 100:.0f} % of the films shear faster than the gouge')
+        style(a, f'{key} · film rate / gouge rate\n{np.mean(f > 1) * 100:.0f} % of the films shear faster than the gouge')
         a.set_xlabel('log10 [ (v / h) / γ̇ ]'); a.set_ylabel('interfaces')
     layout(fig)
     for a, lf, key, f in hist:
@@ -455,26 +524,28 @@ def fig6(res, fn, out_csv):
         a.axvline(0, color=INK2, lw=PX, zorder=4)
         a.annotate('gouge rate', (0, a.get_ylim()[1]), xytext=(3, -2), textcoords='offset points', va='top', fontsize=7, color=INK2)
     fig.savefig(fn); plt.close(fig)
-    csv(out_csv, ['run', 'sigma_MPa', 'particle_i', 'particle_j', 'film_h_A', 'slip_v_m_s', 'uniform_shear_v_m_s', 'film_rate_over_gouge_rate', 'v_over_uniform'], rows)
+    csv(out_csv, ['run', 'sigma_MPa', 'gouge_rate_1_s', 'particle_i', 'particle_j', 'film_h_A', 'slip_v_m_s', 'uniform_shear_v_m_s',
+                  'film_rate_over_gouge_rate', 'v_over_uniform'], rows)
 
 
-def fig7(res, runcol, fn, out_csv):
+def fig7(res, entcol, fn, out_csv):
     keys = [k for k, r in res.items() if r.get('prof')]
     if not keys:
         return
+    one_run = len({res[k]['run'] for k in keys}) == 1
     sigs = sorted({res[k]['sig'] for k in keys}, key=float)
     fig, ax = plt.subplots(len(sigs), 4, figsize=(14, 3.3 * len(sigs) + HEAD), sharey=True, squeeze=False)
     rows, seen = [], {}
     for row, sig in enumerate(sigs):
         for k in [k for k in keys if res[k]['sig'] == sig]:
-            p = res[k]['prof']; run = res[k]['run']; c = runcol[run]
-            seen[run] = c
+            r = res[k]; p = r['prof']; c = entcol[r['ent']]
+            seen[r['rl'] if one_run else f'{r["run"]} {r["rl"]}'] = c
             ax[row, 0].plot(p['uw'], p['zr'], color=c)
             ax[row, 1].plot(p['uc'], p['zr'], color=c)
             ax[row, 2].plot(p['share'], p['zr'], color=c)
             ax[row, 3].plot(p['T'], p['zr'], color=c)
             for z, uw, uc, s, T in zip(p['zr'], p['uw'], p['uc'], p['share'], p['T']):
-                rows.append([run, sig, z, uw, uc, s, T])
+                rows.append([r['run'], sig, r['rate'], z, uw, uc, s, T])
         for a in ax[row, :2]:
             a.plot([0, 1], [0, 1], color=AXIS, lw=1.5 * LW, zorder=1)
         style(ax[row, 0], f'σn = {sig} MPa · water velocity\ngray diagonal: uniform shear; a step: a shear band')
@@ -484,12 +555,13 @@ def fig7(res, runcol, fn, out_csv):
         ax[row, 0].set_xlabel('vx / (γ̇ Lz)'); ax[row, 1].set_xlabel('vx / (γ̇ Lz)')
         ax[row, 2].set_xlabel('water atoms / all atoms of the layer'); ax[row, 3].set_xlabel('T (K)')
         ax[row, 0].set_ylabel('z / Lz'); ax[row, 0].set_ylim(0, 1)
-    items = [(run, c, 'line') for run, c in seen.items()]
-    head(fig, 'Velocity profile across the gouge, steady state (cf. Zhou et al. 2023, Fig. 7)', items if len(items) > 1 else [])
-    if len(items) == 1:
-        fig.text(0.008, 1 - 0.3 / fig.get_figheight(), items[0][0], color=INK2, fontsize=8, va='top')
+        for a in ax[row]:
+            a.xaxis.set_major_locator(MaxNLocator(5))
+    items = [(lab, c, 'line') for lab, c in seen.items()]
+    title = 'Velocity profile across the gouge, steady state of each shear rate (cf. Zhou et al. 2023, Fig. 7)'
+    head(fig, title + (f' · {res[keys[0]]["run"]}' if one_run else ''), items)
     layout(fig); fig.savefig(fn); plt.close(fig)
-    csv(out_csv, ['run', 'sigma_MPa', 'z_over_Lz', 'vx_water_over_gdotLz', 'vx_clay_over_gdotLz', 'water_share', 'T_K'], rows)
+    csv(out_csv, ['run', 'sigma_MPa', 'gouge_rate_1_s', 'z_over_Lz', 'vx_water_over_gdotLz', 'vx_clay_over_gdotLz', 'water_share', 'T_K'], rows)
 
 
 def fig8_10(res, fn8, fn10, out_csv, summary):
@@ -506,9 +578,8 @@ def fig8_10(res, fn8, fn10, out_csv, summary):
         V, tau, vh, gd, gdf = [], [], [], [], []
         for key, r in lst:
             V.append(r['V']); tau.append(r['tau']); gd.append(r['gdot'])
-            I = r.get('ifc')
-            if I:
-                ps = sorted(I['pairs'], key=lambda p: -abs(p['v']))
+            if r.get('ifc'):
+                ps = sorted(r['ifc'], key=lambda p: -abs(p['v']))
                 k = max(1, len(ps) // 10)                           # the fastest 10 % (at least one): the hot spots
                 vh.append(np.mean([abs(p['v']) for p in ps[:k]])); gdf.append(np.mean([abs(p['v']) / (p['h'] * 1e-10) for p in ps[:k]]))
             else:
@@ -552,25 +623,27 @@ def fig8_10(res, fn8, fn10, out_csv, summary):
 CLS = {0: 'between two particles', 1: 'at one surface', 2: 'pore'}
 
 
-def fig9(res, fn, out_csv, summary):
-    keys = [k for k, r in res.items() if r.get('water')]
-    if not keys:
+def fig9(combos, fn, out_csv, summary):
+    cbs = [cb for cb in combos if cb.get('water')]
+    if not cbs:
         return
-    ng = max(min(2, len(res[k]['water'])) for k in keys)
-    fig, ax = plt.subplots(len(keys), 1 + ng, figsize=(4.4 * (1 + ng), 3.2 * len(keys) + HEAD), squeeze=False)
+    ng = max(min(2, len(cb['water'])) for cb in cbs)
+    fig, ax = plt.subplots(len(cbs), 1 + ng, figsize=(max(4.4 * (1 + ng), 4.4 + 0.9 * max(len(cb['water']) for cb in cbs)), 3.2 * len(cbs) + HEAD),
+                           squeeze=False)
     rows, barsets = [], []
-    for row, key in enumerate(keys):
-        W = res[key]['water']; gof = res[key]['gamma_of']
+    for row, cb in enumerate(cbs):
+        W = cb['water']; gof = cb['gamma_of']; key = f'{cb["run"]} {cb["sig"]} MPa'
+        lab = lambda fr: 'start' if fr['step'] == 0 else f'γ {gof(fr["step"]):.2f}' + (f'\n{rl(cb["rate_of"](fr["step"]))}' if cb['rate_of'](fr['step']) > 0 else '')
         for fr in W:
             gam = gof(fr['step'])
             summary.append(f'{key} gamma {gam:.2f}: H-bonds per water ' + ', '.join(f'{CLS[c]} {fr["nhb"][c]:.2f} ({fr["frac"][c]*100:.0f} %)' for c in fr['nhb']))
             for c in (0, 1, 2):
-                rows.append([res[key]['run'], res[key]['sig'], gam, CLS[c], fr['frac'][c], fr['nhb'].get(c, np.nan)])
-        # bars: one group per trajectory frame (strain), one bar per class of water
+                rows.append([cb['run'], cb['sig'], fr['step'], gam, cb['rate_of'](fr['step']), CLS[c], fr['frac'][c], fr['nhb'].get(c, np.nan)])
+        # bars: one group per snapshot (strain; the rate of the phase it ends), one bar per class of water
         a = ax[row, 0]
         top = max(max(fr['nhb'].values()) for fr in W)
         a.set_xlim(-0.6, len(W) - 0.4); a.set_ylim(0, top * 1.18)
-        a.set_xticks(range(len(W))); a.set_xticklabels([f'γ = {gof(fr["step"]):.2f}' for fr in W])
+        a.set_xticks(range(len(W))); a.set_xticklabels([lab(fr) for fr in W], fontsize=6.5)
         style(a, f'{key} · hydrogen bonds per water molecule\nO–O < 3.5 Å, H···O < 2.45 Å, angle < 30°'); a.set_ylabel('H-bonds per molecule')
         barsets.append((a, W))
         show = [W[0]] + ([W[-1]] if len(W) > 1 else [])
@@ -579,7 +652,7 @@ def fig9(res, fn, out_csv, summary):
             for c, g in fr['g'].items():
                 a.plot(fr['r'], g, color=SLOT[c])
             a.axhline(1, color=AXIS, lw=PX, zorder=1)
-            style(a, f'{key} · g_OO(r) at γ = {gof(fr["step"]):.2f}'); a.set_xlabel('r (Å)'); a.set_ylabel('g_OO(r)')
+            style(a, f'{key} · g_OO(r), {lab(fr)}'.replace('\n', ', ')); a.set_xlabel('r (Å)'); a.set_ylabel('g_OO(r)')
         for n in range(len(show), ng):
             ax[row, 1 + n].axis('off')
         if ng == 2 and len(show) == 2:                          # the same scale for the two frames
@@ -593,31 +666,30 @@ def fig9(res, fn, out_csv, summary):
             for c in (0, 1, 2):
                 bar(a, n + (c - 1) * (w + gap), w, fr['nhb'].get(c, np.nan), SLOT[c])
     fig.savefig(fn); plt.close(fig)
-    csv(out_csv, ['run', 'sigma_MPa', 'gamma', 'water_class', 'fraction_of_water', 'hbonds_per_molecule'], rows)
+    csv(out_csv, ['run', 'sigma_MPa', 'step', 'gamma', 'rate_1_s', 'water_class', 'fraction_of_water', 'hbonds_per_molecule'], rows)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('runs', nargs='+')
     ap.add_argument('--sigma', nargs='*', default=None, help='normal stresses to look at (default: every shear_<s>.dat)')
-    ap.add_argument('--gmin', type=float, default=None, help='steady state from this strain (default: half of the strain reached)')
+    ap.add_argument('--gmin', type=float, default=None, help='phase 0: steady state from this strain (default: the second half of each phase)')
     ap.add_argument('--hmax', type=float, default=12.0, help='A: largest water film between two stacked particles')
     ap.add_argument('--angle', type=float, default=25.0, help='deg: largest angle between the normals of stacked particles')
     ap.add_argument('--overlap', type=float, default=0.75, help='lateral offset of stacked particles < overlap * (R1 + R2)')
     ap.add_argument('--rc', type=float, default=6.0, help='A: a water O within rc of clay atoms of 2 particles is "between two particles"')
     ap.add_argument('--rmax', type=float, default=8.0, help='A: range of g_OO(r)')
-    ap.add_argument('--frames', type=int, nargs='*', default=[], help='more trajectory frames for fig9 (first and last always)')
+    ap.add_argument('--frames', type=int, nargs='*', default=[], help='more frames of shear_<s>.dump for fig9 when there are no snapshots (first and last always)')
+    ap.add_argument('--budget', type=float, default=0, help='s: no new trajectory frame for fig9 is started after half of this time (0: no limit; job.sh uses it)')
     ap.add_argument('--outdir', default='.')
     args = ap.parse_args()
+    t_start = time.time()
     os.makedirs(args.outdir, exist_ok=True)
-    res, summary = {}, []
-    names = [os.path.basename(r.rstrip('/')) for r in args.runs]
-    # one colour per run folder, in the order given, the same in every figure; past eight runs: gray
-    runcol = {n: (SLOT[k] if k < len(SLOT) else MUTED) for k, n in enumerate(dict.fromkeys(names))}
-    if len(runcol) > len(SLOT):
-        print(f'note: more than {len(SLOT)} runs: the runs after the {len(SLOT)}th are gray in fig7 (fig7_profiles.csv has them all)')
+    o = lambda n: os.path.join(args.outdir, n)
+    res, combos, summary, ents = {}, [], [], []
     for run in args.runs:
-        run = run.rstrip('/')
+        run = run.rstrip('/') or '/'
+        rn = os.path.basename(os.path.abspath(run))
         dt, opts = run_params(run)
         sigs = args.sigma or sorted({re.match(r'shear_(.+)\.dat$', os.path.basename(f)).group(1) for f in glob.glob(os.path.join(run, 'shear_*.dat'))}, key=float)
         for sig in sigs:
@@ -627,36 +699,63 @@ def main():
             sh = read_shear(fn)
             if sh is None:
                 print(f'{fn}: too few lines yet'); continue
-            sh['dt'] = dt
-            gmin = args.gmin if args.gmin is not None else 0.5 * sh['gamma'].max()
-            m = sh['gamma'] >= gmin
-            rate_dt = np.polyfit(sh['step'], sh['gamma'], 1)[0]
-            key = f'{os.path.basename(run)} {sig} MPa'
-            r = dict(run=os.path.basename(run), sig=sig, tau=sh['tau'][m].mean(), sn=sh['sn'][m].mean(), lz=sh['lz'][m].mean(), gdot=rate_dt / dt * 1e15)
-            r['V'] = rate_dt / dt * r['lz'] * V_MS
-            r['gamma_of'] = lambda st, sh=sh: float(np.interp(st, sh['step'], sh['gamma']))
-            print(f'{key}: gamma up to {sh["gamma"].max():.3f}, steady state from {gmin:.3f}: tau {r["tau"]:.3g} MPa, sigma_n {r["sn"]:.3g} MPa, '
-                  f'mu {r["tau"]/r["sn"]:.3f}, gamma_dot {r["gdot"]:.3g} /s, V {r["V"]:.3g} m/s')
-            summary.append(f'{key}: tau {r["tau"]:.4g} MPa  sigma_n {r["sn"]:.4g} MPa  mu {r["tau"]/r["sn"]:.4f}  gamma_dot {r["gdot"]:.4g} /s  V {r["V"]:.4g} m/s  Lz {r["lz"]:.1f} A')
-            r['ifc'] = interfaces(run, sig, sh, dt, gmin, args)
-            if r['ifc']:
-                v = np.array([abs(p['v']) for p in r['ifc']['pairs']])
-                summary.append(f'  {len(v)} stacked interfaces: slip velocity median {np.median(v):.3g} m/s, fastest {v.max():.3g} m/s (gouge V {r["V"]:.3g} m/s)')
-            r['prof'] = profiles(run, sig, sh, gmin)
-            try:
-                r['water'] = water_structure(run, sig, args)
-            except ImportError:
-                print('  scipy missing: no fig9'); r['water'] = None
-            res[key] = r
+            segs = segments(sh, dt, args.gmin)
+            I = interfaces(run, sig, sh, dt, args)
+            st0, g0, r0 = np.r_[0.0, sh['step']], np.r_[0.0, sh['gamma']], np.r_[np.nan, [s['rate'] for s in segs for _ in s['rows']]]
+            cb = dict(run=rn, path=run, sig=sig, dt=dt, I=I, segs=[],
+                      gamma_of=lambda st, a=st0, b=g0: float(np.interp(st, a, b)),
+                      rate_of=lambda st, a=st0, b=r0: float(np.nan_to_num(b[max(0, np.searchsorted(a, st, 'right') - 1)])))
+            print(f'{rn} {sig} MPa: strain up to {sh["gamma"].max():.3f}, {len(segs)} rate(s): ' + ', '.join(rl(s['rate']) for s in segs))
+            for k, sg in enumerate(segs):
+                w = sg['win']
+                if len(w) < 2:
+                    print(f'  {rl(sg["rate"])}: too short yet for a steady state'); continue
+                gdot = sg['rate']; lz = sh['lz'][w].mean()
+                r = dict(run=rn, sig=sig, k=k, rate=gdot, rl=rl(gdot), tau=sh['tau'][w].mean(), sn=sh['sn'][w].mean(), lz=lz, gdot=gdot,
+                         V=gdot * lz * 1e-10, s0=sh['step'][w[0]], s1=sh['step'][w[-1]], seg_start=sg['s0'])
+                r['ent'] = (rn, r['rl'])
+                if r['ent'] not in ents:
+                    ents.append(r['ent'])
+                r['ifc'] = slip(I, r['s0'], r['s1'], gdot) if I else None
+                r['prof'] = profiles(run, sig, r['s0'], r['s1'], gdot * 1e-15 * lz)
+                key = f'{rn} {sig} MPa {r["rl"]}'
+                summary.append(f'{key}: tau {r["tau"]:.4g} MPa  sigma_n {r["sn"]:.4g} MPa  mu {r["tau"]/r["sn"]:.4f}  V {r["V"]:.4g} m/s  Lz {lz:.1f} A'
+                               f'  (strain {sh["gamma"][w[0]]:.3f}-{sh["gamma"][w[-1]]:.3f})')
+                if r['ifc']:
+                    v = np.array([abs(p['v']) for p in r['ifc']])
+                    summary.append(f'  {len(v)} stacked interfaces: slip velocity median {np.median(v):.3g} m/s, fastest {v.max():.3g} m/s (gouge V {r["V"]:.3g} m/s)')
+                res[key] = r; cb['segs'].append(r)
+            combos.append(cb)
     if not res:
         sys.exit('nothing to analyse yet')
-    o = lambda n: os.path.join(args.outdir, n)
-    fig6(res, o('fig6_interface_slip.png'), o('fig6_interfaces.csv'))
-    fig7(res, runcol, o('fig7_velocity_profile.png'), o('fig7_profiles.csv'))
+    # one colour per run and rate, in the order met, the same in every figure; past eight: gray
+    entcol = {e: (SLOT[k] if k < len(SLOT) else MUTED) for k, e in enumerate(ents)}
+    fig6(combos, o('fig6_interface_slip.png'), o('fig6_interfaces.csv'))
+    fig7(res, entcol, o('fig7_velocity_profile.png'), o('fig7_profiles.csv'))
     fig8_10(res, o('fig8_tau_v.png'), o('fig10_viscosity.png'), o('fig8_fig10_points.csv'), summary)
-    fig9(res, o('fig9_water_structure.png'), o('fig9_water.csv'), summary)
     open(o('hot_spots_summary.txt'), 'w').write('\n'.join(summary) + '\n')
-    print('\n'.join(summary)); print(f'figures and their numbers (.csv) in {os.path.abspath(args.outdir)}')
+    # fig9 last: the water of the snapshots takes the longest (a frame is analysed once and kept in <outdir>/.cache)
+    try:
+        import scipy  # noqa: F401
+        later = 0
+        for cb in combos:
+            names = type_names(cb['path']); W = []
+            for f, off in water_frames(cb['path'], cb['sig'], args):
+                w = water_cached(f, off, names, args, o('.cache'), not args.budget or time.time() - t_start < 0.5 * args.budget)
+                if w == 'later':
+                    later += 1
+                elif w and w.get('nowater'):
+                    print(f'  {f}: no water in this trajectory (the snapshots shear_<s>_all_<step>.dump have it)'); break
+                elif w:
+                    W.append(w)
+            cb['water'] = W
+        if later:
+            print(f'  {later} trajectory frame(s) for fig9 left for the next time (time budget)')
+        fig9(combos, o('fig9_water_structure.png'), o('fig9_water.csv'), summary)
+    except ImportError:
+        print('  scipy missing: no fig9')
+    open(o('hot_spots_summary.txt'), 'w').write('\n'.join(summary) + '\n')
+    print('\n'.join(summary)); print(f'figures and their numbers (.csv) in {os.path.abspath(args.outdir)}  ({time.time() - t_start:.0f} s)')
 
 
 if __name__ == '__main__':

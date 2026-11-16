@@ -329,4 +329,16 @@ else
   W=$(next_work)
   if [ -z "$W" ]; then echo "ALL STAGES DONE"; else echo "next: stage $W"; extend_chain; fi
 fi
+# the figures of the shear (hot_spots.py, copied here by submit_chain.sh) in figs/ after every job that got to the shear (stage 04), in the
+# time left before the wall time (a trajectory frame for fig9 is analysed once and kept in figs/.cache, so the next job goes on)
+if [ -f hot_spots.py ] && ls shear_*.dat >/dev/null 2>&1; then
+  PYF=${PYTHON:-python3}
+  FT=$(( WALLSEC > 0 ? WALLSEC - SECONDS - 60 : 900 ))
+  if [ "$FT" -lt 60 ]; then echo "figures: no time left in this job (the next one makes them)"
+  elif $PYF -c "import numpy, matplotlib" >/dev/null 2>&1; then
+    mkdir -p figs
+    if tmo "$FT" $PYF hot_spots.py "$PWD" --outdir figs --budget "$FT" > figs/hot_spots.log 2>&1; then echo "figures: $PWD/figs  ($(tail -1 figs/hot_spots.log))"
+    else echo "note: hot_spots.py did not finish (figs/hot_spots.log): $(tail -2 figs/hot_spots.log | tr '\n' ' ')"; fi
+  else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $PWD; python3 hot_spots.py . --outdir figs"; fi
+fi
 echo "end $(date)"

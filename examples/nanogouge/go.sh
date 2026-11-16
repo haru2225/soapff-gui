@@ -12,6 +12,8 @@
 #                 (Lin's thesis); 2 the same with the Langevin thermostat on vy only; 3 no thermostat; 0 SLLOD
 #   RATE=1e9      shear rate of 04 in 1/s (default 1e8)
 #   GMAX=2        final shear strain of 04 (default 3)
+#   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
+#   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
 #   FROM=RUN_N22  start from the compacted gouge of another folder (its stages 01-03 are copied; only 03 of a missing sigma, 04, 05 run):
 #                 a series of shear rates on the same gouge, e.g.
 #                 env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9
@@ -37,6 +39,8 @@ fi
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
 NCONF=${NCONF:-$([ "$N" -gt 20 ] && echo 30 || echo 300)}
 $PY -c "import numpy, scipy" 2>/dev/null || { echo "installing numpy and scipy for $PY (pip --user)"; $PY -m pip install --user -q numpy scipy; }
+# the figures of the shear (hot_spots.py, drawn by the jobs in RUN/figs): matplotlib; the runs do not need it
+$PY -c "import matplotlib" 2>/dev/null || { echo "installing matplotlib for $PY (pip --user; for the figures in $RUN/figs)"; $PY -m pip install --user -q matplotlib || echo "note: matplotlib could not be installed: the jobs run, but draw no figures"; }
 if [ ! -f "$RUN/gouge.data" ]; then
   mkdir -p "$RUN"
   if [ "$SEED" = 1 ] && [ "$RUN" != "$BASE" ] && [ -f "$BASE/gouge.data" ]; then
@@ -64,5 +68,7 @@ if [ -n "${MWMC:-}" ]; then set_opt final_mwmc "$MWMC"; fi
 if [ -n "${FLOW:-}" ]; then set_opt flow "$FLOW"; fi
 if [ -n "${RATE:-}" ]; then set_opt rate "$(awk -v r="$RATE" 'BEGIN{printf "%.6g", r/1e15}')"; fi   # 1/s -> 1/fs
 if [ -n "${GMAX:-}" ]; then set_opt gmax "$GMAX"; fi
+if [ -n "${NVS:-}" ]; then set_opt nvs "$NVS"; fi
+if [ -n "${VFAC:-}" ]; then set_opt vfac "$VFAC"; fi
 $S $RUN "$SIG" "$ST"
 echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; python3 analysis/hot_spots.py $RUN)"

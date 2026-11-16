@@ -12,7 +12,7 @@ Lin & Hatano (2024; σn = 5.6 and 56 MPa, rate ~1e8 /s) and with the two-plate r
 | 01 | `lammps/in.01_equil` | minimisation, 100 ps NVT, NPzT (only z moves) at 1 atm |
 | 02 | `lammps/in.02_dehydrate` | every `step_ps` delete 2 % of the initial water (1 % below m_w/m_c = 1; each molecule with that probability, any LAMMPS version) and run NPzT: compaction, particles stack (paper: 1 % every 1 ns, 134 ns); stops at `final_mwmc` |
 | 03 | `lammps/in.03_consolidate` | hold at the normal stress σn (z only; x, y fixed) |
-| 04 | `lammps/in.04_shear` | shear by the cell deformation (box tilt xz, rate 1e-7 /fs = 1e8 /s; Lees-Edwards boundaries, no wall) at constant σn (Nose-Hoover on z, x and y fixed), Langevin thermostat on the velocity relative to the linear profile (Lin's thesis, Osaka 2024, sect. 2.2; `FLOW=1`, default); `shear_<σ>.dat` = strain, shear stress, normal stress, μ, Lz, ρb, T, Lx, Ly; particle and velocity-profile files for the slip analysis; restart files every 10 ps and at each job stop |
+| 04 | `lammps/in.04_shear` | shear by the cell deformation (box tilt xz, rate 1e-7 /fs = 1e8 /s; Lees-Edwards boundaries, no wall) at constant σn (Nose-Hoover on z, x and y fixed), Langevin thermostat on the velocity relative to the linear profile (Lin's thesis, Osaka 2024, sect. 2.2; `FLOW=1`, default); then 4 velocity steps up to 1e10 /s; `shear_<σ>.dat` = strain, shear stress, normal stress, μ, Lz, ρb, T, Lx, Ly, rate; figures in `figs/` after each job; particle and velocity-profile files for the slip analysis; restart files every 10 ps and at each job stop |
 | 05 | `lammps/in.05_heal` | stop the shear, hold (static contact time): stress relaxation, re-stacking |
 
 Everything ran on a small test system (3 particles, 27,000 atoms; every stage, the restart of stage 04, `analysis/`) with LAMMPS 7 Feb 2024; the real-size runs have not been done yet.
@@ -89,25 +89,29 @@ particle) and `prof_<σ>.<step>.dat` (averaged over `prof_dg` = 0.05 of strain, 
 | 3 | same | none (the frictional heat stays) | same |
 | 0 | SLLOD (imposed homogeneous flow) | Nose-Hoover on all atoms | `fix press/langevin` (LAMMPS 21Nov2023 or newer) |
 
-A series of shear rates on the same compacted gouge (their Fig. 8 needs several velocities): run the compaction once, then one folder per rate
-(each its own chain, all at the same time), e.g. with N = 22 (0.49 M atoms) and the water in the trajectories:
+**One chain gives all of it, with the usual command** (e.g. `env WALLTIME=0:30:00 ./go.sh 67 "5.6 56" all 4`): after the shear at 1e8 /s to γ = 3
+(phase 0; its end is the start of the healing 05), `in.04_shear` steps the rate up 4 times by ×3.16 (3.2e8, 1e9, 3.2e9, 1e10 /s; 0.5 of strain each,
+~8 % more time): the shear stress against the slip velocity (their Fig. 8, 10) from one run, like a velocity-step test of a friction experiment.
+At the start and at the end of each phase it writes the whole system with the water (`shear_<σ>_all_<step>.dump`, for their Fig. 9; the trajectory
+`shear_<σ>.dump` stays clay only). After every job of the shear, the job draws the figures into `RUN_N67/figs/` (`hot_spots.py`, copied into the run folder;
+a trajectory frame is analysed once and kept in `figs/.cache`, so the jobs stay quick). go.sh installs matplotlib for that (pip --user). A shear begun
+with an older `in.04_shear` (no `shear_<σ>.v2`) is done again: its files, and those of the healing after it, are moved to `old_04_<σ>/`.
+Options: `env NVS=0` (no velocity steps), `NVS=2`, `VFAC=10` (×10 each), `RATE=1e9` (1/s), `GMAX=2`.
 
-```
-env WALLTIME=0:30:00 DT=0.5 DUMP=all ./go.sh 22 "5.6" all 4                                       # 01 02 03 04 at 1e8 /s in RUN_N22
-env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9      # after RUN_N22/03_consolidate_5.6.done: 04 at 1e9 /s
-env FROM=RUN_N22 RATE=3e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r3e9
-env FROM=RUN_N22 RATE=1e10 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e10
-python3 analysis/hot_spots.py RUN_N22 RUN_N22_r1e9 RUN_N22_r3e9 RUN_N22_r1e10 --sigma 5.6
-```
+To draw them by hand (any computer; also several folders together): `python3 analysis/hot_spots.py RUN_N67 --outdir figs`.
+Several folders at other rates from the same compacted gouge are possible too (each its own chain):
+`env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9` (after `RUN_N22/03_consolidate_5.6.done`; `FROM` copies its stages 01-03 and settings),
+then `python3 analysis/hot_spots.py RUN_N22 RUN_N22_r1e9 --sigma 5.6`.
 
-`FROM` copies the finished stages 01-03 (and the settings) of the other folder; `RATE` is in 1/s, `GMAX` the final strain. The slip velocity across the
-box is V = γ̇ Lz (1e8 /s with Lz = 10 nm: 1 m/s); 1e8 /s to γ = 3 is 30 ns, 1e10 /s to γ = 2 is 0.2 ns. `hot_spots.py` writes
-`fig6_interface_slip.png` (relative in-plane displacement of stacked particle pairs in time, the fastest, median and slowest interface, and how much faster
-than the gouge the water films shear: (v/h)/γ̇), `fig7_velocity_profile.png` (vx(z) of water and clay, T(z)), `fig8_tau_v.png` (τ against the slip velocity
-of the gouge and of the fastest 10 % of the interfaces, log-log fit), `fig9_water_structure.png` (hydrogen bonds per water molecule, with their criteria,
-and g_OO(r) of the water between two particles, at one surface and in the pores; needs `DUMP=all`) and `fig10_viscosity.png` (τ / shear rate against the
-shear rate), with the main numbers in `hot_spots_summary.txt` and the numbers behind each figure in `fig6_interfaces.csv`, `fig7_profiles.csv`,
-`fig8_fig10_points.csv` and `fig9_water.csv` (to plot them again elsewhere). Fig. 7 shows vx / (γ̇ Lz) against z / Lz: the gray diagonal is uniform shear, a step is a shear band.
+The slip velocity across the box is V = γ̇ Lz (1e8 /s with Lz = 10 nm: 1 m/s). `hot_spots.py` writes
+`fig6_interface_slip.png` (relative in-plane displacement of stacked particle pairs in time over all phases, the fastest, median and slowest interface at
+the first rate, and how much faster than the gouge the water films shear: (v/h)/γ̇), `fig7_velocity_profile.png` (vx / (γ̇ Lz) of water and clay against
+z / Lz in the steady state of each rate: the gray diagonal is uniform shear, a step is a shear band; where the water is, T(z)), `fig8_tau_v.png` (τ against
+the slip velocity of the gouge and of the fastest 10 % of the interfaces, one point per rate, log-log fit ln τ = k ln v + ln τi), `fig9_water_structure.png`
+(hydrogen bonds per water molecule with their criteria, and g_OO(r) of the water between two particles, at one surface and in the pores, at each
+snapshot) and `fig10_viscosity.png` (τ / shear rate against the shear rate), with the main numbers in `hot_spots_summary.txt` and the numbers behind each
+figure in `fig6_interfaces.csv`, `fig7_profiles.csv`, `fig8_fig10_points.csv` and `fig9_water.csv` (to plot them again elsewhere). The steady state of
+each rate is the second half of its strain (`--gmin` for phase 0).
 
 ## Analysis (any computer; numpy and matplotlib; `analysis/` in the repository, next to `go.sh` in the pack)
 

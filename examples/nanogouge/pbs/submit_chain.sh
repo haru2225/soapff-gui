@@ -14,6 +14,8 @@ mkdir -p "$RUNDIR"
 if ls "$HERE"/in.* >/dev/null 2>&1; then INS="$HERE"; else INS="$TOP/lammps"; fi
 for f in "$INS"/in.*; do cp "$f" "$RUNDIR/.new.$$" && mv -f "$RUNDIR/.new.$$" "$RUNDIR/$(basename "$f")"; done
 cp "$HERE"/job.sh "$HERE"/run.sh "$RUNDIR"/
+# the analysis of the shear (job.sh draws the figures with it after each job): analysis/ of the repository, or next to this script in the pack
+for f in "$HERE/hot_spots.py" "$TOP/analysis/hot_spots.py"; do if [ -f "$f" ]; then cp "$f" "$RUNDIR/"; break; fi; done
 [ -f "$HERE/status.sh" ] && cp "$HERE/status.sh" "$RUNDIR"/
 [ -f "$RUNDIR/config.env" ] || cp "$HERE/config.env" "$RUNDIR/"
 [ -f "$HERE/autoconfig.sh" ] && bash "$HERE/autoconfig.sh" "$RUNDIR"
@@ -41,6 +43,17 @@ folder_jobs() {
 }
 for f in gouge.data gouge.settings; do [ -f $f ] || { echo "missing $RUNDIR/$f (run build_gouge.py -o $RUNDIR/gouge)"; exit 1; }; done
 printf 'SIGMAS="%s"\nSTAGES="%s"\n' "$SIGMAS" "$STAGES" > chain.env
+# a shear (04) begun with an older in.04_shear (no shear_<s>.v2: no velocity steps, no particle outputs) is done again with the new one;
+# its files and those of the healing (05) after it go to old_04_<s>/ (nothing is deleted)
+RUNNING=""
+if [ -f .chain.lock ]; then H=$(cat .chain.lock); if [ -n "$H" ] && qstat "$H" 2>/dev/null | grep -q " R "; then RUNNING=$H; fi; fi
+for S in $SIGMAS; do
+  if [ -f "shear_$S.v2" ] || ! ls "shear_$S.done" "shear_$S.dat" shear_$S.restart.* >/dev/null 2>&1; then continue; fi
+  if [ -n "$RUNNING" ]; then echo "note: the shear at $S MPa was begun with an older input, and job $RUNNING works in this folder now: run ./go.sh again when it has ended"; continue; fi
+  D=old_04_$S; mkdir -p "$D"
+  for f in shear_$S.* shear_${S}_* log.04_shear_$S heal_$S.* heal_${S}_* log.05_heal_$S particles_$S.* prof_$S.*; do if [ -e "$f" ]; then mv -f "$f" "$D/"; fi; done
+  echo "the shear at $S MPa was begun with an older in.04_shear: its files (and those of the healing after it) are now in $RUNDIR/$D; it is done again with the new input"
+done
 [ -f chain.failed ] && { echo "removing chain.failed: $(cat chain.failed)"; rm -f chain.failed; }
 # a chain of this folder that is still queued or running: the new jobs start after it
 J=""; OLD=""
