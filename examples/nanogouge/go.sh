@@ -5,6 +5,7 @@
 #   ./go.sh 67 "5.6 56" all 4 RUN_N67_b      the same run in another folder (5th argument; the initial structure of RUN_N67 is copied)
 #   ./go.sh 67 "5.6 56" all 4 RUN_N67_s2 2   an independent run: another random initial structure and LAMMPS seed (6th argument, default 1)
 #   env DT=0.5 DUMP=all ./go.sh 22 "5.6 56" all 4   time step 0.5 fs (default 1) and the water in the trajectories (default: clay and Na only);
+#   env MWMC=0.5 ./go.sh ...                 the dehydration (02) stops at water/clay = 0.5 (default 0.2): a wetter gouge
 #                                            both are kept in RUN_N22/config.env for every job of the folder (WALLTIME=... too, in RUN_N22/walltime)
 # Before the first run, put the supercomputer's settings in config.env (copy them from /home/app/lammps/run.sh).
 set -eu
@@ -38,5 +39,6 @@ set_opt() {
 }
 if [ -n "${DT:-}" ]; then set_opt dt "$DT"; fi
 if [ -n "${DUMP:-}" ]; then set_opt dump_group "$DUMP"; fi
+if [ -n "${MWMC:-}" ]; then set_opt final_mwmc "$MWMC"; fi   # water / clay mass ratio at which the dehydration (02) stops (default 0.2)
 $S $RUN "$SIG" "$ST"
 echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; python3 shear_curve.py $RUN/shear_5.6.dat)"

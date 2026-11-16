@@ -62,6 +62,7 @@ Trajectories (OVITO; clay atoms and Na, unwrapped, `id mol type xu yu zu`; each 
 `03_consolidate_<σ>.dump` every 10 ps, `shear_<σ>.dump` every 100 ps (strain 0.01), `heal_<σ>.dump` every 25 ps (`dump_ps`; the steps follow the time step).
 With the water (all atoms, ~10× larger files): `env DUMP=all ./go.sh ...`. Time step 0.5 fs instead of 1: `env DT=0.5 ./go.sh ...` (all times stay in ps, so there are twice as many steps).
 Both are kept in `RUN_N<N>/config.env` (`EXTRA=... # go.sh: ...` lines) for every job of the folder; other LAMMPS variables the same way, e.g. `EXTRA="${EXTRA:-} -var dump_ps 0"` (no trajectories).
+`env MWMC=0.5 ./go.sh ...` stops the dehydration (02) at m_w/m_c = 0.5 instead of 0.2 (the water content of the sheared gouge; one folder per water content: 5th argument).
 Example, about 0.5 M atoms (N = 22: 490,599 atoms), 0.5 fs, water in the trajectories, 30 min jobs: `env WALLTIME=0:30:00 DT=0.5 DUMP=all ./go.sh 22 "5.6 56" all 4`. New `in.*` files reach a run folder with `./go.sh` (or `submit_chain.sh`);
 they replace the old files, so a LAMMPS running now is not disturbed and the next job uses them.
 Stage 01 is 100 ps NVT + 1000 ps NPzT (1.1 M steps); `EXTRA="-var t_npt_ps 200"` in `RUN_N67/config.env` shortens it (a run already past the new end finishes the stage at once).
