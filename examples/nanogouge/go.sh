@@ -4,15 +4,36 @@
 #   atoms ≈ 22,300 × N  (N=12: 0.27 M, N=22: 0.49 M, N=67: 1.49 M).  ./go.sh 67 "5.6 56" all 4   uses 4 nodes (4th argument).
 #   ./go.sh 67 "5.6 56" all 4 RUN_N67_b      the same run in another folder (5th argument; the initial structure of RUN_N67 is copied)
 #   ./go.sh 67 "5.6 56" all 4 RUN_N67_s2 2   an independent run: another random initial structure and LAMMPS seed (6th argument, default 1)
-#   env DT=0.5 DUMP=all ./go.sh 22 "5.6 56" all 4   time step 0.5 fs (default 1) and the water in the trajectories (default: clay and Na only);
-#   env MWMC=0.5 ./go.sh ...                 the dehydration (02) stops at water/clay = 0.5 (default 0.2): a wetter gouge
-#                                            both are kept in RUN_N22/config.env for every job of the folder (WALLTIME=... too, in RUN_N22/walltime)
+# Options (env VAR=... ./go.sh ...; kept in RUN_<..>/config.env for every job of the folder, WALLTIME in RUN_<..>/walltime):
+#   DT=0.5        time step in fs (default 1)
+#   DUMP=all      the water in the trajectories too (default: clay and Na only)
+#   MWMC=0.5      the dehydration (02) stops at water/clay = 0.5 (default 0.2)
+#   FLOW=1        how the shear (04) is driven: 1 (default) Lees-Edwards + Langevin on the deviation from the linear profile + barostat on z
+#                 (Lin's thesis); 2 the same with the Langevin thermostat on vy only; 3 no thermostat; 0 SLLOD
+#   RATE=1e9      shear rate of 04 in 1/s (default 1e8)
+#   GMAX=2        final shear strain of 04 (default 3)
+#   FROM=RUN_N22  start from the compacted gouge of another folder (its stages 01-03 are copied; only 03 of a missing sigma, 04, 05 run):
+#                 a series of shear rates on the same gouge, e.g.
+#                 env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9
 # Before the first run, put the supercomputer's settings in config.env (copy them from /home/app/lammps/run.sh).
 set -eu
 cd "$(dirname "$0")"
 N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; BASE=RUN_N$N
 [ -n "${4:-}" ] && export NODES=$4      # 4th argument = number of nodes (works in any shell, no "NODES=4 ./go.sh" needed)
 PY=${PYTHON:-python3}
+# FROM: the new folder starts where the other one finished the compaction
+if [ -n "${FROM:-}" ]; then
+  FROM=${FROM%/}
+  [ -d "$FROM" ] || { echo "FROM=$FROM: no such folder here"; exit 1; }
+  [ "$FROM" != "$RUN" ] || { echo "FROM=$FROM is the run folder itself: give another 5th argument (e.g. ${FROM}_r1e9)"; exit 1; }
+  [ -f "$FROM/02_dehydrate.done" ] || { echo "FROM=$FROM has not finished the dehydration (02) yet: wait for $FROM/02_dehydrate.done"; exit 1; }
+  mkdir -p "$RUN"
+  for f in gouge.data gouge.settings gouge.json lammps_seed config.env lmp.auto walltime 01_equil.done 01_equil.data 02_dehydrate.done 02_dehydrate.data dehydrate.dat dehyd_nw0.txt; do
+    [ -f "$FROM/$f" ] && [ ! -f "$RUN/$f" ] && cp "$FROM/$f" "$RUN/"
+  done
+  for s in $SIG; do for f in 03_consolidate_$s.done 03_consolidate_$s.data 03_consolidate_$s.dat; do [ -f "$FROM/$f" ] && [ ! -f "$RUN/$f" ] && cp "$FROM/$f" "$RUN/"; done; done
+  echo "$RUN: starts from the compacted gouge of $FROM (finished there: $(cd "$FROM" && ls *.done 2>/dev/null | tr '\n' ' '))"
+fi
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
 NCONF=${NCONF:-$([ "$N" -gt 20 ] && echo 30 || echo 300)}
 $PY -c "import numpy, scipy" 2>/dev/null || { echo "installing numpy and scipy for $PY (pip --user)"; $PY -m pip install --user -q numpy scipy; }
@@ -31,7 +52,7 @@ fi
 # a new folder takes the settings the jobs of RUN_N<N> found and checked (your config.env, the LAMMPS build and MPI launcher in lmp.auto)
 if [ "$RUN" != "$BASE" ]; then for f in config.env lmp.auto; do [ -f "$BASE/$f" ] && [ ! -f "$RUN/$f" ] && cp "$BASE/$f" "$RUN/"; done; fi
 if [ -f submit_chain.sh ]; then S=./submit_chain.sh; CE=./config.env; else S=pbs/submit_chain.sh; CE=pbs/config.env; fi
-# DT / DUMP: one line each in $RUN/config.env (job.sh passes EXTRA to LAMMPS); given again, the line is replaced
+# options: one line each in $RUN/config.env (job.sh passes EXTRA to LAMMPS); given again, the line is replaced
 set_opt() {
   local f=$RUN/config.env; [ -f "$f" ] || cp "$CE" "$f"
   { grep -v "# go.sh: $1\$" "$f" || true; echo "EXTRA=\"\${EXTRA:-} -var $1 $2\"   # go.sh: $1"; } > "$f.tmp" && mv -f "$f.tmp" "$f"
@@ -39,6 +60,9 @@ set_opt() {
 }
 if [ -n "${DT:-}" ]; then set_opt dt "$DT"; fi
 if [ -n "${DUMP:-}" ]; then set_opt dump_group "$DUMP"; fi
-if [ -n "${MWMC:-}" ]; then set_opt final_mwmc "$MWMC"; fi   # water / clay mass ratio at which the dehydration (02) stops (default 0.2)
+if [ -n "${MWMC:-}" ]; then set_opt final_mwmc "$MWMC"; fi
+if [ -n "${FLOW:-}" ]; then set_opt flow "$FLOW"; fi
+if [ -n "${RATE:-}" ]; then set_opt rate "$(awk -v r="$RATE" 'BEGIN{printf "%.6g", r/1e15}')"; fi   # 1/s -> 1/fs
+if [ -n "${GMAX:-}" ]; then set_opt gmax "$GMAX"; fi
 $S $RUN "$SIG" "$ST"
-echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; python3 shear_curve.py $RUN/shear_5.6.dat)"
+echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; python3 analysis/hot_spots.py $RUN)"

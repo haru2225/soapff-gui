@@ -144,7 +144,7 @@ if [ -z "${SIF}" ]; then
       if [ "${PL_SEARCHED:-}" = "$LMPABS" ]; then echo "  (an earlier job searched the disks in vain: not again; delete lmp.auto to search again)"
       else for root in $SEARCH_ROOTS; do [ -d "$root" ] || continue; pick $(tmo 120 find "$root" -maxdepth 7 -type f \( -name 'lmp' -o -name 'lmp_*' \) -perm -u+x 2>/dev/null | grep -v '\.so' | sort -r | head -30) && break; done; fi
     fi
-    has_pl "$LMPABS" || echo "WARNING: no LAMMPS with press/langevin found; stages 01-03 run, stage 04 (shear) will fail. Put LMP=/path/to/newer/lmp in config.env"
+    has_pl "$LMPABS" || echo "note: no LAMMPS with press/langevin found: all stages run (the shear uses fix nph on z, flow 1); only FLOW=0 (SLLOD) needs press/langevin"
   fi
   E=$(load_errors "$LMPABS")
   if [ -n "$E" ]; then
@@ -193,6 +193,9 @@ if [ -z "${SIF}" ]; then
     } > lmp.auto
   fi
 fi
+# the normal stress of the shear (04): fix press/langevin if this LAMMPS has it, else none (-var pl 0: Lz of stage 03 kept; EXTRA="-var pl 1" overrides)
+PLVAR=""
+if [ -z "${SIF}" ] && ! has_pl "$LMPABS"; then PLVAR="-var pl 0"; echo "note: $LMPABS has no press/langevin: stage 04 shears at the Lz of stage 03 (constant volume; the normal stress is written in shear_<s>.dat)"; fi
 RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
 [ -f ./chain.env ] && source ./chain.env          # SIGMAS and STAGES of the chain (written by submit_chain.sh)
@@ -248,7 +251,7 @@ run_stage() {
   if [ "$TL" != off ] && [ "$TL" -lt "${MIN_LEFT:-180}" ]; then echo "only ${TL} s left: stage $st is left to the next job"; return 1; fi
   STAGE=$st; SIGMA=$S
   echo "== stage $st  sigma $S  $(date)  LAMMPS time limit ${TL} s"
-  local V="-var tlimit $TL ${EXTRA}"
+  local V="-var tlimit $TL ${EXTRA} ${PLVAR}"
   case $st in
   01) R=$(newest 01_equil.restart.stop 01_equil.restart.1 01_equil.restart.2 01_equil.restart.min)
       if [ -z "$R" ]; then ${RUN} -in in.01_equil -var data gouge.data -var settings gouge.settings $V

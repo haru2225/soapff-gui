@@ -12,7 +12,7 @@ log log.05_heal_${sigma} append
 thermo 1000
 compute pt all pressure thermo_temp
 variable ss equal -c_pt[5]*0.101325
-variable sn equal -c_pt[3]*0.101325
+variable sn equal c_pt[3]*0.101325      # compression > 0
 variable dens equal mass(clay)*1.66054/vol
 variable lzv equal lz
 variable nst equal round(v_t_ps*1000/v_dt)

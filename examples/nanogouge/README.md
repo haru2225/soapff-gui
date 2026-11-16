@@ -12,7 +12,7 @@ Lin & Hatano (2024; σn = 5.6 and 56 MPa, rate ~1e8 /s) and with the two-plate r
 | 01 | `lammps/in.01_equil` | minimisation, 100 ps NVT, NPzT (only z moves) at 1 atm |
 | 02 | `lammps/in.02_dehydrate` | every `step_ps` delete 2 % of the initial water (1 % below m_w/m_c = 1; each molecule with that probability, any LAMMPS version) and run NPzT: compaction, particles stack (paper: 1 % every 1 ns, 134 ns); stops at `final_mwmc` |
 | 03 | `lammps/in.03_consolidate` | hold at the normal stress σn (z only; x, y fixed) |
-| 04 | `lammps/in.04_shear` | SLLOD shear (box tilt xz, rate 1e-7 /fs = 1e8 /s) at constant σn (`fix press/langevin` in z); `shear_<σ>.dat` = strain, shear stress, normal stress, μ, Lz, ρb; restart files every 10 ps and at each job stop |
+| 04 | `lammps/in.04_shear` | shear by the cell deformation (box tilt xz, rate 1e-7 /fs = 1e8 /s; Lees-Edwards boundaries, no wall) at constant σn (Nose-Hoover on z, x and y fixed), Langevin thermostat on the velocity relative to the linear profile (Lin's thesis, Osaka 2024, sect. 2.2; `FLOW=1`, default); `shear_<σ>.dat` = strain, shear stress, normal stress, μ, Lz, ρb, T, Lx, Ly; particle and velocity-profile files for the slip analysis; restart files every 10 ps and at each job stop |
 | 05 | `lammps/in.05_heal` | stop the shear, hold (static contact time): stress relaxation, re-stacking |
 
 Everything ran on a small test system (3 particles, 27,000 atoms; every stage, the restart of stage 04, `analysis/`) with LAMMPS 7 Feb 2024; the real-size runs have not been done yet.
@@ -54,12 +54,12 @@ To run one stage by hand like the centre's sample: edit the marked lines of `run
 end of its wall time (`timer timeout`, restart `*.restart.stop`), goes on with the next stage when one is finished, and the last job of the chain submits the next one
 while work is left (if the compute nodes cannot `qsub`, run `./go.sh` again; it continues). A LAMMPS error stops the chain (`chain.failed`, the following jobs end at once).
 `./status.sh RUN_N12` shows the speed and the computing time left of the current stage. What the jobs print goes at once to `RUN_N12/jobs.log` (the PBS
-output files `ng_*.o*` appear only when a job has ended). The first job finds a LAMMPS with `fix press/langevin` that starts on the node (the centre's old
-`lmp_icex` 3Mar20 has none: the notes about it in the log are normal) and checks that `mpirun` spreads the MPI ranks over all nodes (HPE MPT: else
+output files `ng_*.o*` appear only when a job has ended). The first job finds a LAMMPS that starts on the node, preferably one with `fix press/langevin` (needed only by `FLOW=0`; the centre's old
+`lmp_icex` 3Mar20 has none: the notes about it in the log are normal; the default shear runs on any version) and checks that `mpirun` spreads the MPI ranks over all nodes (HPE MPT: else
 `mpiexec_mpt`); both are kept in `RUN_N12/lmp.auto` for the next jobs (delete it to search again). Each stop at the wall time also writes the current
 structure to `<stage>.latest.data` (e.g. `01_equil.latest.data`; opens in OVITO).
 Trajectories (OVITO; clay atoms and Na, unwrapped, `id mol type xu yu zu`; each job appends to the file of its stage): `01_equil.dump` every 5 ps, `02_dehydrate.dump` every 20 ps,
-`03_consolidate_<σ>.dump` every 10 ps, `shear_<σ>.dump` every 100 ps (strain 0.01), `heal_<σ>.dump` every 25 ps (`dump_ps`; the steps follow the time step).
+`03_consolidate_<σ>.dump` every 10 ps, `shear_<σ>.dump` every 0.01 of strain (`dump_dg`; 100 ps at 1e8 /s), `heal_<σ>.dump` every 25 ps (`dump_ps`; the steps follow the time step).
 With the water (all atoms, ~10× larger files): `env DUMP=all ./go.sh ...`. Time step 0.5 fs instead of 1: `env DT=0.5 ./go.sh ...` (all times stay in ps, so there are twice as many steps).
 Both are kept in `RUN_N<N>/config.env` (`EXTRA=... # go.sh: ...` lines) for every job of the folder; other LAMMPS variables the same way, e.g. `EXTRA="${EXTRA:-} -var dump_ps 0"` (no trajectories).
 `env MWMC=0.5 ./go.sh ...` stops the dehydration (02) at m_w/m_c = 0.5 instead of 0.2 (the water content of the sheared gouge; one folder per water content: 5th argument).
@@ -73,14 +73,50 @@ Size (N = 12, m_w/m_c = 3): about 12 × 2,292 + 3 × 80,000 ≈ 268,000 atoms at
 Defaults are small enough for a laboratory-scale first try; for a larger system use `-n 30` and the 24 × 24 × 40 nm box of the paper is approached.
 Shear to γ = 3 at 1e8 /s is 30 ns (30 million steps of 1 fs); for a quick look use `-var rate 5.0e-7 -var gmax 1.0` through `EXTRA` (`qsub -v STAGE=04,SIGMA=5.6,EXTRA="-var rate 5.0e-7 -var gmax 1.0" job.sh`).
 
+## Slip between the clay particles: "hot spots" (Zhou et al., Am. Mineral. 108, 87, 2023)
+
+Zhou et al. pull one clay layer over another with a constant force and find that the water between the layers shears like a viscous,
+shear-thinning fluid (ln τ = k ln v + ln τi, velocity strengthening): the interlayers would be the hot spots where the plastic deformation of a gouge
+concentrates. Here the same is looked at in the whole assemblage: the gouge is sheared by the cell deformation only (no wall, the slip can concentrate
+anywhere), and every particle is followed in time. `in.04_shear` writes, besides `shear_<σ>.dat`:
+`particles_<σ>.<step>.dat` (every `part_dg` = 0.002 of strain: centre of mass, velocity, gyration tensor = normal and size, internal temperature of each
+particle) and `prof_<σ>.<step>.dat` (averaged over `prof_dg` = 0.05 of strain, 40 layers across the gouge: vx of the water and of the clay, their numbers, T).
+
+| shear (`env FLOW=... ./go.sh`) | drive | thermostat | normal stress |
+|---|---|---|---|
+| 1 (default) | cell deformation, Lees-Edwards (velocity ramp at the start) | Langevin on the deviation from the linear profile (`temp/deform`): Lin's thesis | Nose-Hoover on z (`fix nph z`), x, y fixed |
+| 2 | same | Langevin on vy only (does not pull a localized profile back to the linear one) | same |
+| 3 | same | none (the frictional heat stays) | same |
+| 0 | SLLOD (imposed homogeneous flow) | Nose-Hoover on all atoms | `fix press/langevin` (LAMMPS 21Nov2023 or newer) |
+
+A series of shear rates on the same compacted gouge (their Fig. 8 needs several velocities): run the compaction once, then one folder per rate
+(each its own chain, all at the same time), e.g. with N = 22 (0.49 M atoms) and the water in the trajectories:
+
+```
+env WALLTIME=0:30:00 DT=0.5 DUMP=all ./go.sh 22 "5.6" all 4                                       # 01 02 03 04 at 1e8 /s in RUN_N22
+env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9      # after RUN_N22/03_consolidate_5.6.done: 04 at 1e9 /s
+env FROM=RUN_N22 RATE=3e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r3e9
+env FROM=RUN_N22 RATE=1e10 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e10
+python3 analysis/hot_spots.py RUN_N22 RUN_N22_r1e9 RUN_N22_r3e9 RUN_N22_r1e10 --sigma 5.6
+```
+
+`FROM` copies the finished stages 01-03 (and the settings) of the other folder; `RATE` is in 1/s, `GMAX` the final strain. The slip velocity across the
+box is V = γ̇ Lz (1e8 /s with Lz = 10 nm: 1 m/s); 1e8 /s to γ = 3 is 30 ns, 1e10 /s to γ = 2 is 0.2 ns. `hot_spots.py` writes
+`fig6_interface_slip.png` (relative in-plane displacement of stacked particle pairs in time, the fastest, median and slowest interface, and how much faster
+than the gouge the water films shear: (v/h)/γ̇), `fig7_velocity_profile.png` (vx(z) of water and clay, T(z)), `fig8_tau_v.png` (τ against the slip velocity
+of the gouge and of the fastest 10 % of the interfaces, log-log fit), `fig9_water_structure.png` (hydrogen bonds per water molecule, with their criteria,
+and g_OO(r) of the water between two particles, at one surface and in the pores; needs `DUMP=all`) and `fig10_viscosity.png` (τ / shear rate against the
+shear rate), with the numbers in `hot_spots_summary.txt`.
+
 ## Analysis (any computer; numpy and matplotlib; `analysis/` in the repository, next to `go.sh` in the pack)
 
 ```
 python3 order_parameter.py RUN_N12/01_equil.data RUN_N12/02_dehydrate.data RUN_N12/03_consolidate_5.6.data RUN_N12/gouge.json   # S, m_w/m_c, dry bulk density
 python3 shear_curve.py RUN_N12/shear_5.6.dat RUN_N12/shear_56.dat                                                              # mu(gamma), shear_curve.png
+python3 hot_spots.py RUN_N12                                                                                                   # slip between the particles (see above)
 ```
 
-`RUN_N12/dehydrate.dat` lists the water number, m_w/m_c, dry bulk density and Lz of every dehydration step; `RUN_N12/shear_<σ>.dump` holds the clay atoms (unwrapped, every 0.1 ns = strain 0.01) for the pore-size and stacking analysis; the other stages have their own `.dump` (see above)
+`RUN_N12/dehydrate.dat` lists the water number, m_w/m_c, dry bulk density and Lz of every dehydration step; `RUN_N12/shear_<σ>.dump` holds the clay atoms (unwrapped, every 0.01 of strain, `dump_dg`) for the pore-size and stacking analysis; the other stages have their own `.dump` (see above)
 (150 k – 1.5 M atoms: a frame of all atoms is 7–70 MB; of the clay atoms only, ~10× less). Structures to look at: `dehyd_snap_<k>.data` (every 5 dehydration cycles), the `.data` file at the end of each
 stage, and `<stage>.latest.data` at each job stop.
 
