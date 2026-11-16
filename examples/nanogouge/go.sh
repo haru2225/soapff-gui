@@ -56,7 +56,10 @@ if [ ! -f "$RUN/gouge.data" ]; then
   else
     # numpy and scipy are needed only here (building a new structure); pip is tried for at most 2 min
     $PY -c "import numpy, scipy" 2>/dev/null || { echo "installing numpy and scipy for $PY (pip --user, at most 2 min)"; tmo 120 $PY -m pip install --user -q --timeout 10 --retries 0 numpy scipy </dev/null || echo "pip failed (no internet here?): give a python with numpy and scipy: env PYTHON=/path/to/python3 ./go.sh ..."; }
-    $PY build_gouge.py -n $N --mwmc 3.0 --nconf $NCONF --seed $SEED -o "$RUN/gouge"
+    # seed 1 in another folder (a test, a rate series): built in RUN_N<N> and copied, so all of them start from the same structure
+    OUT=$RUN; if [ "$SEED" = 1 ] && [ "$RUN" != "$BASE" ]; then OUT=$BASE; mkdir -p "$BASE"; fi
+    $PY build_gouge.py -n $N --mwmc 3.0 --nconf $NCONF --seed $SEED -o "$OUT/gouge" || { echo "build_gouge.py failed"; exit 1; }
+    if [ "$OUT" != "$RUN" ]; then cp "$BASE/gouge.data" "$BASE/gouge.settings" "$RUN/"; [ -f "$BASE/gouge.json" ] && cp "$BASE/gouge.json" "$RUN/"; echo "$RUN: structure built in $BASE (for its real run too) and copied"; fi
   fi
   # another seed: LAMMPS uses it too (velocities, water removal, thermostat); job.sh reads lammps_seed
   [ "$SEED" != 1 ] && echo "$SEED" > "$RUN/lammps_seed"
