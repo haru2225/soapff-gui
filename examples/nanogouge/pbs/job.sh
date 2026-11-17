@@ -275,9 +275,18 @@ run_stage() {
       if [ -n "$R" ]; then ${RUN} -in in.05_heal -var resume 1 -var rfile $R -var sigma $S $V
       else [ -f shear_${S}_final.data ] || missing_input shear_${S}_final.data
            ${RUN} -in in.05_heal -var data shear_${S}_final.data -var settings gouge.settings -var sigma $S $V; fi ;;
-  one) set -- $SIGMAS   # in.all: 01, 02, then 03 04 05 at the first two normal stresses; it goes on from all.state itself
+  one) set -- $SIGMAS   # in.all: 01, 02, then 03 04 05 at the first two normal stresses; it goes on from all.state itself.
+      # With a time limit it does one run per start: started again while time is left, until all is done or the time limit stopped a run
       [ -n "${3:-}" ] && echo "note: in.all takes two normal stresses; $SIGMAS: only $1 and $2"
-      ${RUN} -in in.all -var data gouge.data -var settings gouge.settings -var sig1 $1 -var sig2 ${2:-0} $V ;;
+      rc=0
+      while :; do
+        ${RUN} -in in.all -var data gouge.data -var settings gouge.settings -var sig1 $1 -var sig2 ${2:-0} -var tlimit $TL ${EXTRA} ${PLVAR}; rc=$?
+        { [ $rc -ne 0 ] || [ -f all.done ] || grep -q "mid equal 1" all.state 2>/dev/null; } && break
+        TL=$(tleft)
+        if [ "$TL" != off ] && [ "$TL" -lt "${MIN_LEFT:-180}" ]; then echo "only ${TL} s left: the next job goes on ($(head -1 all.state 2>/dev/null))"; break; fi
+        echo "-- in.all: next run $(head -1 all.state 2>/dev/null | awk '{print $4}')  $(date)  LAMMPS time limit ${TL} s"
+      done
+      (exit $rc) ;;
   *)  echo "unknown STAGE $st"; exit 1 ;;
   esac
   rc=$?
