@@ -98,6 +98,11 @@ a trajectory frame is analysed once and kept in `figs/.cache`, so the jobs stay 
 with an older `in.04_shear` (no `shear_<σ>.v2`) is done again: its files, and those of the healing after it, are moved to `old_04_<σ>/`.
 Options: `env NVS=0` (no velocity steps), `NVS=2`, `VFAC=10` (×10 each), `RATE=1e9` (1/s), `GMAX=2`.
 
+Everything in one input file: `lammps/in.all` runs 01 (minimisation, NVT, NPzT), 02 (10 water removals down to m_w/m_c = 0.2), then 03, 04 (the rate
+and 4 velocity steps) and 05 at each of the two normal stresses, every run `nrun` = 5000 steps (26 runs, 130,000 steps), with the same output files as the
+stages. With PBS: `env WALLTIME=0:30:00 ./go.sh 22 "5.6 56" one 4` (folder `RUN_N22_one`; each run ends with `all.restart` and `all.state`, so the next job
+goes on; `NRUN=2000` changes the run length). By hand: `lmp -in in.all -var data gouge.data -var settings gouge.settings [-var nrun 2000 -var ndry 20 -var sig2 0]`.
+
 A quick test of the whole chain (all stages, all outputs, the figures): `env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4` runs every
 run of every stage for 1000 steps (02: one water removal; 04: each of its 5 phases; outputs every 100 steps) in its own folder `RUN_N22_test1000`
 (the structure of `RUN_N22` is copied when it is there). The numbers mean nothing; it shows that everything runs and is written.

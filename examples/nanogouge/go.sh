@@ -15,6 +15,9 @@
 #   NRUN=1000     a test of the whole chain: every run of every stage is 1000 steps (02: one water removal; 04: each of its 5 phases), outputs
 #                 every 100 steps; in its own folder RUN_N<N>_test1000 (the structure of RUN_N<N> is copied if there).  Checks that all runs and
 #                 all outputs work; the numbers mean nothing.   env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4
+#   ./go.sh 22 "5.6 56" one 4   everything in ONE input file, lammps/in.all: 01 (minimisation, NVT, NPzT), 02 (10 water removals), then 03, 04 (5 rates),
+#                 05 at each normal stress; every run 5000 steps (NRUN=2000 changes it); in its own folder RUN_N22_one; a job stopped by the wall time
+#                 is continued by the next one (all.state)
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
 #   Python (build_gouge.py: numpy, scipy; the figures: matplotlib) = ./sifpy, python 3.11 in a Singularity image that make_sif.sh makes once
@@ -28,6 +31,8 @@ cd "$(dirname "$0")"
 N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; BASE=RUN_N$N
 # NRUN (a short test of the whole chain) never goes into a running folder: its own folder RUN_N<N>_test<NRUN> unless a 5th argument is given
 if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
+# stages "one": everything in one input file (lammps/in.all, every run 5000 steps), in its own folder RUN_N<N>_one
+if [ "$ST" = one ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_one; fi
 [ -n "${4:-}" ] && export NODES=$4      # 4th argument = number of nodes (works in any shell, no "NODES=4 ./go.sh" needed)
 # ---- one python for everything: ./sifpy (Singularity image of make_sif.sh: python 3.11, numpy, scipy, matplotlib), made once when missing;
 #      PYTHON=... overrides it.  No pip.  A failed make_sif.sh (no internet?) is not tried again by go.sh (.sifpy_failed): run ./make_sif.sh by hand.

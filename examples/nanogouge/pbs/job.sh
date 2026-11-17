@@ -219,10 +219,12 @@ MARGIN=${TIME_MARGIN:-360}
 echo "wall time of this job: ${WALL:-unknown} (${WALLSEC} s); LAMMPS stops ${MARGIN} s before its end"
 tleft() { if [ "$WALLSEC" -gt 0 ]; then echo $(( WALLSEC - SECONDS - MARGIN )); else echo off; fi; }
 
-donefile() { case $1 in 01) echo 01_equil.done;; 02) echo 02_dehydrate.done;; 03) echo 03_consolidate_$2.done;; 04) echo shear_$2.done;; 05) echo heal_$2.done;; esac; }
+donefile() { case $1 in one) echo all.done;; 01) echo 01_equil.done;; 02) echo 02_dehydrate.done;; 03) echo 03_consolidate_$2.done;; 04) echo shear_$2.done;; 05) echo heal_$2.done;; esac; }
 want() { [ "$STAGES" = all ] || [[ " $STAGES " == *" $1 "* ]]; }
 next_work() {   # "STAGE SIGMA" of the first unfinished stage: 01, 02, then 03 04 05 for each sigma in turn; nothing when all is done
   local st S
+  # STAGES=one: everything in one input file (in.all), every run nrun steps
+  if [ "$STAGES" = one ]; then [ -f all.done ] || echo "one -"; return; fi
   for st in 01 02; do want $st && [ ! -f "$(donefile $st)" ] && { echo "$st -"; return; }; done
   for S in $SIGMAS; do for st in 03 04 05; do want $st && [ ! -f "$(donefile $st $S)" ] && { echo "$st $S"; return; }; done; done
 }
@@ -273,6 +275,9 @@ run_stage() {
       if [ -n "$R" ]; then ${RUN} -in in.05_heal -var resume 1 -var rfile $R -var sigma $S $V
       else [ -f shear_${S}_final.data ] || missing_input shear_${S}_final.data
            ${RUN} -in in.05_heal -var data shear_${S}_final.data -var settings gouge.settings -var sigma $S $V; fi ;;
+  one) set -- $SIGMAS   # in.all: 01, 02, then 03 04 05 at the first two normal stresses; it goes on from all.state itself
+      [ -n "${3:-}" ] && echo "note: in.all takes two normal stresses; $SIGMAS: only $1 and $2"
+      ${RUN} -in in.all -var data gouge.data -var settings gouge.settings -var sig1 $1 -var sig2 ${2:-0} $V ;;
   *)  echo "unknown STAGE $st"; exit 1 ;;
   esac
   rc=$?

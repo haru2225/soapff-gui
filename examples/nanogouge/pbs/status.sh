@@ -5,7 +5,7 @@ echo "== $PWD"; echo "-- qstat"; qstat -u "$USER" 2>/dev/null | grep -E "ng|Job 
 echo "-- finished stages: $(ls *.done 2>/dev/null | tr '\n' ' ')"
 [ -f chain.env ] && echo "-- chain: $(tr '\n' ' ' < chain.env)  last job: $(cat chain.tail 2>/dev/null)"
 [ -f chain.failed ] && echo "-- FAILED: $(cat chain.failed)   (fix it, then ./go.sh again)"
-L=$(ls -t log.0* 2>/dev/null | head -1)
+L=$(ls -t log.0* log.one 2>/dev/null | head -1)
 if [ -n "$L" ]; then
   echo "-- latest log: $L ($(( $(date +%s) - $(stat -c %Y "$L" 2>/dev/null || stat -f %m "$L") )) s since the last write)"
   TH=$(grep -E "^ +[0-9]+ +[0-9.-]+ " "$L" | tail -1)
@@ -15,6 +15,7 @@ if [ -n "$L" ]; then
   # speed (last thermo column = time steps per second) and the steps left of this stage (default lengths; EXTRA changes them)
   echo "$TH" | awk -v L="$L" -v D="$(tail -1 dehydrate.dat 2>/dev/null)" '{
     step=$1; sp=$NF; if (sp+0 <= 0) exit
+    if (L ~ /log[.]one/) { printf "-- speed %.2f steps/s = %.3f ns/day (1 fs).  in.all: step %d of this run; the next run is in all.state\n", sp, sp*86400/1e6, step; exit }
     tgt=0
     if (L ~ /01_equil/) tgt=1100000
     else if (L ~ /03_consolidate/) tgt=2000000
