@@ -10,6 +10,10 @@ for d in "${PBS_O_WORKDIR:-}" "${SUBDIR_PHYS:-}" "${SUBDIR_LOGICAL:-}"; do
   [ -n "$d" ] || continue
   for t in 1 2 3; do cd "$d" 2>/dev/null && [ -f ./in.01_equil ] && break 2; sleep 5; done
 done
+# a job queued before job.sh was updated (PBS keeps the script of the time of qsub): run the current job.sh of the run folder instead
+if [ -f ./in.01_equil ] && [ -f ./job.sh ] && [ -z "${JOB_SH_CURRENT:-}" ] && ! cmp -s "$0" ./job.sh 2>/dev/null; then
+  export JOB_SH_CURRENT=1; echo "running the current job.sh of the run folder (this job was queued with an older one)"; exec bash ./job.sh "$@"
+fi
 if [ ! -f ./in.01_equil ]; then
   echo "ERROR: cannot enter the run folder on $(hostname).  tried: PBS_O_WORKDIR=${PBS_O_WORKDIR:-} SUBDIR_PHYS=${SUBDIR_PHYS:-}"
   echo "pwd=$PWD  HOME=$HOME"; for d in "${PBS_O_WORKDIR:-}" "${SUBDIR_PHYS:-}"; do [ -n "$d" ] && ls -ld "$d" "$(dirname "$d")" 2>&1; done

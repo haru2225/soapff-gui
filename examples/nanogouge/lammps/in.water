@@ -65,9 +65,11 @@ variable kk equal 0
 variable Sb equal 0
 variable Gb equal 0.0
 variable rprev equal 0.0
-# -var resume 1 (job.sh gives it when water.state is there): go on from water.state
+# go on from water.state when it is there (always: also with a job script that does not give -var resume).  print ... append makes the file
+# when it is missing (no is_file() in every LAMMPS): a new folder starts from the beginning.  From the beginning again: delete water.state.
 variable resume index 0
-if "${resume} == 1" then "include water.state"
+print "# water.state: where in.water is" append water.state screen no
+include water.state
 
 # ================= every run: a fresh LAMMPS state, the input of the run (data file or restart), common settings =================
 label unit
@@ -131,7 +133,10 @@ dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
 if "${mid} == 1" then "dump_modify dm append yes"
 variable tset equal $(timeremain>0)
 thermo 100
-minimize 1.0e-4 1.0e-6 ${miniter} $(10*v_miniter)
+# the iterations done by the jobs before (a minimisation stopped by the time limit goes on: step = iterations done) count: at most miniter in all
+variable mleft equal $(v_miniter-step)
+print "in.water: minimisation, ${mleft} of ${miniter} iterations left"
+if "${mleft} > 0" then "minimize 1.0e-4 1.0e-6 ${mleft} $(10*v_miniter)"
 if "${tset} > 0 && $(timeremain) <= 0" then "jump SELF stop"
 undump dm
 reset_timestep 0

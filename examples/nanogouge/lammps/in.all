@@ -53,9 +53,11 @@ variable nw0 equal -1
 variable kk equal 0
 variable Gb equal 0.0
 variable rprev equal 0.0
-# -var resume 1 (job.sh gives it when all.state is there): go on from all.state (no is_file(): not in every LAMMPS)
+# go on from all.state when it is there (always: also with a job script that does not give -var resume).  print ... append makes the file
+# when it is missing (no is_file() in every LAMMPS): a new folder starts from the beginning.  From the beginning again: delete all.state.
 variable resume index 0
-if "${resume} == 1" then "include all.state"
+print "# all.state: where in.all is" append all.state screen no
+include all.state
 # an all.state of the first version of this file
 if "${st} == equil1" then "variable st string min"
 if "${st} == equil2" then "variable st string npt"
@@ -111,7 +113,10 @@ dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
 if "${mid} == 1" then "dump_modify dm append yes"
 variable tset equal $(timeremain>0)
 thermo 100
-minimize 1.0e-4 1.0e-6 ${miniter} $(10*v_miniter)
+# the iterations done by the jobs before (a minimisation stopped by the time limit goes on: step = iterations done) count: at most miniter in all
+variable mleft equal $(v_miniter-step)
+print "in.all: minimisation, ${mleft} of ${miniter} iterations left"
+if "${mleft} > 0" then "minimize 1.0e-4 1.0e-6 ${mleft} $(10*v_miniter)"
 if "${tset} > 0 && $(timeremain) <= 0" then "jump SELF stop"
 undump dm
 reset_timestep 0
