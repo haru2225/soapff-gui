@@ -1,0 +1,349 @@
+# in.water: shear at several water contents in one input file.  One dehydration goes from the wet start (m_w/m_c ~ 3) to the driest target;
+# each time it reaches a target water content w1 > w2 > ... (m_w/m_c = water mass / dry clay mass), the gouge of that moment goes to its folder
+# w<m_w/m_c>/ and is consolidated (03), sheared (04: rate, then nvs velocity steps) and held (05) there at sig1 and sig2; then the dehydration
+# goes on from where it was.  Every run nrun steps.
+#   01 minimisation, NVT nrun, NPzT nrun at 1 atm                        -> 01_equil.data
+#   02 removals of dfrac of the initial water (the last one down to the target), NPzT nrun after each   -> dehydrate.dat, water_contents.dat
+#   per water content and normal stress: 03 NPzT nrun at sigma; 04 shear at rate (strain gmax; gmax 0: nrun steps), then nvs velocity steps
+#   (rate x vfac^k, strain gstep each); 05 hold nhold steps at sigma (-var heal 0: none)   -> w<m_w/m_c>/03_consolidate_<s>.*, shear_<s>.dat, particles_<s>.*, prof_<s>.*, heal_<s>.*, *.dump
+# Porosity phi and dry bulk density rho_b follow from m_w/m_c (water-filled pores): m_w/m_c = phi rho_w / ((1 - phi) rho_s), rho_b = (1 - phi) rho_s.
+#   lmp -in in.water -var data gouge.data -var settings gouge.settings -var nw 3 -var w1 1 -var w2 0.5 -var w3 0.2
+#   PBS: ./go_water.sh 22 "2 1 0.5 0.2" "5.6 56" 1   (folder RUN_N22_water; one run per LAMMPS start with a time limit, job.sh starts the next one)
+# Continued: each run ends with water.restart and water.state; -var resume 1 (job.sh) goes on from them, also inside a run.
+variable data index gouge.data
+variable settings index gouge.settings
+variable nrun index 5000              # steps of every run
+variable sig1 index 5.6               # MPa
+variable sig2 index 56                # MPa; 0 = none
+variable nw index 4                   # number of water contents (w1 ... w8, from wet to dry)
+variable w1 index 2
+variable w2 index 1
+variable w3 index 0.5
+variable w4 index 0.2
+variable w5 index 0
+variable w6 index 0
+variable w7 index 0
+variable w8 index 0
+variable dfrac index 0.1              # 02: each removal takes this fraction of the initial water (the last one before a target: the rest down to it)
+variable heal index 1                 # 05 (hold at sigma) after each shear; 0 = none
+variable gmax index 0                 # 04: shear strain at the first rate (0: nrun steps); go_water.sh gives 1
+variable gstep index 0.5              # 04: shear strain of each velocity step (when gmax > 0)
+variable nhold index 0                # 05: steps of the hold (0: nrun)
+variable rate index 1.0e-7            # 04: shear rate in 1/fs (1.0e-7 = 1e8 /s)
+variable nvs index 4                  # 04: velocity steps after the first run (0 = none)
+variable vfac index 3.16227766        # 04: rate factor from one velocity step to the next
+variable flow index 1                 # 04: 1 Langevin on the deviation from the linear profile (Lin), 2 Langevin on vy only, 3 no thermostat
+variable Tdamp index 1000.0           # fs, 04 Langevin
+variable Pdamp index 10000.0          # fs, 04 barostat on z
+variable nz index 40                  # 04: layers of the velocity profile
+variable miniter index 2000           # 01: largest number of minimisation iterations
+variable rc index 12.0                # real-space cutoff (A)
+variable acc index 1.0e-4             # PPPM accuracy
+variable dt index 1.0                 # fs
+variable T index 300.0                # K
+variable nclay index 18               # clay atom types 1..nclay (particles + Na)
+variable thw index 19
+variable tow index 20
+variable seed index 12345
+variable dump_group index clay        # atoms in the trajectories (clay or all)
+variable tlimit index off             # s of wall time for this LAMMPS (job.sh sets it from the PBS wall time).  Given: ONE run, then LAMMPS ends
+                                      # (job.sh starts it again with the time left: no clock is needed in here, any LAMMPS version)
+variable nout equal $(10*round(v_nrun/100)+10*(round(v_nrun/100)<1))   # output interval: a tenth of a run (a multiple of 10)
+variable nextpr equal (floor((step+v_nout-1)/v_nout)+1)*v_nout   # lines of the .dat files: from one interval after the start of a run
+log log.water append
+
+# where the calculation is: st = the next run (min nvt npt dry cons shear heal end), iw = water content (w<iw>), is = 1 or 2 (sig1, sig2),
+# kc = water removals done, kk = shear phase, mid = 1: the run st was stopped by the time limit (water.restart is its state then)
+variable st string min
+variable mid equal 0
+variable quitnow equal 0
+variable iw equal 1
+variable is equal 1
+variable kc equal 0
+variable nw0 equal -1
+variable kk equal 0
+variable Sb equal 0
+variable Gb equal 0.0
+variable rprev equal 0.0
+# -var resume 1 (job.sh gives it when water.state is there): go on from water.state
+variable resume index 0
+if "${resume} == 1" then "include water.state"
+
+# ================= every run: a fresh LAMMPS state, the input of the run (data file or restart), common settings =================
+label unit
+clear
+if "x${tlimit} != xoff" then "timer timeout ${tlimit} every 10"
+if "${st} == end" then "jump SELF s_end"
+if "${is} == 1" then "variable sigma equal ${sig1}" else "variable sigma equal ${sig2}"
+variable Pn equal ${sigma}*9.86923    # atm
+variable mwt equal 0
+if "${iw} == 1" then "variable mwt equal ${w1}"
+if "${iw} == 2" then "variable mwt equal ${w2}"
+if "${iw} == 3" then "variable mwt equal ${w3}"
+if "${iw} == 4" then "variable mwt equal ${w4}"
+if "${iw} == 5" then "variable mwt equal ${w5}"
+if "${iw} == 6" then "variable mwt equal ${w6}"
+if "${iw} == 7" then "variable mwt equal ${w7}"
+if "${iw} == 8" then "variable mwt equal ${w8}"
+variable wd string w${mwt}             # the folder of this water content
+# the input of this run: the data file at the start of a stage; the dehydration goes on from dry.restart; else the end of the run before
+variable infile string water.restart
+variable fromdata equal 0
+if "${mid} == 0 && ${st} == min" then "variable infile string ${data}" "variable fromdata equal 1"
+if "${mid} == 0 && ${st} == dry && ${kc} == 0" then "variable infile string 01_equil.data" "variable fromdata equal 1"
+if "${mid} == 0 && ${st} == dry && ${kc} > 0" then "variable infile string dry.restart"
+if "${mid} == 0 && ${st} == cons" then "variable infile string ${wd}/02_dehydrate.data" "variable fromdata equal 1"
+if "${mid} == 0 && ${st} == shear && ${kk} == 0" then "variable infile string ${wd}/03_consolidate_${sigma}.data" "variable fromdata equal 1"
+if "${mid} == 0 && ${st} == heal" then "variable infile string ${wd}/shear_${sigma}_final.data" "variable fromdata equal 1"
+print "in.water: run ${st}  water ${iw} (m_w/m_c ${mwt})  sigma ${sigma}  kc ${kc}  kk ${kk}  from ${infile} (mid ${mid})"
+processors * * * file procs.txt
+if "${fromdata} == 1" then "jump SELF read_data"
+read_restart ${infile}
+jump SELF read_done
+label read_data
+units real
+atom_style full
+boundary p p p
+bond_style harmonic
+angle_style harmonic
+pair_style lj/cut/coul/long ${rc}
+pair_modify mix arithmetic tail no
+special_bonds lj/coul 0.0 0.0 0.0
+read_data ${infile}
+include ${settings}
+if "${st} == shear" then "change_box all triclinic"
+label read_done
+kspace_style pppm ${acc}
+neighbor 2.0 bin
+neigh_modify delay 0 every 1 check yes
+group clay type 1:${nclay}
+group water type ${thw} ${tow}
+group wO type ${tow}
+timestep ${dt}
+thermo_style custom step temp pe ke etotal press pxx pyy pzz pxz vol lx ly lz xz spcpu   # spcpu = time steps per second
+thermo_modify lost error flush yes
+thermo ${nout}
+jump SELF s_${st}
+
+# ================= 01 equilibration: minimisation, NVT, NPzT at 1 atm =================
+label s_min
+dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
+if "${mid} == 1" then "dump_modify dm append yes"
+variable tset equal $(timeremain>0)
+thermo 100
+minimize 1.0e-4 1.0e-6 ${miniter} $(10*v_miniter)
+if "${tset} > 0 && $(timeremain) <= 0" then "jump SELF stop"
+undump dm
+reset_timestep 0
+variable st string nvt
+jump SELF next
+
+label s_nvt
+if "${mid} == 0" then "velocity all create ${T} ${seed} dist gaussian mom yes rot yes"
+dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
+dump_modify dm append yes
+fix fnvt all nvt temp ${T} ${T} 100.0
+run ${nrun} upto
+if "$(step) < ${nrun}" then "jump SELF stop"
+variable st string npt
+jump SELF next
+
+label s_npt
+dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
+dump_modify dm append yes
+fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
+run $(2*v_nrun) upto
+if "$(step) < $(2*v_nrun)" then "jump SELF stop"
+write_data 01_equil.data
+print "DONE 01" file 01_equil.done
+variable st string dry
+variable kc equal 0
+jump SELF next
+
+# ================= 02 dehydration down to the water content w<iw> =================
+label s_dry
+if "${nw0} < 0" then "print '# k  n_water  mw/mc  rho_b(g/cm3)  lz(A)  S-free' file dehydrate.dat" "variable nw0 equal $(count(wO))" "print '$(count(wO))' file dehyd_nw0.txt" "print '# iw  target_mw/mc  mw/mc  n_water  rho_b(g/cm3)  lz(A)  folder' file water_contents.dat"
+variable ntgt equal $(round(v_mwt*mass(clay)/18.0153))
+# the target is reached (within 0.5 % of the initial water): this gouge goes to w<m_w/m_c>/, then 03, 04, 05 there
+if "${mid} == 0 && $(count(wO)-v_ntgt) < $(0.005*v_nw0)" then "jump SELF reached"
+# each water molecule is removed with probability ndel / n_water (about ndel of them): dfrac of the initial water, at most down to the target
+variable da equal $(v_dfrac*v_nw0)
+variable db equal $(count(wO)-v_ntgt)
+variable ndel equal $(v_da+(v_db-v_da)*(v_db<v_da))
+if "${mid} == 0" then "variable rsel atom type==${tow}&&random(0,1,$(v_seed+v_kc+1))<$(v_ndel/count(wO))" "group gdel variable rsel" "delete_atoms group gdel mol yes bond yes compress yes"
+print "in.water: 02 removal $(v_kc+1): $(count(wO)) water molecules left (target ${ntgt} for m_w/m_c = ${mwt})"
+dump dm ${dump_group} custom ${nout} 02_dehydrate.dump id mol type xu yu zu
+dump_modify dm append yes
+fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
+run $((v_kc+1)*v_nrun) upto
+if "$(step) < $((v_kc+1)*v_nrun)" then "jump SELF stop"
+print "$(v_kc+1) $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
+variable kc equal $(v_kc+1)
+write_restart dry.restart
+jump SELF next
+label reached
+shell mkdir ${wd}
+write_data ${wd}/02_dehydrate.data
+print "${iw} ${mwt} $(mass(water)/mass(clay):%.4f) $(count(wO)) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) ${wd}" append water_contents.dat
+print "in.water: water content ${iw} reached: m_w/m_c = $(mass(water)/mass(clay):%.4f) (target ${mwt}); 03, 04, 05 in ${wd}/"
+variable st string cons
+variable is equal 1
+jump SELF next
+
+# ================= 03 consolidation at sigma =================
+label s_cons
+variable lzv equal lz
+variable dens equal mass(clay)*1.66054/vol
+fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
+fix av all ave/time $(v_nout/10) 10 ${nout} v_lzv v_dens
+if "${mid} == 0" then "print '# TimeStep v_lzv v_dens' file ${wd}/03_consolidate_${sigma}.dat"
+fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g)" append ${wd}/03_consolidate_${sigma}.dat screen no
+dump dm ${dump_group} custom ${nout} ${wd}/03_consolidate_${sigma}.dump id mol type xu yu zu
+if "${mid} == 1" then "dump_modify dm append yes"
+run ${nrun} upto
+if "$(step) < ${nrun}" then "jump SELF stop"
+write_data ${wd}/03_consolidate_${sigma}.data
+print "DONE 03" file ${wd}/03_consolidate_${sigma}.done
+variable st string shear
+variable kk equal 0
+variable Sb equal 0
+variable Gb equal 0.0
+variable rprev equal 0.0
+jump SELF next
+
+# ================= 04 shear: phase kk (0 = rate, then the velocity steps) =================
+label s_shear
+variable rk equal $(v_rate*v_vfac^v_kk)
+# steps of this phase: nrun, or the strain gmax (first rate) / gstep (velocity steps) at this rate; outputs about 200 per phase, dumps about 50
+variable gk equal $(v_gmax*(v_kk==0)+v_gstep*(v_kk>0))
+variable L equal $(v_nrun*(v_gmax<=0)+round(v_gk/(v_rk*v_dt))*(v_gmax>0))
+variable Se equal $(v_Sb+v_L)
+variable nso equal $(v_nout*(1+floor(v_L/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor(v_L/(50*v_nout))))
+variable nextpr equal (floor((step+v_nso-1)/v_nso)+1)*v_nso
+print "in.water: 04 phase ${kk}: rate $(v_rk*1e15:%.4g) /s, steps ${Sb} -> ${Se}, strain ${Gb} -> $(v_Gb+v_L*v_rk*v_dt)"
+compute tdef all temp/deform
+thermo_modify temp tdef
+compute ty all temp/partial 0 1 0
+fix fs all nph z ${Pn} ${Pn} ${Pdamp} dilate all ptemp ${T}
+fix_modify fs temp tdef
+if "${flow} == 1" then "fix fl all langevin ${T} ${T} ${Tdamp} ${seed}" "fix_modify fl temp tdef"
+if "${flow} == 2" then "fix fl all langevin ${T} ${T} ${Tdamp} ${seed}" "fix_modify fl temp ty"
+compute pt all pressure tdef
+variable gam equal ${Gb}+${rk}*${dt}*(step-${Sb})
+variable ss equal -c_pt[5]*0.101325
+variable sn equal c_pt[3]*0.101325
+variable mu equal v_ss/v_sn
+variable dens equal mass(clay)*1.66054/vol
+variable lzv equal lz
+variable lxv equal lx
+variable lyv equal ly
+variable rks equal ${rk}*1e15
+fix av all ave/time $(v_nso/10) 10 ${nso} v_gam v_ss v_sn v_mu v_lzv v_dens c_tdef v_lxv v_lyv v_rks
+if "${kk} == 0 && ${mid} == 0" then "print '# TimeStep gamma tau(MPa) sigma_n(MPa) mu Lz(A) rho_b(g/cm3) T(K) Lx(A) Ly(A) rate(1/s)' file ${wd}/shear_${sigma}.dat" "print 'in.water' file ${wd}/shear_${sigma}.v2"
+fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g) $(f_av[5]:%.6g) $(f_av[6]:%.6g) $(f_av[7]:%.5g) $(f_av[8]:%.6g) $(f_av[9]:%.6g) $(f_av[10]:%.5g)" append ${wd}/shear_${sigma}.dat screen no
+# particles (clay without Na): centre of mass, velocity, gyration tensor, internal temperature;  profiles across the gouge
+variable isna atom abs(mass-22.98977)<0.01
+group na variable isna
+group part subtract clay na
+compute cpart part chunk/atom molecule nchunk once ids once compress yes
+compute pcom part com/chunk cpart
+compute pvcm part vcm/chunk cpart
+compute pgyr part gyration/chunk cpart tensor
+compute ptmp part temp/chunk cpart temp com yes
+compute czw water chunk/atom bin/1d z lower $(1.000001/v_nz) units reduced
+compute czc part chunk/atom bin/1d z lower $(1.000001/v_nz) units reduced
+compute cza all chunk/atom bin/1d z lower $(1.000001/v_nz) units reduced
+compute zpw water property/chunk czw count coord1
+compute zpc part property/chunk czc count
+compute zvw water vcm/chunk czw
+compute zvc part vcm/chunk czc
+compute zta all temp/chunk cza temp com yes
+if "${kk} == 0 && ${mid} == 0" then "write_dump all custom ${wd}/shear_${sigma}_all_0.dump id mol type xu yu zu"
+# the shear: the box tilt grows at rk*Lz (Lees-Edwards); the change of the flow profile is added to the velocities at the start of the phase
+# (not when a stopped phase goes on: its velocities have it)
+fix fd all deform 1 xz erate ${rk} remap v units box
+if "${flow} > 0 && ${mid} == 0" then "velocity all ramp vx 0.0 $((v_rk-v_rprev)*lz) z $(zlo) $(zhi) sum yes units box"
+fix fpart part ave/time $(v_nso/5) 1 $(v_nso/5) c_pcom[1] c_pcom[2] c_pcom[3] c_pvcm[1] c_pvcm[2] c_pvcm[3] c_pgyr[1] c_pgyr[2] c_pgyr[3] c_pgyr[4] c_pgyr[5] c_pgyr[6] c_ptmp[1] mode vector file ${wd}/particles_${sigma}.$(step).dat
+fix fprof all ave/time $(v_nso/10) 10 ${nso} c_zpw[2] c_zpw[1] c_zvw[1] c_zpc c_zvc[1] c_zta[1] mode vector file ${wd}/prof_${sigma}.$(step).dat
+dump dm ${dump_group} custom ${ndump} ${wd}/shear_${sigma}.dump id mol type xu yu zu
+dump_modify dm append yes
+run ${Se} upto
+if "$(step) < ${Se}" then "jump SELF stop"
+write_dump all custom ${wd}/shear_${sigma}_all_$(step).dump id mol type xu yu zu
+if "${kk} == 0" then "write_data ${wd}/shear_${sigma}_final.data"
+variable Gb equal $(v_Gb+v_L*v_rk*v_dt)
+variable Sb equal ${Se}
+variable rprev equal ${rk}
+variable kk equal $(v_kk+1)
+if "${kk} > ${nvs}" then "print 'DONE 04' file ${wd}/shear_${sigma}.done" "jump SELF shear_done"
+jump SELF next
+label shear_done
+if "${heal} == 1" then "variable st string heal" "jump SELF next"
+jump SELF sig_done
+
+# ================= 05 hold at sigma after the shear =================
+label s_heal
+variable NH equal $(v_nhold+(v_nrun-v_nhold)*(v_nhold<=0))
+variable ndump equal $(v_nout*(1+floor(v_NH/(50*v_nout))))
+compute pt all pressure thermo_temp
+variable ss equal -c_pt[5]*0.101325
+variable sn equal c_pt[3]*0.101325
+variable dens equal mass(clay)*1.66054/vol
+variable lzv equal lz
+fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
+fix av all ave/time $(v_nout/10) 10 ${nout} v_ss v_sn v_lzv v_dens
+# the particles during the hold (stacking against the rest time)
+variable isna atom abs(mass-22.98977)<0.01
+group na variable isna
+group part subtract clay na
+compute cpart part chunk/atom molecule nchunk once ids once compress yes
+compute pcom part com/chunk cpart
+compute pvcm part vcm/chunk cpart
+compute pgyr part gyration/chunk cpart tensor
+compute ptmp part temp/chunk cpart temp com yes
+fix fpart part ave/time $(v_nout/5) 1 $(v_nout/5) c_pcom[1] c_pcom[2] c_pcom[3] c_pvcm[1] c_pvcm[2] c_pvcm[3] c_pgyr[1] c_pgyr[2] c_pgyr[3] c_pgyr[4] c_pgyr[5] c_pgyr[6] c_ptmp[1] mode vector file ${wd}/healparticles_${sigma}.$(step).dat
+if "${mid} == 0" then "print '# TimeStep v_ss v_sn v_lzv v_dens' file ${wd}/heal_${sigma}.dat"
+fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g)" append ${wd}/heal_${sigma}.dat screen no
+dump dm ${dump_group} custom ${ndump} ${wd}/heal_${sigma}.dump id mol type xu yu zu
+if "${mid} == 1" then "dump_modify dm append yes"
+run ${NH} upto
+if "$(step) < ${NH}" then "jump SELF stop"
+write_data ${wd}/heal_${sigma}_final.data
+print "DONE 05" file ${wd}/heal_${sigma}.done
+jump SELF sig_done
+
+# the next normal stress, else the next water content (the dehydration goes on), else the end
+label sig_done
+if "${is} == 1 && ${sig2} > 0" then "variable is equal 2" "variable st string cons" "jump SELF next"
+variable iw equal $(v_iw+1)
+if "${iw} <= ${nw}" then "variable st string dry" else "variable st string end"
+jump SELF next
+
+# ================= after every run: the state for the next run (and for the next job) =================
+# stop: the time limit stopped run st; water.restart is its state, the next job goes on from it.  next: run done, st is the next one
+label stop
+variable mid equal 1
+variable quitnow equal 1
+jump SELF save
+label next
+variable mid equal 0
+label save
+write_restart water.restart
+print "variable st string ${st}" file water.state
+print "variable iw equal ${iw}" append water.state
+print "variable is equal ${is}" append water.state
+print "variable kc equal ${kc}" append water.state
+print "variable nw0 equal ${nw0}" append water.state
+print "variable kk equal ${kk}" append water.state
+print "variable Sb equal ${Sb}" append water.state
+print "variable Gb equal ${Gb}" append water.state
+print "variable rprev equal ${rprev}" append water.state
+print "variable mid equal ${mid}" append water.state
+if "${quitnow} == 1" then "print 'in.water: the time limit stopped ${st} at step $(step); the next job goes on from water.restart'" "quit 0"
+if "x${tlimit} != xoff" then "print 'in.water: run done, next: ${st} (one run per LAMMPS when tlimit is given; job.sh starts the next one)'" "quit 0"
+jump SELF unit
+
+label s_end
+print "DONE water" file water.done
+print "in.water: all runs done"

@@ -16,6 +16,7 @@ for f in "$INS"/in.*; do cp "$f" "$RUNDIR/.new.$$" && mv -f "$RUNDIR/.new.$$" "$
 cp "$HERE"/job.sh "$HERE"/run.sh "$RUNDIR"/
 # the analysis of the shear (job.sh draws the figures with it after each job): analysis/ of the repository, or next to this script in the pack
 for f in "$HERE/hot_spots.py" "$TOP/analysis/hot_spots.py"; do if [ -f "$f" ]; then cp "$f" "$RUNDIR/"; break; fi; done
+for f in "$HERE/lin_figs.py" "$TOP/analysis/lin_figs.py"; do if [ -f "$f" ]; then cp "$f" "$RUNDIR/"; break; fi; done
 [ -f "$HERE/status.sh" ] && cp "$HERE/status.sh" "$RUNDIR"/
 [ -f "$RUNDIR/config.env" ] || cp "$HERE/config.env" "$RUNDIR/"
 [ -f "$HERE/autoconfig.sh" ] && bash "$HERE/autoconfig.sh" "$RUNDIR"

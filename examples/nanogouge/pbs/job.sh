@@ -219,12 +219,13 @@ MARGIN=${TIME_MARGIN:-360}
 echo "wall time of this job: ${WALL:-unknown} (${WALLSEC} s); LAMMPS stops ${MARGIN} s before its end"
 tleft() { if [ "$WALLSEC" -gt 0 ]; then echo $(( WALLSEC - SECONDS - MARGIN )); else echo off; fi; }
 
-donefile() { case $1 in one) echo all.done;; 01) echo 01_equil.done;; 02) echo 02_dehydrate.done;; 03) echo 03_consolidate_$2.done;; 04) echo shear_$2.done;; 05) echo heal_$2.done;; esac; }
+donefile() { case $1 in one) echo all.done;; water) echo water.done;; 01) echo 01_equil.done;; 02) echo 02_dehydrate.done;; 03) echo 03_consolidate_$2.done;; 04) echo shear_$2.done;; 05) echo heal_$2.done;; esac; }
 want() { [ "$STAGES" = all ] || [[ " $STAGES " == *" $1 "* ]]; }
 next_work() {   # "STAGE SIGMA" of the first unfinished stage: 01, 02, then 03 04 05 for each sigma in turn; nothing when all is done
   local st S
   # STAGES=one: everything in one input file (in.all), every run nrun steps
   if [ "$STAGES" = one ]; then [ -f all.done ] || echo "one -"; return; fi
+  if [ "$STAGES" = water ]; then [ -f water.done ] || echo "water -"; return; fi
   for st in 01 02; do want $st && [ ! -f "$(donefile $st)" ] && { echo "$st -"; return; }; done
   for S in $SIGMAS; do for st in 03 04 05; do want $st && [ ! -f "$(donefile $st $S)" ] && { echo "$st $S"; return; }; done; done
 }
@@ -275,17 +276,19 @@ run_stage() {
       if [ -n "$R" ]; then ${RUN} -in in.05_heal -var resume 1 -var rfile $R -var sigma $S $V
       else [ -f shear_${S}_final.data ] || missing_input shear_${S}_final.data
            ${RUN} -in in.05_heal -var data shear_${S}_final.data -var settings gouge.settings -var sigma $S $V; fi ;;
-  one) set -- $SIGMAS   # in.all: 01, 02, then 03 04 05 at the first two normal stresses; it goes on from all.state itself.
+  one|water)   # in.all (one) / in.water (water: a series of water contents): every stage in one input file; it goes on from <name>.state itself.
       # With a time limit it does one run per start: started again while time is left, until all is done or the time limit stopped a run
-      [ -n "${3:-}" ] && echo "note: in.all takes two normal stresses; $SIGMAS: only $1 and $2"
+      local IN=in.all STF=all.state; [ $st = water ] && { IN=in.water; STF=water.state; }
+      set -- $SIGMAS
+      [ -n "${3:-}" ] && echo "note: $IN takes two normal stresses; $SIGMAS: only $1 and $2"
       rc=0
       while :; do
-        RES=0; [ -f all.state ] && RES=1
-        ${RUN} -in in.all -var data gouge.data -var settings gouge.settings -var sig1 $1 -var sig2 ${2:-0} -var resume $RES -var tlimit $TL ${EXTRA} ${PLVAR}; rc=$?
-        { [ $rc -ne 0 ] || [ -f all.done ] || grep -q "mid equal 1" all.state 2>/dev/null; } && break
+        RES=0; [ -f $STF ] && RES=1
+        ${RUN} -in $IN -var data gouge.data -var settings gouge.settings -var sig1 $1 -var sig2 ${2:-0} -var resume $RES -var tlimit $TL ${EXTRA} ${PLVAR}; rc=$?
+        { [ $rc -ne 0 ] || [ -f "$(donefile $st)" ] || grep -q "mid equal 1" $STF 2>/dev/null; } && break
         TL=$(tleft)
-        if [ "$TL" != off ] && [ "$TL" -lt "${MIN_LEFT:-180}" ]; then echo "only ${TL} s left: the next job goes on ($(head -1 all.state 2>/dev/null))"; break; fi
-        echo "-- in.all: next run $(head -1 all.state 2>/dev/null | awk '{print $4}')  $(date)  LAMMPS time limit ${TL} s"
+        if [ "$TL" != off ] && [ "$TL" -lt "${MIN_LEFT:-180}" ]; then echo "only ${TL} s left: the next job goes on ($(head -1 $STF 2>/dev/null))"; break; fi
+        echo "-- $IN: next run $(head -1 $STF 2>/dev/null | awk '{print $4}')  $(date)  LAMMPS time limit ${TL} s"
       done
       (exit $rc) ;;
   *)  echo "unknown STAGE $st"; exit 1 ;;
@@ -355,5 +358,25 @@ if [ -f hot_spots.py ] && ls shear_*.dat >/dev/null 2>&1; then
     if tmo "$FT" $PYF hot_spots.py "$PWD" --outdir figs --budget "$FT" > figs/hot_spots.log 2>&1; then echo "figures: $PWD/figs  ($(tail -1 figs/hot_spots.log))"
     else echo "note: hot_spots.py did not finish (figs/hot_spots.log): $(tail -2 figs/hot_spots.log | tr '\n' ' ')"; fi
   else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $PWD; ../sifpy hot_spots.py . --outdir figs (../make_sif.sh first)"; fi
+fi
+# a series of water contents (in.water): figures of the kind of Lin & Hatano (2024) against the porosity (lin_figs.py, figs/lin_*), then the hot-spot
+# figures of each water content (hot_spots.py, w<m_w/m_c>/figs) in the time left
+if [ "$STAGES" = water ] && [ -f lin_figs.py ] && [ -f hot_spots.py ] && ls w*/shear_*.dat >/dev/null 2>&1; then
+  PYF=${PYTHON:-python3}
+  FT=$(( WALLSEC > 0 ? WALLSEC - SECONDS - 60 : 900 ))
+  if [ "$FT" -lt 60 ]; then echo "figures: no time left in this job (the next one makes them)"
+  elif $PYF -c "import numpy, matplotlib" >/dev/null 2>&1; then
+    mkdir -p figs
+    if tmo "$FT" $PYF lin_figs.py "$PWD" --outdir figs > figs/lin_figs.log 2>&1; then echo "figures: $PWD/figs/lin_*.png"
+    else echo "note: lin_figs.py did not finish (figs/lin_figs.log): $(tail -2 figs/lin_figs.log | tr '\n' ' ')"; fi
+    for w in w*/; do
+      w=${w%/}; ls $w/shear_*.dat >/dev/null 2>&1 || continue
+      FT=$(( WALLSEC > 0 ? WALLSEC - SECONDS - 60 : 900 )); [ "$FT" -lt 60 ] && break
+      for f in gouge.data config.env; do [ -e $w/$f ] || ln -s ../$f $w/$f; done
+      mkdir -p $w/figs
+      tmo "$FT" $PYF hot_spots.py "$PWD/$w" --outdir $w/figs --budget "$FT" > $w/figs/hot_spots.log 2>&1 && echo "figures: $PWD/$w/figs" \
+        || echo "note: hot_spots.py $w did not finish ($w/figs/hot_spots.log)"
+    done
+  else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $PWD; ../sifpy lin_figs.py . (../make_sif.sh first)"; fi
 fi
 echo "end $(date)"

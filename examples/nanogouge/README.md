@@ -103,6 +103,23 @@ and 4 velocity steps) and 05 at each of the two normal stresses, every run `nrun
 stages. With PBS: `env WALLTIME=0:30:00 ./go.sh 22 "5.6 56" one 4` (folder `RUN_N22_one`; each run ends with `all.restart` and `all.state`, so the next job
 goes on; `NRUN=2000` changes the run length). By hand: `lmp -in in.all -var data gouge.data -var settings gouge.settings [-var nrun 2000 -var ndry 20 -var sig2 0]`.
 
+### Shear at several water contents (porosities): `go_water.sh`, Lin & Hatano (2024)-type figures
+
+`env WALLTIME=0:30:00 ./go_water.sh 22 "2 1 0.5 0.2" "5.6 56" 1` (N, m_w/m_c from wet to dry, normal stresses, nodes; folder `RUN_N22_water`).
+`lammps/in.water` dehydrates once from the wet start (m_w/m_c = 3) and stops at each listed water content: the gouge of that moment goes to
+`w<m_w/m_c>/` (`02_dehydrate.data`), is consolidated (03), sheared (04: 1e9 /s to the strain `GMAX` = 1, then `NVS` = 2 velocity steps ×3.16 of
+`GSTEP` = 0.5 strain each, to 1e10 /s) and held at σn (05, `HOLD` = 20000 steps), at each normal stress; then the dehydration goes on.
+`water_contents.dat` lists the reached m_w/m_c, water number, dry bulk density and Lz. Porosity of water-filled pores φ = (m_w/m_c) / (m_w/m_c + ρw/ρs):
+m_w/m_c 2, 1, 0.5, 0.2 → φ 0.84, 0.73, 0.57, 0.35. `env BY=phi ./go_water.sh 22 "0.85 0.7 0.55 0.4"` takes porosities. A test of everything with every
+run 1000 steps: `env NRUN=1000 WALLTIME=0:30:00 ./go_water.sh 22 "2 0.5" "5.6 56" 1` (folder `RUN_N22_water_test1000`).
+The jobs draw (`analysis/lin_figs.py`; by hand `./sifpy analysis/lin_figs.py RUN_N22_water`) in `RUN_N22_water/figs`:
+`lin_fig5_rate.png` (μ and φ against the strain rate per water content), `lin_fig6_profiles_<σ>.png` (velocity profile per rate and particle-normal
+angle to z across the gouge), `lin_fig7_stacking.png` (parallel radial distribution function g∥(r) at the start / end of the shear, stacked neighbours
+per particle against the strain), `lin_fig8_healing.png` (stacked neighbours against the rest time in the hold, a + b log10 t; b against φ),
+`lin_fig9_a_b.png` ((a − b) = Δμss / ln(V2/V1) between the velocity steps against φ), `lin_fig10_band.png` (R² of the velocity profile against the
+strain; share of the height that shears against φ), `lin_porosity.png` (μ, (a − b), R², stacking against φ), numbers in `lin_points.csv`, `lin_heal.csv`;
+and the hot-spot figures of each water content in `w<m_w/m_c>/figs`.
+
 A quick test of the whole chain (all stages, all outputs, the figures): `env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4` runs every
 run of every stage for 1000 steps (02: one water removal; 04: each of its 5 phases; outputs every 100 steps) in its own folder `RUN_N22_test1000`
 (the structure of `RUN_N22` is copied when it is there). The numbers mean nothing; it shows that everything runs and is written.

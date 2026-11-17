@@ -33,6 +33,8 @@ N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; B
 if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
 # stages "one": everything in one input file (lammps/in.all, every run 5000 steps), in its own folder RUN_N<N>_one
 if [ "$ST" = one ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_one; fi
+# stages "water": a series of water contents (lammps/in.water; go_water.sh), in its own folder RUN_N<N>_water
+if [ "$ST" = water ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_water; fi
 [ -n "${4:-}" ] && export NODES=$4      # 4th argument = number of nodes (works in any shell, no "NODES=4 ./go.sh" needed)
 # ---- one python for everything: ./sifpy (Singularity image of make_sif.sh: python 3.11, numpy, scipy, matplotlib), made once when missing;
 #      PYTHON=... overrides it.  No pip.  A failed make_sif.sh (no internet?) is not tried again by go.sh (.sifpy_failed): run ./make_sif.sh by hand.
@@ -100,6 +102,15 @@ if [ -n "${GMAX:-}" ]; then set_opt gmax "$GMAX"; fi
 if [ -n "${NVS:-}" ]; then set_opt nvs "$NVS"; fi
 if [ -n "${NRUN:-}" ]; then set_opt nrun "$NRUN"; fi
 if [ -n "${VFAC:-}" ]; then set_opt vfac "$VFAC"; fi
+if [ -n "${HEAL:-}" ]; then set_opt heal "$HEAL"; fi
+if [ -n "${GSTEP:-}" ]; then set_opt gstep "$GSTEP"; fi
+if [ -n "${HOLD:-}" ]; then set_opt nhold "$HOLD"; fi
+if [ -n "${DFRAC:-}" ]; then set_opt dfrac "$DFRAC"; fi
+# WLIST (go_water.sh): the water contents m_w/m_c of in.water, wet to dry, at most 8
+if [ -n "${WLIST:-}" ]; then
+  i=0; for w in $WLIST; do i=$((i+1)); set_opt w$i "$w" >/dev/null; done
+  set_opt nw $i
+fi
 $S $RUN "$SIG" "$ST"
 echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; figures in $RUN/figs)"
 
