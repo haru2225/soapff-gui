@@ -280,7 +280,8 @@ run_stage() {
       [ -n "${3:-}" ] && echo "note: in.all takes two normal stresses; $SIGMAS: only $1 and $2"
       rc=0
       while :; do
-        ${RUN} -in in.all -var data gouge.data -var settings gouge.settings -var sig1 $1 -var sig2 ${2:-0} -var tlimit $TL ${EXTRA} ${PLVAR}; rc=$?
+        RES=0; [ -f all.state ] && RES=1
+        ${RUN} -in in.all -var data gouge.data -var settings gouge.settings -var sig1 $1 -var sig2 ${2:-0} -var resume $RES -var tlimit $TL ${EXTRA} ${PLVAR}; rc=$?
         { [ $rc -ne 0 ] || [ -f all.done ] || grep -q "mid equal 1" all.state 2>/dev/null; } && break
         TL=$(tleft)
         if [ "$TL" != off ] && [ "$TL" -lt "${MIN_LEFT:-180}" ]; then echo "only ${TL} s left: the next job goes on ($(head -1 all.state 2>/dev/null))"; break; fi

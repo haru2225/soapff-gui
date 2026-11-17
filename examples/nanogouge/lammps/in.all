@@ -11,7 +11,7 @@
 #   lmp -in in.all -var data gouge.data -var settings gouge.settings -var sig1 56 -var sig2 0 -var nrun 2000
 #   PBS: ./go.sh 22 "5.6 56" one 4   (3rd argument "one": the jobs of the chain run this file in RUN_N22_one)
 # Continued: each run ends with all.restart and all.state (what comes next); a run that the time limit (-var tlimit, s) stops writes them too, so
-# started again in the same folder (the next job), this file goes on where it stopped, also inside a run.  To start from the beginning: delete all.state.
+# started again in the same folder with -var resume 1 (job.sh does it), this file goes on where it stopped, also inside a run.
 variable data index gouge.data
 variable settings index gouge.settings
 variable nrun index 5000              # steps of every run
@@ -53,7 +53,9 @@ variable nw0 equal -1
 variable kk equal 0
 variable Gb equal 0.0
 variable rprev equal 0.0
-if "$(is_file(all.state)) > 0" then "include all.state"
+# -var resume 1 (job.sh gives it when all.state is there): go on from all.state (no is_file(): not in every LAMMPS)
+variable resume index 0
+if "${resume} == 1" then "include all.state"
 # an all.state of the first version of this file
 if "${st} == equil1" then "variable st string min"
 if "${st} == equil2" then "variable st string npt"
