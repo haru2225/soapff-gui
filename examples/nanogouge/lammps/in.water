@@ -230,7 +230,7 @@ print "in.water: 04 phase ${kk}: rate $(v_rk*1e15:%.4g) /s, steps ${Sb} -> ${Se}
 compute tdef all temp/deform
 thermo_modify temp tdef
 compute ty all temp/partial 0 1 0
-fix fs all nph z ${Pn} ${Pn} ${Pdamp} dilate all ptemp ${T}
+fix fs all nph z ${Pn} ${Pn} ${Pdamp} dilate all
 fix_modify fs temp tdef
 if "${flow} == 1" then "fix fl all langevin ${T} ${T} ${Tdamp} ${seed}" "fix_modify fl temp tdef"
 if "${flow} == 2" then "fix fl all langevin ${T} ${T} ${Tdamp} ${seed}" "fix_modify fl temp ty"

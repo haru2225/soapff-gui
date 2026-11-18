@@ -46,7 +46,7 @@ compute ty all temp/partial 0 1 0
 if "${flow} == 0" then "fix fs all nvt/sllod temp ${T} ${T} 100.0" "fix_modify fs temp tdef"
 if "${flow} == 0 && ${pl} == 1" then "fix fp all press/langevin z ${Pn} ${Pn} ${Pdamp} temp ${T} ${T} ${seed} dilate all"
 # flow 1-3: Nose-Hoover barostat on z (integrates the motion too), Langevin thermostat on the velocity without the shear flow
-if "${flow} > 0" then "fix fs all nph z ${Pn} ${Pn} ${Pdamp} dilate all ptemp ${T}" "fix_modify fs temp tdef"
+if "${flow} > 0" then "fix fs all nph z ${Pn} ${Pn} ${Pdamp} dilate all" "fix_modify fs temp tdef"
 if "${flow} == 1" then "fix fl all langevin ${T} ${T} ${Tdamp} ${seed}" "fix_modify fl temp tdef"
 if "${flow} == 2" then "fix fl all langevin ${T} ${T} ${Tdamp} ${seed}" "fix_modify fl temp ty"
 compute pt all pressure tdef
