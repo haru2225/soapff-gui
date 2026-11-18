@@ -1,7 +1,7 @@
 # in.water: shear at several water contents in one input file.  One dehydration goes from the wet start (m_w/m_c ~ 3) to the driest target;
 # each time it reaches a target water content w1 > w2 > ... (m_w/m_c = water mass / dry clay mass), the gouge of that moment goes to its folder
 # w<m_w/m_c>/ and is consolidated (03), sheared (04: rate, then nvs velocity steps) and held (05) there at sig1 and sig2; then the dehydration
-# goes on from where it was.  Every run nrun steps.
+# goes on from where it was.  Every run nrun steps; 02-05 nfac x their steps (-var nfac 2, go_water.sh NFAC=2).
 #   01 minimisation, NVT nrun, NPzT nrun at 1 atm                        -> 01_equil.data
 #   02 removals of dfrac of the initial water (the last one down to the target), NPzT nrun after each   -> dehydrate.dat, water_contents.dat
 #   per water content and normal stress: 03 NPzT nrun at sigma; 04 shear at rate (strain gmax; gmax 0: nrun steps), then nvs velocity steps
@@ -12,7 +12,8 @@
 # Continued: each run ends with water.restart and water.state; -var resume 1 (job.sh) goes on from them, also inside a run.
 variable data index gouge.data
 variable settings index gouge.settings
-variable nrun index 5000              # steps of every run
+variable nrun index 5000              # steps of every run of 01 (NVT, NPzT)
+variable nfac index 1                 # 02, 03, 04, 05 run nfac x their steps (nrun; 04: its strain; 05: nhold) (go_water.sh: NFAC=2)
 variable sig1 index 5.6               # MPa
 variable sig2 index 56                # MPa; 0 = none
 variable nw index 4                   # number of water contents (w1 ... w8, from wet to dry)
@@ -49,6 +50,7 @@ variable dump_group index clay        # atoms in the trajectories (clay or all)
 variable tlimit index off             # s of wall time for this LAMMPS (job.sh sets it from the PBS wall time).  Given: ONE run, then LAMMPS ends
                                       # (job.sh starts it again with the time left: no clock is needed in here, any LAMMPS version)
 variable nout equal $(10*round(v_nrun/100)+10*(round(v_nrun/100)<1))   # output interval: a tenth of a run (a multiple of 10)
+variable n2 equal $(round(v_nrun*v_nfac))   # steps of each run of 02 03 (and 04 with gmax 0)
 variable nextpr equal (floor((step+v_nout-1)/v_nout)+1)*v_nout   # lines of the .dat files: from one interval after the start of a run
 log log.water append
 
@@ -65,6 +67,10 @@ variable kk equal 0
 variable Sb equal 0
 variable Gb equal 0.0
 variable rprev equal 0.0
+# S0, S1: first and last step of the run st (kept in water.state: a run stopped by the time limit ends where it was to end, also when
+# nrun or nfac were changed meanwhile; S1 = -1: a water.state of an earlier version)
+variable S0 equal 0
+variable S1 equal -1
 # go on from water.state when it is there (always: also with a job script that does not give -var resume).  print ... append makes the file
 # when it is missing (no is_file() in every LAMMPS): a new folder starts from the beginning.  From the beginning again: delete water.state.
 variable resume index 0
@@ -148,8 +154,10 @@ if "${mid} == 0" then "velocity all create ${T} ${seed} dist gaussian mom yes ro
 dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
 dump_modify dm append yes
 fix fnvt all nvt temp ${T} ${T} 100.0
-run ${nrun} upto
-if "$(step) < ${nrun}" then "jump SELF stop"
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_nrun)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_nrun)"
+run ${S1} upto
+if "$(step) < ${S1}" then "jump SELF stop"
 variable st string npt
 jump SELF next
 
@@ -157,8 +165,10 @@ label s_npt
 dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
 dump_modify dm append yes
 fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
-run $(2*v_nrun) upto
-if "$(step) < $(2*v_nrun)" then "jump SELF stop"
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_nrun)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_nrun)" "variable S1 equal $(2*v_nrun)"
+run ${S1} upto
+if "$(step) < ${S1}" then "jump SELF stop"
 write_data 01_equil.data
 print "DONE 01" file 01_equil.done
 variable st string dry
@@ -180,8 +190,10 @@ print "in.water: 02 removal $(v_kc+1): $(count(wO)) water molecules left (target
 dump dm ${dump_group} custom ${nout} 02_dehydrate.dump id mol type xu yu zu
 dump_modify dm append yes
 fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
-run $((v_kc+1)*v_nrun) upto
-if "$(step) < $((v_kc+1)*v_nrun)" then "jump SELF stop"
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_n2)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_kc*v_nrun)" "variable S1 equal $((v_kc+1)*v_nrun)"
+run ${S1} upto
+if "$(step) < ${S1}" then "jump SELF stop"
 print "$(v_kc+1) $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
 variable kc equal $(v_kc+1)
 write_restart dry.restart
@@ -205,8 +217,10 @@ if "${mid} == 0" then "print '# TimeStep v_lzv v_dens' file ${wd}/03_consolidate
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g)" append ${wd}/03_consolidate_${sigma}.dat screen no
 dump dm ${dump_group} custom ${nout} ${wd}/03_consolidate_${sigma}.dump id mol type xu yu zu
 if "${mid} == 1" then "dump_modify dm append yes"
-run ${nrun} upto
-if "$(step) < ${nrun}" then "jump SELF stop"
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_n2)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_nrun)"
+run ${S1} upto
+if "$(step) < ${S1}" then "jump SELF stop"
 write_data ${wd}/03_consolidate_${sigma}.data
 print "DONE 03" file ${wd}/03_consolidate_${sigma}.done
 variable st string shear
@@ -221,8 +235,12 @@ label s_shear
 variable rk equal $(v_rate*v_vfac^v_kk)
 # steps of this phase: nrun, or the strain gmax (first rate) / gstep (velocity steps) at this rate; outputs about 200 per phase, dumps about 50
 variable gk equal $(v_gmax*(v_kk==0)+v_gstep*(v_kk>0))
-variable L equal $(v_nrun*(v_gmax<=0)+round(v_gk/(v_rk*v_dt))*(v_gmax>0))
-variable Se equal $(v_Sb+v_L)
+variable L0 equal $(v_nrun*(v_gmax<=0)+round(v_gk/(v_rk*v_dt))*(v_gmax>0))
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+round(v_L0*v_nfac))"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal ${Sb}" "variable S1 equal $(v_Sb+v_L0)"
+variable Sb equal ${S0}
+variable Se equal ${S1}
+variable L equal $(v_Se-v_Sb)
 variable nso equal $(v_nout*(1+floor(v_L/(200*v_nout))))
 variable ndump equal $(v_nout*(1+floor(v_L/(50*v_nout))))
 variable nextpr equal (floor((step+v_nso-1)/v_nso)+1)*v_nso
@@ -289,7 +307,8 @@ jump SELF sig_done
 
 # ================= 05 hold at sigma after the shear =================
 label s_heal
-variable NH equal $(v_nhold+(v_nrun-v_nhold)*(v_nhold<=0))
+variable NH0 equal $(v_nhold+(v_nrun-v_nhold)*(v_nhold<=0))
+variable NH equal $(round(v_NH0*v_nfac))
 variable ndump equal $(v_nout*(1+floor(v_NH/(50*v_nout))))
 compute pt all pressure thermo_temp
 variable ss equal -c_pt[5]*0.101325
@@ -312,8 +331,10 @@ if "${mid} == 0" then "print '# TimeStep v_ss v_sn v_lzv v_dens' file ${wd}/heal
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g)" append ${wd}/heal_${sigma}.dat screen no
 dump dm ${dump_group} custom ${ndump} ${wd}/heal_${sigma}.dump id mol type xu yu zu
 if "${mid} == 1" then "dump_modify dm append yes"
-run ${NH} upto
-if "$(step) < ${NH}" then "jump SELF stop"
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_NH)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_NH0)"
+run ${S1} upto
+if "$(step) < ${S1}" then "jump SELF stop"
 write_data ${wd}/heal_${sigma}_final.data
 print "DONE 05" file ${wd}/heal_${sigma}.done
 jump SELF sig_done
@@ -345,6 +366,8 @@ print "variable Sb equal ${Sb}" append water.state
 print "variable Gb equal ${Gb}" append water.state
 print "variable rprev equal ${rprev}" append water.state
 print "variable mid equal ${mid}" append water.state
+print "variable S0 equal ${S0}" append water.state
+print "variable S1 equal ${S1}" append water.state
 if "${quitnow} == 1" then "print 'in.water: the time limit stopped ${st} at step $(step); the next job goes on from water.restart'" "quit 0"
 if "x${tlimit} != xoff" then "print 'in.water: run done, next: ${st} (one run per LAMMPS when tlimit is given; job.sh starts the next one)'" "quit 0"
 jump SELF unit

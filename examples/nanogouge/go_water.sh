@@ -14,6 +14,7 @@
 #   GSTEP=0.5     strain of each velocity step;  HOLD=20000  steps of the hold after the shear (default 20000 = 20 ps; HEAL=0: no hold)
 #   NRUN=1000     a quick test of everything: every run NRUN steps (also the shear and the hold), folder RUN_N<N>_water_test<NRUN>
 #   DFRAC=0.1     each water removal takes this fraction of the initial water (default 0.1)
+#   NFAC=2        02, 03, 04, 05 twice as long (their steps; the shear: its strain; the hold: HOLD); also in a running folder, from its next run on
 #   DT, DUMP, FLOW, VFAC: as go.sh
 # Figures (the jobs draw them after each job; by hand:  ./sifpy analysis/lin_figs.py RUN_N22_water):  RUN_N22_water/figs/lin_*.png
 set -eu
