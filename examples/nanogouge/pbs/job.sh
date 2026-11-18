@@ -302,6 +302,17 @@ run_stage() {
   # how far this job got: the last thermo line of the stage (step ... last column = time steps per second)
   local L; L=$(ls -t log.${st}* 2>/dev/null | head -1)
   [ -n "$L" ] && echo "LAMMPS ended $(date) with status $rc.  last thermo line of $L (step temp pe ... steps/s):" && grep -E "^ +[0-9]+ +[0-9.-]+ " "$L" | tail -1 | awk '{print "   step", $1, "  T", $2, "  steps/s", $NF}'
+  [ $rc -eq 0 ] && rm -f .killed
+  if [ $rc -eq 137 ] || [ $rc -eq 143 ] || [ $rc -eq 134 ]; then
+    # killed from outside (137 = SIGKILL, 143 = SIGTERM, 134 = abort): mostly the memory of a node (the kernel kills the biggest process), else the
+    # node or MPI.  Not an error of the input: the next job goes on from the last restart; three kills in a row stop the chain.
+    local n; n=$(( $(cat .killed 2>/dev/null || echo 0) + 1 )); echo $n > .killed
+    echo "LAMMPS was killed from outside (status $rc = signal $((rc - 128))): out of memory on a node, or the node / MPI.  Kill $n in a row."
+    echo "  memory: $(qstat -f ${PBS_JOBID:-none} 2>/dev/null | grep -E 'resources_used.mem|resources_used.vmem|Resource_List.mem|Resource_List.select' | tr -s ' ' | tr '\n' ' ')"
+    echo "  node: $(free -g 2>/dev/null | awk '/^Mem/{print "total " $2 " GB, used " $3 " GB, free " $4 " GB"}')"
+    for f in $(ls -t log.${st}* 2>/dev/null | head -1); do echo "--- last lines of $f"; grep -E "^(in\.(all|water)|ERROR|WARNING)" "$f" | tail -3; tail -2 "$f"; done
+    if [ $n -lt 3 ]; then echo "the next job goes on from the last restart"; return 1; fi
+  fi
   if [ $rc -ne 0 ]; then
     # LAMMPS stopped with an error (a stop by the time limit ends with status 0): do not let the following jobs repeat it
     echo "stage $st sigma $S job ${PBS_JOBID:-} $(date): LAMMPS ended with status $rc" > chain.failed
