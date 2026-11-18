@@ -18,6 +18,7 @@
 #   ./go.sh 22 "5.6 56" one 4   everything in ONE input file, lammps/in.all: 01 (minimisation, NVT, NPzT), 02 (10 water removals), then 03, 04 (5 rates),
 #                 05 at each normal stress; every run 5000 steps (NRUN=2000 changes it); in its own folder RUN_N22_one; a job stopped by the wall time
 #                 is continued by the next one (all.state)
+#   NFAC=2        "one": the runs of 02, 03, 04, 05 are NFAC x nrun steps (01 stays nrun); also in a running folder: from its next run on
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
 #   Python (build_gouge.py: numpy, scipy; the figures: matplotlib) = ./sifpy, python 3.11 in a Singularity image that make_sif.sh makes once
@@ -101,6 +102,7 @@ if [ -n "${RATE:-}" ]; then set_opt rate "$(awk -v r="$RATE" 'BEGIN{printf "%.6g
 if [ -n "${GMAX:-}" ]; then set_opt gmax "$GMAX"; fi
 if [ -n "${NVS:-}" ]; then set_opt nvs "$NVS"; fi
 if [ -n "${NRUN:-}" ]; then set_opt nrun "$NRUN"; fi
+if [ -n "${NFAC:-}" ]; then set_opt nfac "$NFAC"; fi
 if [ -n "${VFAC:-}" ]; then set_opt vfac "$VFAC"; fi
 if [ -n "${HEAL:-}" ]; then set_opt heal "$HEAL"; fi
 if [ -n "${GSTEP:-}" ]; then set_opt gstep "$GSTEP"; fi

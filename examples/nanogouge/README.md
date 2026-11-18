@@ -101,7 +101,7 @@ Options: `env NVS=0` (no velocity steps), `NVS=2`, `VFAC=10` (×10 each), `RATE=
 Everything in one input file: `lammps/in.all` runs 01 (minimisation, NVT, NPzT), 02 (10 water removals down to m_w/m_c = 0.2), then 03, 04 (the rate
 and 4 velocity steps) and 05 at each of the two normal stresses, every run `nrun` = 5000 steps (26 runs, 130,000 steps), with the same output files as the
 stages. With PBS: `env WALLTIME=0:30:00 ./go.sh 22 "5.6 56" one 4` (folder `RUN_N22_one`; each run ends with `all.restart` and `all.state`, so the next job
-goes on; `NRUN=2000` changes the run length). By hand: `lmp -in in.all -var data gouge.data -var settings gouge.settings [-var nrun 2000 -var ndry 20 -var sig2 0]`.
+goes on; `NRUN=2000` changes the run length; `NFAC=2` doubles the runs of 02-05 only, also in a running folder from its next run on). By hand: `lmp -in in.all -var data gouge.data -var settings gouge.settings [-var nrun 2000 -var ndry 20 -var sig2 0]`.
 
 ### Shear at several water contents (porosities): `go_water.sh`, Lin & Hatano (2024)-type figures
 
