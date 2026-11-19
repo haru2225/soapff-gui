@@ -108,6 +108,12 @@ each run ends with `all.restart` and `all.state`, so the next job goes on). Leng
 `NCONSMAX`, `RATE`, `GMAX`, `NVS`, `GSTEP`, `HOLD`; `MWMC` = m_w/m_c at the end of 02, `MWMC0` = of the new structure; `NFAC=2` doubles 02-05;
 `NRUN=2000`: a test, every run 2000 steps. The speed: `grep Performance RUN_N22_fol/log.one | tail -1` (ns/day).
 
+Dense gouges at a set water content, two fabrics (as Sakuma et al. 2023: nominally randomly oriented NRO and preferentially oriented PO):
+`MWMC0` = 0, 0.1, 0.2 (dry, 10 %, 20 %) builds a loose structure (the box of m_w/m_c 1.5) with the water on the clay surfaces and in the
+interlayers first; LAMMPS compacts it in 01 at the first normal stress (`ORIENT=nro`: stacks at random in a cube, NPT iso; `ORIENT=po`:
+the layers within 10 deg of the shear plane, NPzT), with no dehydration. N=54 (18 stacks of 3) gives a compacted gouge of about two particle
+diameters each way: `env STACK=3 MWMC0=0 ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro` (dry 0.12 M atoms, 20 %: 0.20 M).
+
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
 (tactoids) of 3 at 15.5 A (2 water layers; `D001=12.5`: 1 layer), the stacks at random (structure in `RUN_N<N>_stack3`). Whether they are stacked:

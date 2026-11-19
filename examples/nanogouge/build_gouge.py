@@ -31,6 +31,12 @@ p.add_argument('--clay-density', type=float, default=2.7, help='g/cm3, to size t
 p.add_argument('--stack', type=int, default=1, help='particles per stack: 1 = single particles at random (U&B 2020); k > 1: stacks (tactoids) of k particles '
                'face to face at the layer spacing --d001, each turned at random about its normal; the stacks are placed and oriented at random')
 p.add_argument('--d001', type=float, default=15.5, help='A: layer spacing inside a stack (Na-montmorillonite: 2 water layers ~15.5, 1 layer ~12.5)')
+p.add_argument('--tilt', type=float, default=90.0, help='deg: the normal of each particle (stack) within this angle of z (90 = random orientation, '
+               'nominally randomly oriented; 10 = preferentially oriented, the layers about parallel to the shear plane)')
+p.add_argument('--box-mwmc', type=float, default=None, help='size the box as for this water content (default --mwmc); larger than --mwmc: a loose '
+               'structure (the particles at random need room) with the water of --mwmc on the clay surfaces first (adsorbed, interlayers), '
+               'to be compacted by LAMMPS (in.all c01 iso / z, p01)')
+p.add_argument('--lx', type=float, default=0.0, help='A: Lx = Ly of the box, Lz from the volume (default 0: from --aspect)')
 p.add_argument('--seed', type=int, default=1)
 p.add_argument('-o', '--out', default='gouge')
 a = p.parse_args()
@@ -84,8 +90,11 @@ wat0 -= (wat0 * np.array([M_O, M_H, M_H])[:, None]).sum(0) / M_W          # abou
 
 # ---------------------------------------------------------------- box
 n_w = int(round(a.mwmc * a.n * mass_p / M_W))
-V = a.n * mass_p * 1.66054 / a.clay_density + n_w * 29.9                    # A^3  (1 amu/(g/cm3) = 1.66054 A^3; water 29.9 A^3)
-Lx = (V / a.aspect) ** (1 / 3); L = np.array([Lx, Lx, a.aspect * Lx])
+bw = a.mwmc if a.box_mwmc is None else max(a.box_mwmc, a.mwmc); loose = bw > a.mwmc
+V = a.n * mass_p * 1.66054 / a.clay_density + int(round(bw * a.n * mass_p / M_W)) * 29.9   # A^3  (1 amu/(g/cm3) = 1.66054 A^3; water 29.9 A^3)
+if a.lx > 0: L = np.array([a.lx, a.lx, V / a.lx ** 2])
+else: Lx = (V / a.aspect) ** (1 / 3); L = np.array([Lx, Lx, a.aspect * Lx])
+if loose: print(f'loose structure: the box of m_w/m_c {bw}, the water of m_w/m_c {a.mwmc} on the clay surfaces first')
 print(f'N={a.n}: {n_w} water, box {L[0]:.1f} x {L[1]:.1f} x {L[2]:.1f} A, {(a.n * natp + 3 * n_w)} atoms')
 
 def rotmat(q):
@@ -104,6 +113,16 @@ def rotz(phi):
     c, s_ = np.cos(phi), np.sin(phi)
     return np.array([[c, -s_, 0], [s_, c, 0], [0, 0, 1]])
 
+def roty(t):
+    c, s_ = np.cos(t), np.sin(t)
+    return np.array([[c, 0, s_], [0, 1, 0], [-s_, 0, c]])
+
+def rand_rot():
+    """a random orientation; with --tilt < 90 the normal (z of the particle frame) within tilt of z, uniform on that cap"""
+    if a.tilt >= 90: return rotmat(rng.normal(size=4))
+    ct = 1 - rng.random() * (1 - np.cos(np.radians(a.tilt)))
+    return rotz(rng.random() * 2 * np.pi) @ roty(np.arccos(ct)) @ rotz(rng.random() * 2 * np.pi)
+
 def make_stack(ks):
     """ks particles face to face along z (particle frame): (offset, rotation) of each; the spacing grows by 0.5 A until no two atoms of
     neighbouring particles are closer than --mind"""
@@ -121,7 +140,7 @@ for k in range(a.nconf if a.stack <= 1 else 0):
     ok = True
     for i in range(a.n):
         for t in range(5000):
-            c = rng.random(3) * L; Rm = rotmat(rng.normal(size=4))
+            c = rng.random(3) * L; Rm = rand_rot()
             xyz = (pos0 @ Rm.T + c) % L
             tr = cKDTree(xyz, boxsize=L); good = True
             for (c2, x2, tr2, _) in out:
@@ -142,7 +161,7 @@ for k in range(a.nconf if a.stack > 1 else 0):
         rel, d = make_stack(ks); dmax = max(dmax, d)
         Ru = np.sqrt((1.1 * R) ** 2 + (0.5 * ((ks - 1) * d + thick)) ** 2)
         for t in range(5000):
-            c = rng.random(3) * L; Rm = rotmat(rng.normal(size=4))
+            c = rng.random(3) * L; Rm = rand_rot()
             parts = [((c + Rm @ off) % L, Rm @ Rz) for off, Rz in rel]
             xyzs = [(pos0 @ Rp.T + cp) % L for cp, Rp in parts]
             tr = cKDTree(np.vstack(xyzs), boxsize=L); good = True
@@ -168,14 +187,25 @@ clay_xyz = np.vstack([o[1] for o in out])
 # ---------------------------------------------------------------- water on a jittered grid, random orientation
 tree_c = cKDTree(clay_xyz, boxsize=L)
 samp = rng.random((200000, 3)) * L; dd, _ = tree_c.query(samp); ffree = (dd > a.water_mind).mean()
-spacing = (ffree * L.prod() / n_w) ** (1 / 3)
-print(f'free volume fraction {ffree:.3f}; water grid spacing {spacing:.2f} A (liquid water: 3.10 A)')
-if spacing < 2.75: sys.exit('too much water for the free volume: lower --mwmc or --water-mind')
-ng = np.ceil(L / (spacing * 0.93)).astype(int); g = (np.indices(ng).reshape(3, -1).T + 0.5) * (L / ng)
-g = (g + (rng.random(g.shape) - 0.5) * 0.25 * (L / ng)) % L
-dd, _ = tree_c.query(g); g = g[dd > a.water_mind]
-if len(g) < n_w: sys.exit(f'only {len(g)} water sites for {n_w} molecules')
-g = g[rng.permutation(len(g))[:n_w]]
+if n_w == 0:
+    print(f'free volume fraction {ffree:.3f}; no water (dry)'); g = np.zeros((0, 3))
+elif loose:
+    # liquid-density grid; the sites nearest to the clay first: water on the surfaces and in the interlayers of the stacks, the rest empty
+    ng = np.ceil(L / 3.10).astype(int); g = (np.indices(ng).reshape(3, -1).T + 0.5) * (L / ng)
+    g = (g + (rng.random(g.shape) - 0.5) * 0.15 * (L / ng)) % L
+    dd, _ = tree_c.query(g); keep = dd > a.water_mind; g, dd = g[keep], dd[keep]
+    if len(g) < n_w: sys.exit(f'only {len(g)} water sites for {n_w} molecules')
+    o = np.argsort(dd + rng.random(len(dd)) * 0.3)[:n_w]; g = g[o]
+    print(f'free volume fraction {ffree:.3f}; water on the clay: the sites up to {dd[o].max():.2f} A from a clay atom (liquid density)')
+else:
+    spacing = (ffree * L.prod() / n_w) ** (1 / 3)
+    print(f'free volume fraction {ffree:.3f}; water grid spacing {spacing:.2f} A (liquid water: 3.10 A)')
+    if spacing < 2.75: sys.exit('too much water for the free volume: lower --mwmc or --water-mind')
+    ng = np.ceil(L / (spacing * 0.93)).astype(int); g = (np.indices(ng).reshape(3, -1).T + 0.5) * (L / ng)
+    g = (g + (rng.random(g.shape) - 0.5) * 0.25 * (L / ng)) % L
+    dd, _ = tree_c.query(g); g = g[dd > a.water_mind]
+    if len(g) < n_w: sys.exit(f'only {len(g)} water sites for {n_w} molecules')
+    g = g[rng.permutation(len(g))[:n_w]]
 wxyz = np.empty((n_w, 3, 3))
 for i in range(n_w): wxyz[i] = (wat0 @ rotmat(rng.normal(size=4)).T) + g[i]
 
@@ -218,5 +248,5 @@ with open(f'{a.out}.settings', 'w') as f:
     f.write(f'pair_coeff {T_HW} {T_HW} 0.0 0.0  # hw\npair_coeff {T_OW} {T_OW} 0.1554 3.1655413252962536  # ow\n')
     f.write(f'bond_coeff {B_W} 554.1349 1.0  # O-H (water)\nangle_coeff {A_W} 45.7696 109.47  # HOH (water)\n')
 json.dump(dict(n_particles=a.n, n_water=n_w, atoms_per_particle=natp, n_atom_types=ntypes, type_hw=T_HW, type_ow=T_OW, clay_types=list(range(1, ntp + 1)),
-               mass_clay_amu=a.n * mass_p, S_initial=float(S), box=L.tolist(), seed=a.seed, nconf=a.nconf, mwmc=a.mwmc, stack=a.stack, d001=a.d001), open(f'{a.out}.json', 'w'), indent=1)
+               mass_clay_amu=a.n * mass_p, S_initial=float(S), box=L.tolist(), seed=a.seed, nconf=a.nconf, mwmc=a.mwmc, stack=a.stack, d001=a.d001, tilt=a.tilt, box_mwmc=bw, lx=float(L[0])), open(f'{a.out}.json', 'w'), indent=1)
 print(f'wrote {a.out}.data, {a.out}.settings, {a.out}.json')

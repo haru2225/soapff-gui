@@ -30,6 +30,15 @@
 #                 (default 1: single particles at random, U&B 2020: they stack only during a slow dehydration, ~100 ns);
 #                 its own structure in RUN_N<N>_stack3 (copied to the run folder)
 #   MWMC0=1.5     water content of the new structure (default 3, U&B 2020): less water, fewer atoms (N=22: 0.27 M instead of 0.49 M), a short 02
+#   Dense gouges at a set water content, two fabrics (as Sakuma et al. 2023: nominally randomly oriented NRO, preferentially oriented PO):
+#   MWMC0=0, 0.1, 0.2 (dry, 10 %, 20 % = m_w/m_c), below 1.5: a loose structure (the box of m_w/m_c 1.5, BOXW) with the water on the clay
+#                 surfaces and in the interlayers first, compacted in 01 at the first normal stress (barostat drag 1), no dehydration (02 skipped)
+#   ORIENT=nro    stacks at random orientation in a cube, compacted the same in x, y, z (01 NPT iso): nominally random (default)
+#   ORIENT=po     stacks with their layers within 10 deg of the shear plane (TILT=10) in a tall box Lx = Ly = LX (default ~ the compacted
+#                 height), compacted along z (01 NPzT): preferentially oriented.  E.g. (N=54: 18 stacks of 3, the compacted gouge about
+#                 2 particle diameters each way; dry 0.12 M atoms, 20 %: 0.20 M):
+#                 env STACK=3 MWMC0=0   ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro
+#                 env STACK=3 MWMC0=0.1 ORIENT=po  WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0.1_po
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
@@ -45,8 +54,18 @@ N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; B
 # the folder of the initial structure (seed 1): RUN_N<N>, or RUN_N<N>_stack<k> for stacks (STACK=k)
 STACK=${STACK:-1}; case "$STACK" in [1-9]) ;; *) echo "STACK=$STACK: particles per stack, 1 to 9"; exit 1;; esac
 MWMC0=${MWMC0:-3}
-awk -v w="$MWMC0" 'BEGIN{ exit !(w + 0 > 0 && w + 0 <= 5) }' || { echo "MWMC0=$MWMC0: the water content of the new structure, 0 < m_w/m_c <= 5"; exit 1; }
+awk -v w="$MWMC0" 'BEGIN{ exit !(w + 0 >= 0 && w + 0 <= 5) }' || { echo "MWMC0=$MWMC0: the water content of the new structure, 0 <= m_w/m_c <= 5"; exit 1; }
+ORIENT=${ORIENT:-nro}; case "$ORIENT" in nro) TILT=${TILT:-90};; po) TILT=${TILT:-10};; *) echo "ORIENT=$ORIENT: nro or po"; exit 1;; esac
+# below m_w/m_c 1.5 the particles do not fit at random: a loose structure (the box of BOXW), compacted by LAMMPS in 01, no dehydration
+BOXW=${BOXW:-1.5}; LOOSE=$(awk -v w="$MWMC0" -v b="$BOXW" 'BEGIN{print (w + 0 < b + 0) ? 1 : 0}')
+[ -z "${D001:-}" ] && [ "$(awk -v w="$MWMC0" 'BEGIN{print (w + 0 < 0.15)}')" = 1 ] && D001=12.5     # dry, 10 %: 1 water layer (or none)
+SHAPE=""
+if [ "$LOOSE" = 1 ]; then
+  # nro: a cube (compacted iso, stays a cube); po: Lx = Ly about the compacted height (clay 24,630 A^3 per particle, porosity ~0.4)
+  if [ "$ORIENT" = po ]; then SHAPE="--lx ${LX:-$(awk -v n="$N" 'BEGIN{printf "%.1f", (n * 41000) ^ (1 / 3)}')}"; else SHAPE="--aspect 1"; fi
+fi
 GB=$BASE; [ "$STACK" -gt 1 ] && GB=${GB}_stack$STACK; [ "$(awk -v w="$MWMC0" 'BEGIN{print (w + 0 == 3)}')" = 1 ] || GB=${GB}_w$MWMC0
+[ "$ORIENT" = po ] && GB=${GB}_po
 # NRUN (a short test of the whole chain) never goes into a running folder: its own folder RUN_N<N>_test<NRUN> unless a 5th argument is given
 if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
 # stages "one": everything in one input file (lammps/in.all, every run 5000 steps), in its own folder RUN_N<N>_one
@@ -96,7 +115,8 @@ if [ ! -f "$RUN/gouge.data" ]; then
       || { echo "no python with numpy and scipy to build the structure: ./sifpy could not be made (see above; ./make_sif.sh needs internet once)"; exit 1; }
     # seed 1 in another folder (a test, a rate series): built in RUN_N<N> and copied, so all of them start from the same structure
     OUT=$RUN; if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ]; then OUT=$GB; mkdir -p "$GB"; fi
-    $PY build_gouge.py -n $N --mwmc $MWMC0 --nconf $NCONF --seed $SEED --stack $STACK ${D001:+--d001 $D001} -o "$OUT/gouge" || { echo "build_gouge.py failed"; exit 1; }
+    $PY build_gouge.py -n $N --mwmc $MWMC0 --nconf $NCONF --seed $SEED --stack $STACK ${D001:+--d001 $D001} --tilt $TILT \
+        $([ "$LOOSE" = 1 ] && echo "--box-mwmc $BOXW") $SHAPE -o "$OUT/gouge" || { echo "build_gouge.py failed"; exit 1; }
     if [ "$OUT" != "$RUN" ]; then cp "$GB/gouge.data" "$GB/gouge.settings" "$RUN/"; [ -f "$GB/gouge.json" ] && cp "$GB/gouge.json" "$RUN/"; echo "$RUN: structure built in $GB (for its real run too) and copied"; fi
   fi
   # another seed: LAMMPS uses it too (velocities, water removal, thermostat); job.sh reads lammps_seed
@@ -130,6 +150,13 @@ if [ -n "${DRYNS:-}" ]; then set_opt tdry "$DRYNS"; fi
 if [ -n "${NCONS:-}" ]; then set_opt ncons "$NCONS"; fi
 if [ -n "${CONSTOL:-}" ]; then set_opt constol "$CONSTOL"; fi
 if [ -n "${NCONSMAX:-}" ]; then set_opt nconsmax "$NCONSMAX"; fi
+# a loose structure: compacted in 01 at the first normal stress (nro: iso, po: along z), the box damped (drag); no dehydration
+if [ "$LOOSE" = 1 ] && [ "$ST" = one ]; then
+  set_opt c01 "$([ "$ORIENT" = po ] && echo z || echo iso)"
+  set_opt p01 "$(awk -v s="${SIG%% *}" 'BEGIN{printf "%.4g", s * 9.86923}')"
+  set_opt pdrag 1.0
+  [ -z "${DRYNS:-}" ] && set_opt tdry 0
+fi
 # WLIST (go_water.sh): the water contents m_w/m_c of in.water, wet to dry, at most 8
 if [ -n "${WLIST:-}" ]; then
   i=0; for w in $WLIST; do i=$((i+1)); set_opt w$i "$w" >/dev/null; done

@@ -31,6 +31,10 @@ variable nhold index 50000            # 05: steps of the hold (50 ps)
 variable nfac index 1                 # 02, 03, 04, 05 nfac x as long (04: nfac x the strain) (go.sh: NFAC=2)
 variable sig1 index 5.6               # MPa
 variable sig2 index 56                # MPa; 0 = none
+variable c01 index z                  # 01 NPT coupling: z (NPzT) or iso (go.sh for a loose nominally random structure: compacted the same in
+                                      #     x, y, z, its orientations stay random)
+variable p01 index 1.0                # 01 NPT pressure (atm; go.sh for a loose structure: the first normal stress)
+variable pdrag index 0.0              # NPT drag of 01 and 03 (go.sh 1 for a loose structure: damps the box when it is compacted)
 variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
 variable ndry index 10                # 02, a test (nrun > 0) only: number of equal water removals, each followed by nrun steps
 variable rate index 1.0e-6            # 04: first shear rate in 1/fs (1.0e-6 = 1e9 /s)
@@ -178,7 +182,7 @@ variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
 thermo ${nso}
 dump dm ${dump_group} custom ${ndump} 01_equil.dump id mol type xu yu zu
 dump_modify dm append yes
-fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
+fix fnpt all npt temp ${T} ${T} 100.0 ${c01} ${p01} ${p01} 1000.0 drag ${pdrag}
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 write_data 01_equil.data
@@ -237,7 +241,7 @@ variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
 variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
 thermo ${nso}
 variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(5*v_nout))))
-fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
+fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0 drag ${pdrag}
 fix av all ave/time $(v_nso/10) 10 ${nso} v_lzv v_dens
 fix lzc all ave/time 10 $(v_LCO/100) $(v_LCO/10) v_lzv
 if "${mid} == 0 && ${kcs} == 0" then "print '# TimeStep v_lzv v_dens' file 03_consolidate_${sigma}.dat"
