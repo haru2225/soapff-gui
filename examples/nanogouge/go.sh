@@ -39,6 +39,8 @@
 #                 2 particle diameters each way; dry 0.12 M atoms, 20 %: 0.20 M):
 #                 env STACK=3 MWMC0=0   ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro
 #                 env STACK=3 MWMC0=0.1 ORIENT=po  WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0.1_po
+#   NOSUB=1       build the structure only (RUN/gouge.data and RUN/gouge.xyz to look at in OVITO), submit nothing; the same command
+#                 without NOSUB then submits it
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
@@ -123,6 +125,10 @@ if [ ! -f "$RUN/gouge.data" ]; then
   # another seed: LAMMPS uses it too (velocities, water removal, thermostat); job.sh reads lammps_seed
   [ "$SEED" != 1 ] && echo "$SEED" > "$RUN/lammps_seed"
 fi
+# the initial structure for OVITO: $RUN/gouge.xyz (extended XYZ; analysis/data2xyz.py, no numpy needed)
+if [ -f "$RUN/gouge.data" ] && [ ! -f "$RUN/gouge.xyz" ]; then
+  { python3 analysis/data2xyz.py "$RUN/gouge.data" 2>/dev/null </dev/null || ${PY:-false} analysis/data2xyz.py "$RUN/gouge.data" </dev/null; } || echo "(no $RUN/gouge.xyz: python3 analysis/data2xyz.py $RUN/gouge.data)"
+fi
 # a new folder takes the settings the jobs of RUN_N<N> found and checked (your config.env, the LAMMPS build and MPI launcher in lmp.auto)
 if [ "$RUN" != "$BASE" ]; then for f in config.env lmp.auto; do [ -f "$BASE/$f" ] && [ ! -f "$RUN/$f" ] && cp "$BASE/$f" "$RUN/"; done; fi
 if [ -f submit_chain.sh ]; then S=./submit_chain.sh; CE=./config.env; else S=pbs/submit_chain.sh; CE=pbs/config.env; fi
@@ -162,6 +168,9 @@ fi
 if [ -n "${WLIST:-}" ]; then
   i=0; for w in $WLIST; do i=$((i+1)); set_opt w$i "$w" >/dev/null; done
   set_opt nw $i
+fi
+if [ -n "${NOSUB:-}" ]; then
+  echo "NOSUB: $RUN is ready (gouge.data, gouge.xyz for OVITO), nothing submitted.  The same command without NOSUB submits it."; exit 0
 fi
 $S $RUN "$SIG" "$ST"
 echo "submitted. watch with: qstat -u \$USER;  bash $RUN/status.sh $RUN   results in $RUN/ (shear_<sigma>.dat; figures in $RUN/figs)"
