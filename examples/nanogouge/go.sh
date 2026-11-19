@@ -31,7 +31,7 @@
 #                 its own structure in RUN_N<N>_stack3 (copied to the run folder)
 #   MWMC0=1.5     water content of the new structure (default 3, U&B 2020): less water, fewer atoms (N=22: 0.27 M instead of 0.49 M), a short 02
 #   Dense gouges at a set water content, two fabrics (as Sakuma et al. 2023: nominally randomly oriented NRO, preferentially oriented PO):
-#   MWMC0=0, 0.1, 0.2 (dry, 10 %, 20 % = m_w/m_c), below 1.5: a loose structure (the box of m_w/m_c 1.5, BOXW) with the water on the clay
+#   MWMC0=0, 0.1, 0.2 (dry, 10 %, 20 % = m_w/m_c), below 1.5: a loose structure (the box of m_w/m_c 1.5 (po) or 2 (nro), BOXW) with the water on the clay
 #                 surfaces and in the interlayers first, compacted in 01 at the first normal stress (barostat drag 1), no dehydration (02 skipped)
 #   ORIENT=nro    stacks at random orientation in a cube, compacted the same in x, y, z (01 NPT iso): nominally random (default)
 #   ORIENT=po     stacks with their layers within 10 deg of the shear plane (TILT=10) in a tall box Lx = Ly = LX (default ~ the compacted
@@ -56,8 +56,9 @@ STACK=${STACK:-1}; case "$STACK" in [1-9]) ;; *) echo "STACK=$STACK: particles p
 MWMC0=${MWMC0:-3}
 awk -v w="$MWMC0" 'BEGIN{ exit !(w + 0 >= 0 && w + 0 <= 5) }' || { echo "MWMC0=$MWMC0: the water content of the new structure, 0 <= m_w/m_c <= 5"; exit 1; }
 ORIENT=${ORIENT:-nro}; case "$ORIENT" in nro) TILT=${TILT:-90};; po) TILT=${TILT:-10};; *) echo "ORIENT=$ORIENT: nro or po"; exit 1;; esac
-# below m_w/m_c 1.5 the particles do not fit at random: a loose structure (the box of BOXW), compacted by LAMMPS in 01, no dehydration
-BOXW=${BOXW:-1.5}; LOOSE=$(awk -v w="$MWMC0" -v b="$BOXW" 'BEGIN{print (w + 0 < b + 0) ? 1 : 0}')
+# below m_w/m_c 1.5 the particles do not fit at random: a loose structure (the box of BOXW: po 1.5, nro 2 = N=54 stacks at random in a cube),
+# compacted by LAMMPS in 01, no dehydration
+BOXW=${BOXW:-$([ "$ORIENT" = po ] && echo 1.5 || echo 2)}; LOOSE=$(awk -v w="$MWMC0" -v b="$BOXW" 'BEGIN{print (w + 0 < b + 0) ? 1 : 0}')
 [ -z "${D001:-}" ] && [ "$(awk -v w="$MWMC0" 'BEGIN{print (w + 0 < 0.15)}')" = 1 ] && D001=12.5     # dry, 10 %: 1 water layer (or none)
 SHAPE=""
 if [ "$LOOSE" = 1 ]; then

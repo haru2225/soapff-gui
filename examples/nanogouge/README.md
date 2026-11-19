@@ -109,7 +109,7 @@ each run ends with `all.restart` and `all.state`, so the next job goes on). Leng
 `NRUN=2000`: a test, every run 2000 steps. The speed: `grep Performance RUN_N22_fol/log.one | tail -1` (ns/day).
 
 Dense gouges at a set water content, two fabrics (as Sakuma et al. 2023: nominally randomly oriented NRO and preferentially oriented PO):
-`MWMC0` = 0, 0.1, 0.2 (dry, 10 %, 20 %) builds a loose structure (the box of m_w/m_c 1.5) with the water on the clay surfaces and in the
+`MWMC0` = 0, 0.1, 0.2 (dry, 10 %, 20 %) builds a loose structure (the box of m_w/m_c 1.5 for po, 2 for nro) with the water on the clay surfaces and in the
 interlayers first; LAMMPS compacts it in 01 at the first normal stress (`ORIENT=nro`: stacks at random in a cube, NPT iso; `ORIENT=po`:
 the layers within 10 deg of the shear plane, NPzT), with no dehydration. N=54 (18 stacks of 3) gives a compacted gouge of about two particle
 diameters each way: `env STACK=3 MWMC0=0 ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro` (dry 0.12 M atoms, 20 %: 0.20 M).
