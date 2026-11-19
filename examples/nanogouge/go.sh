@@ -33,12 +33,13 @@
 #   Dense gouges at a set water content, two fabrics (as Sakuma et al. 2023: nominally randomly oriented NRO, preferentially oriented PO):
 #   MWMC0=0, 0.1, 0.2 (dry, 10 %, 20 % = m_w/m_c), below 1.5: a loose structure (the box of m_w/m_c 1.5 (po) or 2 (nro), BOXW) with the water on the clay
 #                 surfaces and in the interlayers first, compacted in 01 at the first normal stress (barostat drag 1), no dehydration (02 skipped)
-#   ORIENT=nro    stacks at random orientation in a cube, compacted the same in x, y, z (01 NPT iso): nominally random (default)
-#   ORIENT=po     stacks with their layers within 10 deg of the shear plane (TILT=10) in a tall box Lx = Ly = LX (default ~ the compacted
-#                 height), compacted along z (01 NPzT): preferentially oriented.  E.g. (N=54: 18 stacks of 3, the compacted gouge about
-#                 2 particle diameters each way; dry 0.12 M atoms, 20 %: 0.20 M):
-#                 env STACK=3 MWMC0=0   ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro
-#                 env STACK=3 MWMC0=0.1 ORIENT=po  WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0.1_po
+#   ORIENT=nro    the particles (single, or stacks with STACK) at random orientation in a cube, compacted the same in x, y, z (01 NPT iso):
+#                 nominally random (default)
+#   ORIENT=po     the particles with their layers within 10 deg of the shear plane (TILT=10) in a tall box Lx = Ly = LX (default ~ the
+#                 compacted height), compacted along z (01 NPzT): preferentially oriented.  E.g. (N=54 single particles, the compacted gouge
+#                 about 2 particle diameters each way; dry 0.12 M atoms, 20 %: 0.20 M; NOSUB=1 first to look at RUN/gouge.xyz):
+#                 env MWMC0=0   ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro
+#                 env MWMC0=0.1 ORIENT=po  WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0.1_po
 #   NOSUB=1       build the structure only (RUN/gouge.data and RUN/gouge.xyz to look at in OVITO), submit nothing; the same command
 #                 without NOSUB then submits it
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
@@ -79,7 +80,7 @@ if [ "$ST" = water ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_water; fi
 # ---- one python for everything: ./sifpy (Singularity image of make_sif.sh: python 3.11, numpy, scipy, matplotlib), made once when missing;
 #      PYTHON=... overrides it.  No pip.  A failed make_sif.sh (no internet?) is not tried again by go.sh (.sifpy_failed): run ./make_sif.sh by hand.
 tmo() { local t=$1; shift; if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi; }
-py_ok() { tmo 120 "$@" -c "import numpy, scipy, matplotlib" >/dev/null 2>&1 </dev/null; }
+py_ok() { tmo 120 "$@" -c "import numpy, matplotlib; from scipy.spatial import cKDTree" >/dev/null 2>&1 </dev/null; }
 PY=""
 get_py() {
   [ -n "$PY" ] && return 0
@@ -105,7 +106,7 @@ if [ -n "${FROM:-}" ]; then
   echo "$RUN: starts from the compacted gouge of $FROM (finished there: $(cd "$FROM" && ls *.done 2>/dev/null | tr '\n' ' '))"
 fi
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
-NCONF=${NCONF:-$(if [ "$STACK" -gt 1 ]; then echo 10; elif [ "$N" -gt 20 ]; then echo 30; else echo 300; fi)}   # stacks: 10 (N=22: about 20 s each)
+NCONF=${NCONF:-$(if [ "$STACK" -gt 1 ] || [ "$LOOSE" = 1 ]; then echo 10; elif [ "$N" -gt 20 ]; then echo 30; else echo 300; fi)}   # stacks: 10 (N=22: about 20 s each)
 if [ ! -f "$RUN/gouge.data" ]; then
   mkdir -p "$RUN"
   if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ] && [ -f "$GB/gouge.data" ]; then
@@ -114,8 +115,21 @@ if [ ! -f "$RUN/gouge.data" ]; then
     echo "$RUN: the same initial structure as $GB (copied)"
   else
     # numpy and scipy are needed only here (building a new structure)
-    get_py || { [ -z "${PYTHON:-}" ] && python3 -c "import numpy, scipy" 2>/dev/null </dev/null && PY=python3 && echo "(using python3 of this node, which has numpy and scipy)"; } \
-      || { echo "no python with numpy and scipy to build the structure: ./sifpy could not be made (see above; ./make_sif.sh needs internet once)"; exit 1; }
+    # ./sifpy (Singularity) first; else python3 of this node: build_gouge.py needs only numpy (without a working scipy.spatial it uses a
+    # numpy cell list: the same structure, about 10 times slower)
+    if ! get_py; then
+      [ -n "${PYTHON:-}" ] && { echo "PYTHON=$PYTHON does not work"; exit 1; }
+      for c in "env PYTHONNOUSERSITE=1 python3" python3; do
+        if tmo 120 $c -c "import numpy" >/dev/null 2>&1 </dev/null; then
+          PY=$c
+          if tmo 120 $c -c "from scipy.spatial import cKDTree" >/dev/null 2>&1 </dev/null; then echo "(no ./sifpy: using '$c' of this node, numpy and scipy)"
+          else echo "(no ./sifpy: using '$c' of this node, numpy only: no scipy.spatial, build_gouge.py uses its numpy cell list, slower)"; fi
+          break
+        fi
+      done
+      [ -n "$PY" ] || { echo "no python with numpy to build the structure: ./sifpy could not be made (see above; ./make_sif.sh needs internet once)"; exit 1; }
+    fi
+    echo "build_gouge.py with: $PY"
     # seed 1 in another folder (a test, a rate series): built in RUN_N<N> and copied, so all of them start from the same structure
     OUT=$RUN; if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ]; then OUT=$GB; mkdir -p "$GB"; fi
     $PY build_gouge.py -n $N --mwmc $MWMC0 --nconf $NCONF --seed $SEED --stack $STACK ${D001:+--d001 $D001} --tilt $TILT \

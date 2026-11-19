@@ -110,9 +110,10 @@ each run ends with `all.restart` and `all.state`, so the next job goes on). Leng
 
 Dense gouges at a set water content, two fabrics (as Sakuma et al. 2023: nominally randomly oriented NRO and preferentially oriented PO):
 `MWMC0` = 0, 0.1, 0.2 (dry, 10 %, 20 %) builds a loose structure (the box of m_w/m_c 1.5 for po, 2 for nro) with the water on the clay surfaces and in the
-interlayers first; LAMMPS compacts it in 01 at the first normal stress (`ORIENT=nro`: stacks at random in a cube, NPT iso; `ORIENT=po`:
-the layers within 10 deg of the shear plane, NPzT), with no dehydration. N=54 (18 stacks of 3) gives a compacted gouge of about two particle
-diameters each way: `env STACK=3 MWMC0=0 ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro` (dry 0.12 M atoms, 20 %: 0.20 M).
+interlayers first; LAMMPS compacts it in 01 at the first normal stress (`ORIENT=nro`: particles at random in a cube, NPT iso; `ORIENT=po`:
+the layers within 10 deg of the shear plane, NPzT), with no dehydration. N=54 gives a compacted gouge of about two particle diameters each
+way: `env MWMC0=0 ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro` (dry 0.12 M atoms, 20 %: 0.20 M). `NOSUB=1` builds
+only: `RUN_N54_w0_nro/gouge.xyz` for OVITO (`analysis/data2xyz.py` converts any data file).
 
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks

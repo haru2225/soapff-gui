@@ -739,7 +739,7 @@ def main():
     print(f'fig6, fig7, fig8, fig10 in {os.path.abspath(args.outdir)}; now fig9 (the water of the snapshots; the slowest part)', flush=True)
     # fig9 last: the water of the snapshots takes the longest (a frame is analysed once and kept in <outdir>/.cache)
     try:
-        import scipy  # noqa: F401
+        from scipy.spatial import cKDTree  # noqa: F401
         later = 0
         for cb in combos:
             names = type_names(cb['path']); W = []
@@ -756,7 +756,7 @@ def main():
             print(f'  {later} trajectory frame(s) for fig9 left for the next time (time budget)')
         fig9(combos, o('fig9_water_structure.png'), o('fig9_water.csv'), summary)
     except ImportError:
-        print('  scipy missing: no fig9')
+        print('  scipy.spatial missing (or broken): no fig9')
     open(o('hot_spots_summary.txt'), 'w').write('\n'.join(summary) + '\n')
     print('\n'.join(summary)); print(f'figures and their numbers (.csv) in {os.path.abspath(args.outdir)}  ({time.time() - t_start:.0f} s)')
 

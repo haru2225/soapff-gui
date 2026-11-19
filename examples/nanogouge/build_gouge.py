@@ -7,13 +7,65 @@ one (lowest order parameter S) is kept; it is then solvated at a water-to-clay m
 
 The particle is the one soapff-gui writes for the optional library "Montmorillonite edge"
 (../montmorillonite_edge/out_clay_montmorillonite/system.data); its ClayFF/Lammers edge force field is copied as it is.
-Water is the flexible SPC water of ClayFF (Cygan et al. 2004). Needs numpy and scipy only.
+Water is the flexible SPC water of ClayFF (Cygan et al. 2004). Needs numpy (and scipy.spatial when it is there; without it, or with a
+broken scipy, a cell list in numpy does the same, a little slower).
 
     python build_gouge.py -n 12 --mwmc 3.0 --nconf 300 --seed 1 -o gouge_N12
 """
-import argparse, json, re, sys
+import argparse, json, os, re, sys
 import numpy as np
-from scipy.spatial import cKDTree
+from itertools import product
+
+
+class CellTree:
+    """numpy stand-in for scipy.spatial.cKDTree, for the two uses here: count_neighbors(other, r) = pairs closer than r, and query(x) =
+    distance to the nearest point (exact up to rq, inf beyond).  boxsize: periodic box; without it the points are not periodic."""
+
+    def __init__(self, x, boxsize=None, rq=6.0):
+        self.x = np.asarray(x, float).reshape(-1, 3); self.L = None if boxsize is None else np.asarray(boxsize, float); self.rq = rq
+
+    @staticmethod
+    def _pairs(a, b, L, h):
+        """all (ia, ib) of a and b in the same or neighbouring cells (cells >= h) of the periodic box L, one offset at a time"""
+        nc = np.maximum(np.floor(L / h).astype(int), 1); cs = L / nc
+        cell = lambda x: np.floor((x % L) / cs).astype(int) % nc
+        key = lambda c: (c[:, 0] * nc[1] + c[:, 1]) * nc[2] + c[:, 2]
+        kb = key(cell(b)); ob = np.argsort(kb, kind='mergesort'); ks = kb[ob]; ca = cell(a)
+        for off in {tuple(int(o) % int(n) for o, n in zip(o3, nc)) for o3 in product((-1, 0, 1), repeat=3)}:
+            kn = key((ca + np.array(off)) % nc)
+            st = np.searchsorted(ks, kn, 'left'); cnt = np.searchsorted(ks, kn, 'right') - st
+            tot = int(cnt.sum())
+            if tot == 0: continue
+            ia = np.repeat(np.arange(len(a)), cnt)
+            ib = ob[np.repeat(st, cnt) + np.arange(tot) - np.repeat(np.cumsum(cnt) - cnt, cnt)]
+            yield ia, ib
+
+    def _frame(self, other_x, h):
+        if self.L is not None: return self.x, other_x, self.L
+        allx = np.vstack([self.x, other_x]); lo = allx.min(0) - 2 * h
+        return self.x - lo, other_x - lo, allx.max(0) - lo + 2 * h      # a box so large that no pair goes across it
+
+    def count_neighbors(self, other, r):
+        a, b, L = self._frame(other.x, r); n = 0
+        for ia, ib in self._pairs(a, b, L, r):
+            d = a[ia] - b[ib]; d -= L * np.round(d / L); n += int(((d * d).sum(1) < r * r).sum())
+        return n
+
+    def query(self, x):
+        x = np.asarray(x, float).reshape(-1, 3); a, b, L = self._frame(x, self.rq) if self.L is None else (self.x, x, self.L)
+        best = np.full(len(x), np.inf)
+        for ib, ia in self._pairs(b, a, L, self.rq):                  # ib: the query points
+            d = b[ib] - a[ia]; d -= L * np.round(d / L); np.minimum.at(best, ib, (d * d).sum(1))
+        best = np.sqrt(best); best[best > self.rq] = np.inf
+        return best, np.full(len(x), -1)
+
+
+try:
+    if os.environ.get('NANOGOUGE_NOSCIPY'): raise ImportError('NANOGOUGE_NOSCIPY')
+    from scipy.spatial import cKDTree
+except Exception as e:                    # no scipy, or one that does not import (e.g. built for another numpy)
+    print(f'(no scipy.spatial: {e}; using a numpy cell list instead)')
+    cKDTree = CellTree
 
 p = argparse.ArgumentParser()
 import os
