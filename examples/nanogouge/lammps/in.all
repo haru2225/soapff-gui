@@ -33,6 +33,7 @@ variable sig1 index 5.6               # MPa
 variable sig2 index 56                # MPa; 0 = none
 variable c01 index z                  # 01 NPT coupling: z (NPzT) or iso (go.sh for a loose nominally random structure: compacted the same in
                                       #     x, y, z, its orientations stay random)
+variable npt01 index 0                # 01 NPT steps (0: neq; go.sh 300000 for a loose structure: its compaction takes ~0.1-0.3 ns)
 variable p01 index 1.0                # 01 NPT pressure (atm; go.sh for a loose structure: the first normal stress)
 variable pdrag index 0.0              # NPT drag of 01 and 03 (go.sh 1 for a loose structure: damps the box when it is compacted)
 variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
@@ -62,6 +63,7 @@ variable tlimit index off             # s of wall time for this LAMMPS (job.sh s
 variable tst equal $(v_nrun>0)
 variable nb equal $(v_tst*v_nrun+(1-v_tst)*5000)
 variable LEQ equal $(round(v_tst*v_nrun+(1-v_tst)*v_neq))
+variable LNP equal $(round(v_tst*v_nrun+(1-v_tst)*(v_npt01*(v_npt01>0)+v_neq*(v_npt01<=0))))   # 01 NPT: npt01 steps (0: neq)
 variable LCO equal $(100*round((v_tst*v_nrun+(1-v_tst)*v_ncons)*v_nfac/100)+100*(round((v_tst*v_nrun+(1-v_tst)*v_ncons)*v_nfac/100)<1))
 variable NCM equal $(v_tst+(1-v_tst)*v_nconsmax)
 variable LHO equal $(round((v_tst*v_nrun+(1-v_tst)*v_nhold)*v_nfac))
@@ -175,7 +177,7 @@ variable st string npt
 jump SELF next
 
 label s_npt
-if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LEQ)"
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LNP)"
 if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_nb)" "variable S1 equal $(2*v_nb)"
 variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
 variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
