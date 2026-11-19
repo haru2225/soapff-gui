@@ -83,7 +83,7 @@ if [ -n "${FROM:-}" ]; then
   echo "$RUN: starts from the compacted gouge of $FROM (finished there: $(cd "$FROM" && ls *.done 2>/dev/null | tr '\n' ' '))"
 fi
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
-NCONF=${NCONF:-$([ "$N" -gt 20 ] && echo 30 || echo 300)}
+NCONF=${NCONF:-$(if [ "$STACK" -gt 1 ]; then echo 10; elif [ "$N" -gt 20 ]; then echo 30; else echo 300; fi)}   # stacks: 10 (N=22: about 20 s each)
 if [ ! -f "$RUN/gouge.data" ]; then
   mkdir -p "$RUN"
   if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ] && [ -f "$GB/gouge.data" ]; then
