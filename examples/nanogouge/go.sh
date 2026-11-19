@@ -122,5 +122,5 @@ if get_py && tmo 120 $PY -c "import numpy, matplotlib" >/dev/null 2>&1 </dev/nul
   { grep -v "# go.sh: python" "$RUN/config.env" || true; echo "PYTHON=\"$PY\"   # go.sh: python"; } > "$RUN/config.env.tmp" && mv -f "$RUN/config.env.tmp" "$RUN/config.env"
   echo "figures: drawn by the jobs with $PY in $RUN/figs"
 else
-  echo "note: no python with matplotlib (./sifpy could not be made, see above): the jobs run without figures.  ./make_sif.sh, then they draw them"
+  echo "note: no python with matplotlib (./sifpy could not be made, see above): the jobs run without figures.  ./figs.sh $RUN (finds or makes a python, draws them; then the jobs draw them too)"
 fi

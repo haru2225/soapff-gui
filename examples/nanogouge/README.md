@@ -124,7 +124,11 @@ A quick test of the whole chain (all stages, all outputs, the figures): `env NRU
 run of every stage for 1000 steps (02: one water removal; 04: each of its 5 phases; outputs every 100 steps) in its own folder `RUN_N22_test1000`
 (the structure of `RUN_N22` is copied when it is there). The numbers mean nothing; it shows that everything runs and is written.
 
-To draw them by hand (also several folders together): `./sifpy analysis/hot_spots.py RUN_N67 --outdir figs` (any other computer: `python3 ...`).
+To draw them by hand from the results so far: `./figs.sh RUN_N22_one RUN_N22_water` (no argument: every `RUN_*` with a shear; `env JOB=1 ./figs.sh ...` as a short PBS job).
+It finds or makes the python (`./sifpy` of `make_sif.sh`, else a python of the machine with numpy and matplotlib: PATH, modules, `/home/app`, other `.sif`
+images, else the node's python3 + matplotlib from pip in `pyfigs_lib/`; what was tried: `figs_python.log`), writes it into the run folders' `config.env`
+(their next jobs draw the figures themselves) and draws hot_spots.py (and lin_figs.py for a water series). Also several folders together:
+`./sifpy analysis/hot_spots.py RUN_N67 --outdir figs` (any other computer: `python3 ...`).
 Several folders at other rates from the same compacted gouge are possible too (each its own chain):
 `env FROM=RUN_N22 RATE=1e9 GMAX=2 ./go.sh 22 "5.6" all 4 RUN_N22_r1e9` (after `RUN_N22/03_consolidate_5.6.done`; `FROM` copies its stages 01-03 and settings),
 then `./sifpy analysis/hot_spots.py RUN_N22 RUN_N22_r1e9 --sigma 5.6`.

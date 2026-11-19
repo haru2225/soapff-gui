@@ -372,7 +372,7 @@ if [ -f hot_spots.py ] && ls shear_*.dat >/dev/null 2>&1; then
     mkdir -p figs
     if tmo "$FT" $PYF hot_spots.py "$PWD" --outdir figs --budget "$FT" > figs/hot_spots.log 2>&1; then echo "figures: $PWD/figs  ($(tail -1 figs/hot_spots.log))"
     else echo "note: hot_spots.py did not finish (figs/hot_spots.log): $(tail -2 figs/hot_spots.log | tr '\n' ' ')"; fi
-  else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $PWD; ../sifpy hot_spots.py . --outdir figs (../make_sif.sh first)"; fi
+  else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $(dirname $PWD); ./figs.sh $(basename $PWD)"; fi
 fi
 # a series of water contents (in.water): figures of the kind of Lin & Hatano (2024) against the porosity (lin_figs.py, figs/lin_*), then the hot-spot
 # figures of each water content (hot_spots.py, w<m_w/m_c>/figs) in the time left
@@ -392,6 +392,6 @@ if [ "$STAGES" = water ] && [ -f lin_figs.py ] && [ -f hot_spots.py ] && ls w*/s
       tmo "$FT" $PYF hot_spots.py "$PWD/$w" --outdir $w/figs --budget "$FT" > $w/figs/hot_spots.log 2>&1 && echo "figures: $PWD/$w/figs" \
         || echo "note: hot_spots.py $w did not finish ($w/figs/hot_spots.log)"
     done
-  else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $PWD; ../sifpy lin_figs.py . (../make_sif.sh first)"; fi
+  else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $(dirname $PWD); ./figs.sh $(basename $PWD)"; fi
 fi
 echo "end $(date)"
