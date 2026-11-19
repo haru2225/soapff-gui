@@ -98,15 +98,16 @@ a trajectory frame is analysed once and kept in `figs/.cache`, so the jobs stay 
 with an older `in.04_shear` (no `shear_<σ>.v2`) is done again: its files, and those of the healing after it, are moved to `old_04_<σ>/`.
 Options: `env NVS=0` (no velocity steps), `NVS=2`, `VFAC=10` (×10 each), `RATE=1e9` (1/s), `GMAX=2`.
 
-Everything in one input file, production lengths: `lammps/in.all` (dt 1 fs) runs 01 (minimisation, NVT 0.1 ns, NPzT 0.1 ns), 02 (10 water removals down
-to m_w/m_c = 0.2, 0.2 ns NPzT after each), then at each of the two normal stresses 03 (NPzT in pieces of 50 ps until Lz changes by less than 0.1 % over a
-piece, 0.1-1 ns; `03_consolidate_<s>.pieces`), 04 (1e9 /s to the strain 1, then 3.2e9 and 1e10 /s, 0.5 of strain each) and 05 (hold 50 ps): about 7 ns,
+Everything in one input file, production lengths: `lammps/in.all` (dt 1 fs) runs 01 (minimisation, NVT 0.1 ns, NPzT 0.1 ns), 02 (100 ns as Underwood & Bourg 2020: each
+removal takes 1 % of the initial water, then 0.83 ns NPzT, twice as long below m_w/m_c = 1, down to 0.2; about 94 removals), then at each of the two normal stresses 03 (NPzT in pieces of 50 ps until Lz changes by less than 0.1 % over a
+piece, 0.1-1 ns; `03_consolidate_<s>.pieces`), 04 (1e9 /s to the strain 1, then 3.2e9 and 1e10 /s, 0.5 of strain each) and 05 (hold 50 ps): about 105 ns,
 with the same output files as the stages (about 200 lines per run in the .dat files, 20 frames per run in the trajectories). With PBS:
-`env WALLTIME=12 ./go.sh 22 "5.6 56" one 4 RUN_N22_prod` (each run ends with `all.restart` and `all.state`, so the next job goes on). Lengths: `NEQ`, `NDWELL`,
+`env WALLTIME=12 ./go.sh 22 "5.6 56" one 4 RUN_N22_prod` (each run ends with `all.restart` and `all.state`, so the next job goes on). Lengths: `NEQ`, `DRYNS` (02 in ns), `DFRAC`,
 `NCONS`, `CONSTOL`, `NCONSMAX`, `RATE`, `GMAX`, `NVS`, `GSTEP`, `HOLD` (steps / strain); `NFAC=2` doubles 02-05, also in a running folder from its next run on;
-`NRUN=2000`: a test, every run 2000 steps. The speed: `grep Performance RUN_N22_prod/log.one | tail -1` (timesteps/s; 7 ns = 7e6 steps).
+`NRUN=2000`: a test, every run 2000 steps. The speed: `grep Performance RUN_N22_prod/log.one | tail -1` (ns/day; 105 ns in all).
 
-Stacks: the particles start apart at random (U&B 2020) and hardly come together face to face within ns. `env STACK=3 ./go.sh ...` builds them in stacks
+Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
+134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
 (tactoids) of 3 at 15.5 A (2 water layers; `D001=12.5`: 1 layer), the stacks at random (structure in `RUN_N<N>_stack3`). Whether they are stacked:
 `./figs.sh RUN_N22_prod` (also before the shear) runs `analysis/stacks.py`: stacked pairs, particles in stacks, film and order S at the end of 01, along 02,
 at the end of 03 and at the start and end of 04 (`figs/stacks.png`, `stacks.csv`).

@@ -1,14 +1,15 @@
 # in.all: the whole calculation in one input file (production lengths below; -var nrun N: a test, every run N steps):
 #   01 minimisation (miniter), NVT neq, NPzT neq at 1 atm                                -> 01_equil.data
-#   02 ndry water removals (down to m_w/m_c = final_mwmc), NPzT ndwell after each           -> 02_dehydrate.data, dehydrate.dat
+#   02 water removals of dfrac of the initial water (down to m_w/m_c = final_mwmc), NPzT after each, tdry ns in all -> 02_dehydrate.data, dehydrate.dat
 #   then for the normal stress sig1, then sig2 (MPa; sig2 0 = only sig1):
 #   03 NPzT at sigma in pieces of ncons until Lz changes by less than constol over a piece (at most nconsmax pieces) -> 03_consolidate_<s>.data/.dat
 #   04 shear at rate to the strain gmax (Lees-Edwards + Langevin on the deviation from the linear profile + barostat on z, Lin's thesis), then nvs
 #      velocity steps of the strain gstep each at rate x vfac^k                           -> shear_<s>.dat, particles_<s>.*.dat, prof_<s>.*.dat, shear_<s>_all_*.dump
 #   05 hold: NPzT nhold at sigma from the end of the shear at "rate"                      -> heal_<s>.dat, heal_<s>_final.data
-#   Production (default, dt 1 fs): 01 0.1 + 0.1 ns, 02 10 x 0.2 ns, 03 0.1-1 ns, 04 1e9 /s to strain 1 (1 ns), 3.2e9 /s +0.5, 1e10 /s +0.5 (0.2 ns),
-#   05 0.05 ns: about 2.2 ns + 2 x 2.4 ns = 7 ns.  -var nfac 2: 02-05 twice as long (04: twice the strain).
-#   Outputs: about 200 lines per run in the .dat files, 20 frames per run in the trajectories (03: 5 per piece, 04: 50 per phase).
+#   Production (default, dt 1 fs): 01 0.1 + 0.1 ns, 02 100 ns (about 94 removals of 1 % of the water: 0.83 ns after each down to m_w/m_c = 1,
+#   1.65 ns below), 03 0.1-1 ns, 04 1e9 /s to strain 1 (1 ns), 3.2e9 /s +0.5, 1e10 /s +0.5 (0.2 ns), 05 0.05 ns: about 100 + 2 x 2.4 = 105 ns.
+#   -var nfac 2: 02-05 twice as long (04: twice the strain).
+#   Outputs: about 200 lines per run in the .dat files, 20 frames per run in the trajectories (02: 2 per removal, 03: 5 per piece, 04: 50 per phase).
 #   lmp -in in.all -var data gouge.data -var settings gouge.settings                 both normal stresses (5.6 and 56 MPa)
 #   lmp -in in.all -var data gouge.data -var settings gouge.settings -var sig1 56 -var sig2 0 -var nrun 2000     a quick test
 #   PBS: ./go.sh 22 "5.6 56" one 4   (3rd argument "one": the jobs of the chain run this file in RUN_N22_one)
@@ -18,7 +19,9 @@ variable data index gouge.data
 variable settings index gouge.settings
 variable nrun index 0                 # 0: the production lengths below;  N > 0: a test, every run N steps (03: one piece; 04: N per phase)
 variable neq index 100000             # 01: steps of the NVT and of the NPzT run (100 ps each)
-variable ndwell index 200000          # 02: steps after each water removal (200 ps: time for the particles to come together)
+variable tdry index 100               # 02: ns of the whole dehydration (as Underwood & Bourg 2020: dfrac of the initial water per removal,
+                                      #     twice the time per removal below m_w/m_c = 1)
+variable dfrac index 0.01             # 02: fraction of the initial water taken by each removal (U&B 2020: 1 %)
 variable ncons index 50000            # 03: steps of each piece of the consolidation (50 ps)
 variable constol index 0.001          # 03: done when Lz (mean of the last tenth of a piece) changed by less than this fraction over a piece
 variable nconsmax index 20            # 03: at most this many pieces (1 ns)
@@ -27,7 +30,7 @@ variable nfac index 1                 # 02, 03, 04, 05 nfac x as long (04: nfac 
 variable sig1 index 5.6               # MPa
 variable sig2 index 56                # MPa; 0 = none
 variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
-variable ndry index 10                # 02: number of water removals (each about the same number of molecules), each followed by nrun steps
+variable ndry index 10                # 02, a test (nrun > 0) only: number of equal water removals, each followed by nrun steps
 variable rate index 1.0e-6            # 04: first shear rate in 1/fs (1.0e-6 = 1e9 /s)
 variable gmax index 1.0               # 04: shear strain at the first rate
 variable gstep index 0.5              # 04: shear strain of each velocity step
@@ -53,7 +56,6 @@ variable tlimit index off             # s of wall time for this LAMMPS (job.sh s
 variable tst equal $(v_nrun>0)
 variable nb equal $(v_tst*v_nrun+(1-v_tst)*5000)
 variable LEQ equal $(round(v_tst*v_nrun+(1-v_tst)*v_neq))
-variable LDW equal $(round((v_tst*v_nrun+(1-v_tst)*v_ndwell)*v_nfac))
 variable LCO equal $(100*round((v_tst*v_nrun+(1-v_tst)*v_ncons)*v_nfac/100)+100*(round((v_tst*v_nrun+(1-v_tst)*v_ncons)*v_nfac/100)<1))
 variable NCM equal $(v_tst+(1-v_tst)*v_nconsmax)
 variable LHO equal $(round((v_tst*v_nrun+(1-v_tst)*v_nhold)*v_nfac))
@@ -186,15 +188,25 @@ jump SELF next
 # ================= 02 dehydration: removal kc+1 of ndry =================
 label s_dry
 if "${kc} == 0 && ${mid} == 0" then "print '# k  n_water  mw/mc  rho_b(g/cm3)  lz(A)  S-free' file dehydrate.dat" "variable nw0 equal $(count(wO))" "print '$(count(wO))' file dehyd_nw0.txt"
-# each water molecule is removed with probability ndel / n_water: about ndel of them; the last removal reaches final_mwmc
+# as Underwood & Bourg (2020): each removal takes dfrac of the initial water (they: 1 %, 6600 molecules every 1 ns), the time after it is
+# the same for each removal down to m_w/m_c = 1 and twice as long below (they halved the rate there: fewer stacking defects); the times are
+# chosen so that 02 lasts tdry ns in all; the last removal reaches final_mwmc.  A test (nrun > 0): ndry equal removals of nrun steps each.
+# Each water molecule is removed with probability ndel / n_water: about ndel of them.
 variable ntgt equal $(round(v_final_mwmc*mass(clay)/18.0153))
-variable ndel equal $((count(wO)-v_ntgt)/(v_ndry-v_kc))
+variable n1 equal $(round(mass(clay)/18.0153))
+variable n1c equal $(v_ntgt*(v_n1<=v_ntgt)+v_nw0*(v_n1>=v_nw0)*(v_n1>v_ntgt)+v_n1*(v_n1>v_ntgt)*(v_n1<v_nw0))
+variable ndel0 equal $(round(v_dfrac*v_nw0)+(round(v_dfrac*v_nw0)<1))
+variable tau equal $(v_tdry*1.0e6/v_dt/((v_nw0-v_n1c)+2*(v_n1c-v_ntgt)+(v_nw0<=v_ntgt)))
+variable nleft equal $(count(wO)-v_ntgt)
+variable ndel equal $(v_tst*v_nleft/((v_ndry-v_kc)*(v_ndry>v_kc)+(v_ndry<=v_kc))+(1-v_tst)*(v_ndel0*(v_ndel0<v_nleft)+v_nleft*(v_ndel0>=v_nleft)))
 if "${ndel} > 0 && ${mid} == 0" then "variable rsel atom type==${tow}&&random(0,1,$(v_seed+v_kc+1))<$(v_ndel/count(wO))" "group gdel variable rsel" "delete_atoms group gdel mol yes bond yes compress yes"
-print "in.all: 02 removal $(v_kc+1) of ${ndry}: $(count(wO)) water molecules left (target ${ntgt})"
+variable slow equal $(1+(count(wO)<v_n1c))
+variable LDW equal $(round((v_tst*v_nrun+(1-v_tst)*v_ndel0*v_tau*v_slow)*v_nfac))
+print "in.all: 02 removal $(v_kc+1) (about $(ceil((v_nw0-v_ntgt)/v_ndel0)) in all; test: ${ndry}): $(count(wO)) water molecules left (target ${ntgt}, m_w/m_c 1 at ${n1c}), $(v_LDW*v_dt/1e6:%.4f) ns after it"
 if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LDW)"
 if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_kc*v_nb)" "variable S1 equal $((v_kc+1)*v_nb)"
 variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
-variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(2*v_nout))))
 thermo ${nso}
 dump dm ${dump_group} custom ${ndump} 02_dehydrate.dump id mol type xu yu zu
 dump_modify dm append yes
@@ -203,7 +215,8 @@ run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 print "$(v_kc+1) $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
 variable kc equal $(v_kc+1)
-if "${kc} >= ${ndry}" then "write_data 02_dehydrate.data" "print 'DONE 02' file 02_dehydrate.done" "variable st string cons" "variable is equal 1"
+variable ddone equal $(v_tst*(v_kc>=v_ndry)+(1-v_tst)*((count(wO)<=v_ntgt+0.1*v_ndel0)||(v_kc>=5000)))
+if "${ddone} == 1" then "write_data 02_dehydrate.data" "print 'DONE 02' file 02_dehydrate.done" "variable st string cons" "variable is equal 1"
 jump SELF next
 
 # ================= 03 consolidation at sigma =================

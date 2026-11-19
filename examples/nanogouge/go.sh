@@ -17,13 +17,14 @@
 #                 all outputs work; the numbers mean nothing.   env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4
 #   ./go.sh 22 "5.6 56" one 4   everything in ONE input file, lammps/in.all, production lengths (dt 1 fs; a job stopped by the wall time is
 #                 continued by the next one, all.state), in its own folder RUN_N22_one (5th argument: another folder):
-#                 01 minimisation, NVT 0.1 ns, NPzT 0.1 ns;  02 10 water removals, 0.2 ns NPzT after each (2 ns);  then at each normal stress:
+#                 01 minimisation, NVT 0.1 ns, NPzT 0.1 ns;  02 100 ns as Underwood & Bourg 2020 (each removal 1 % of the initial water, then
+#                 0.83 ns NPzT; below m_w/m_c = 1 twice as long: about 94 removals);  then at each normal stress:
 #                 03 NPzT in pieces of 50 ps until Lz changes by < 0.1 % over a piece (0.1-1 ns);  04 1e9 /s to the strain 1 (1 ns), then
-#                 3.2e9 and 1e10 /s, 0.5 of strain each;  05 hold 50 ps.  About 7 ns in all.  NRUN=2000: a test, every run 2000 steps.
-#                 Lengths (one): NEQ=100000 (01), NDWELL=200000 (02, each removal), NCONS=50000 (03 piece), CONSTOL=0.001, NCONSMAX=20,
+#                 3.2e9 and 1e10 /s, 0.5 of strain each;  05 hold 50 ps.  About 105 ns in all.  NRUN=2000: a test, every run 2000 steps.
+#                 Lengths (one): NEQ=100000 (01), DRYNS=100 (02 in ns), DFRAC=0.01 (02 per removal), NCONS=50000 (03 piece), CONSTOL=0.001, NCONSMAX=20,
 #                 RATE=1e9, GMAX=1, NVS=2, GSTEP=0.5, HOLD=50000 (05)
 #   STACK=3       the particles in stacks (tactoids) of 3, face to face at 15.5 A (2 water layers; D001=12.5: 1 layer), the stacks at random
-#                 (default 1: single particles at random, U&B 2020; within 2 ns of dehydration they hardly come together face to face);
+#                 (default 1: single particles at random, U&B 2020: they stack during the slow dehydration of 02);
 #                 its own structure in RUN_N<N>_stack3 (copied to the run folder)
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
@@ -119,7 +120,7 @@ if [ -n "${GSTEP:-}" ]; then set_opt gstep "$GSTEP"; fi
 if [ -n "${HOLD:-}" ]; then set_opt nhold "$HOLD"; fi
 if [ -n "${DFRAC:-}" ]; then set_opt dfrac "$DFRAC"; fi
 if [ -n "${NEQ:-}" ]; then set_opt neq "$NEQ"; fi
-if [ -n "${NDWELL:-}" ]; then set_opt ndwell "$NDWELL"; fi
+if [ -n "${DRYNS:-}" ]; then set_opt tdry "$DRYNS"; fi
 if [ -n "${NCONS:-}" ]; then set_opt ncons "$NCONS"; fi
 if [ -n "${CONSTOL:-}" ]; then set_opt constol "$CONSTOL"; fi
 if [ -n "${NCONSMAX:-}" ]; then set_opt nconsmax "$NCONSMAX"; fi
