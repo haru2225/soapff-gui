@@ -17,15 +17,17 @@
 #                 all outputs work; the numbers mean nothing.   env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4
 #   ./go.sh 22 "5.6 56" one 4   everything in ONE input file, lammps/in.all, production lengths (dt 1 fs; a job stopped by the wall time is
 #                 continued by the next one, all.state), in its own folder RUN_N22_one (5th argument: another folder):
-#                 01 minimisation, NVT 0.1 ns, NPzT 0.1 ns;  02 100 ns as Underwood & Bourg 2020 (each removal 1 % of the initial water, then
-#                 0.83 ns NPzT; below m_w/m_c = 1 twice as long: about 94 removals);  then at each normal stress:
-#                 03 NPzT in pieces of 50 ps until Lz changes by < 0.1 % over a piece (0.1-1 ns);  04 1e9 /s to the strain 1 (1 ns), then
-#                 3.2e9 and 1e10 /s, 0.5 of strain each;  05 hold 50 ps.  About 105 ns in all.  NRUN=2000: a test, every run 2000 steps.
-#                 Lengths (one): NEQ=100000 (01), DRYNS=100 (02 in ns), DFRAC=0.01 (02 per removal), NCONS=50000 (03 piece), CONSTOL=0.001, NCONSMAX=20,
+#                 01 minimisation, NVT 0.1 ns, NPzT 0.1 ns;  02 2 ns (removals of 5 % of the initial water down to m_w/m_c 0.2; below
+#                 m_w/m_c = 1 twice the time per removal: the form of Underwood & Bourg 2020, who took 134 ns);  then at each normal stress:
+#                 03 NPzT in pieces of 50 ps until Lz changes by < 0.1 % over a piece (0.1-1 ns);  04 1e9 /s to the strain 3 (3 ns), then
+#                 3.2e9 and 1e10 /s, 0.5 of strain each;  05 hold 50 ps.  About 11 ns in all.  NRUN=2000: a test, every run 2000 steps.
+#                 The shear of a gouge of stacks (the foliation forming):  env STACK=3 MWMC0=1.5 WALLTIME=12 ./go.sh 22 "5.6 56" one 4 RUN_N22_fol
+#                 Lengths (one): NEQ=100000 (01), DRYNS=2 (02 in ns), DFRAC=0.05 (02 per removal), NCONS=50000 (03 piece), CONSTOL=0.001, NCONSMAX=20,
 #                 RATE=1e9, GMAX=1, NVS=2, GSTEP=0.5, HOLD=50000 (05)
 #   STACK=3       the particles in stacks (tactoids) of 3, face to face at 15.5 A (2 water layers; D001=12.5: 1 layer), the stacks at random
-#                 (default 1: single particles at random, U&B 2020: they stack during the slow dehydration of 02);
+#                 (default 1: single particles at random, U&B 2020: they stack only during a slow dehydration, ~100 ns);
 #                 its own structure in RUN_N<N>_stack3 (copied to the run folder)
+#   MWMC0=1.5     water content of the new structure (default 3, U&B 2020): less water, fewer atoms (N=22: 0.27 M instead of 0.49 M), a short 02
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
@@ -40,7 +42,9 @@ cd "$(dirname "$0")"
 N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; BASE=RUN_N$N
 # the folder of the initial structure (seed 1): RUN_N<N>, or RUN_N<N>_stack<k> for stacks (STACK=k)
 STACK=${STACK:-1}; case "$STACK" in [1-9]) ;; *) echo "STACK=$STACK: particles per stack, 1 to 9"; exit 1;; esac
-GB=$BASE; [ "$STACK" -gt 1 ] && GB=${BASE}_stack$STACK
+MWMC0=${MWMC0:-3}
+awk -v w="$MWMC0" 'BEGIN{ exit !(w + 0 > 0 && w + 0 <= 5) }' || { echo "MWMC0=$MWMC0: the water content of the new structure, 0 < m_w/m_c <= 5"; exit 1; }
+GB=$BASE; [ "$STACK" -gt 1 ] && GB=${GB}_stack$STACK; [ "$(awk -v w="$MWMC0" 'BEGIN{print (w + 0 == 3)}')" = 1 ] || GB=${GB}_w$MWMC0
 # NRUN (a short test of the whole chain) never goes into a running folder: its own folder RUN_N<N>_test<NRUN> unless a 5th argument is given
 if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
 # stages "one": everything in one input file (lammps/in.all, every run 5000 steps), in its own folder RUN_N<N>_one
@@ -90,7 +94,7 @@ if [ ! -f "$RUN/gouge.data" ]; then
       || { echo "no python with numpy and scipy to build the structure: ./sifpy could not be made (see above; ./make_sif.sh needs internet once)"; exit 1; }
     # seed 1 in another folder (a test, a rate series): built in RUN_N<N> and copied, so all of them start from the same structure
     OUT=$RUN; if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ]; then OUT=$GB; mkdir -p "$GB"; fi
-    $PY build_gouge.py -n $N --mwmc 3.0 --nconf $NCONF --seed $SEED --stack $STACK ${D001:+--d001 $D001} -o "$OUT/gouge" || { echo "build_gouge.py failed"; exit 1; }
+    $PY build_gouge.py -n $N --mwmc $MWMC0 --nconf $NCONF --seed $SEED --stack $STACK ${D001:+--d001 $D001} -o "$OUT/gouge" || { echo "build_gouge.py failed"; exit 1; }
     if [ "$OUT" != "$RUN" ]; then cp "$GB/gouge.data" "$GB/gouge.settings" "$RUN/"; [ -f "$GB/gouge.json" ] && cp "$GB/gouge.json" "$RUN/"; echo "$RUN: structure built in $GB (for its real run too) and copied"; fi
   fi
   # another seed: LAMMPS uses it too (velocities, water removal, thermostat); job.sh reads lammps_seed

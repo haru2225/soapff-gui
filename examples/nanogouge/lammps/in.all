@@ -6,8 +6,9 @@
 #   04 shear at rate to the strain gmax (Lees-Edwards + Langevin on the deviation from the linear profile + barostat on z, Lin's thesis), then nvs
 #      velocity steps of the strain gstep each at rate x vfac^k                           -> shear_<s>.dat, particles_<s>.*.dat, prof_<s>.*.dat, shear_<s>_all_*.dump
 #   05 hold: NPzT nhold at sigma from the end of the shear at "rate"                      -> heal_<s>.dat, heal_<s>_final.data
-#   Production (default, dt 1 fs): 01 0.1 + 0.1 ns, 02 100 ns (about 94 removals of 1 % of the water: 0.83 ns after each down to m_w/m_c = 1,
-#   1.65 ns below), 03 0.1-1 ns, 04 1e9 /s to strain 1 (1 ns), 3.2e9 /s +0.5, 1e10 /s +0.5 (0.2 ns), 05 0.05 ns: about 100 + 2 x 2.4 = 105 ns.
+#   Production (default, dt 1 fs): 01 0.1 + 0.1 ns, 02 2 ns (removals of 5 % of the initial water down to m_w/m_c 0.2, twice the time per
+#   removal below m_w/m_c = 1), 03 0.1-1 ns, 04 1e9 /s to strain 3 (3 ns), 3.2e9 /s +0.5, 1e10 /s +0.5 (0.2 ns), 05 0.05 ns: about
+#   2.2 + 2 x 4.4 = 11 ns; after 02 the system is small (m_w/m_c 0.2: N=22 about 80,000 atoms), so 03-05 are quick.
 #   -var nfac 2: 02-05 twice as long (04: twice the strain).
 #   Outputs: about 200 lines per run in the .dat files, 20 frames per run in the trajectories (02: 2 per removal, 03: 5 per piece, 04: 50 per phase).
 #   lmp -in in.all -var data gouge.data -var settings gouge.settings                 both normal stresses (5.6 and 56 MPa)
@@ -19,9 +20,10 @@ variable data index gouge.data
 variable settings index gouge.settings
 variable nrun index 0                 # 0: the production lengths below;  N > 0: a test, every run N steps (03: one piece; 04: N per phase)
 variable neq index 100000             # 01: steps of the NVT and of the NPzT run (100 ps each)
-variable tdry index 100               # 02: ns of the whole dehydration (as Underwood & Bourg 2020: dfrac of the initial water per removal,
-                                      #     twice the time per removal below m_w/m_c = 1)
-variable dfrac index 0.01             # 02: fraction of the initial water taken by each removal (U&B 2020: 1 %)
+variable tdry index 2                 # 02: ns of the whole dehydration (the form of Underwood & Bourg 2020: dfrac of the initial water per
+                                      #     removal, twice the time per removal below m_w/m_c = 1; they: 134 ns, 1 %).  2 ns: a compaction of
+                                      #     a gouge built of stacks (go.sh STACK=3 MWMC0=1.5), the time goes to the shear
+variable dfrac index 0.05             # 02: fraction of the initial water taken by each removal
 variable ncons index 50000            # 03: steps of each piece of the consolidation (50 ps)
 variable constol index 0.001          # 03: done when Lz (mean of the last tenth of a piece) changed by less than this fraction over a piece
 variable nconsmax index 20            # 03: at most this many pieces (1 ns)
@@ -32,7 +34,7 @@ variable sig2 index 56                # MPa; 0 = none
 variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
 variable ndry index 10                # 02, a test (nrun > 0) only: number of equal water removals, each followed by nrun steps
 variable rate index 1.0e-6            # 04: first shear rate in 1/fs (1.0e-6 = 1e9 /s)
-variable gmax index 1.0               # 04: shear strain at the first rate
+variable gmax index 3.0               # 04: shear strain at the first rate (a foliation needs a few units of strain)
 variable gstep index 0.5              # 04: shear strain of each velocity step
 variable nvs index 2                  # 04: velocity steps after the first rate (2: 1e9 -> 3.2e9 -> 1e10 /s; 0 = none)
 variable vfac index 3.16227766        # 04: rate factor from one velocity step to the next
@@ -193,6 +195,8 @@ if "${kc} == 0 && ${mid} == 0" then "print '# k  n_water  mw/mc  rho_b(g/cm3)  l
 # chosen so that 02 lasts tdry ns in all; the last removal reaches final_mwmc.  A test (nrun > 0): ndry equal removals of nrun steps each.
 # Each water molecule is removed with probability ndel / n_water: about ndel of them.
 variable ntgt equal $(round(v_final_mwmc*mass(clay)/18.0153))
+# no water to take (built at m_w/m_c <= final_mwmc, e.g. go.sh MWMC0=1.5 MWMC=1.5): no dehydration, 03 starts from 01
+if "${mid} == 0 && ${kc} == 0 && $(count(wO)) <= ${ntgt}" then "print 'in.all: 02: m_w/m_c is already at most final_mwmc: no dehydration'" "write_data 02_dehydrate.data" "print 'DONE 02' file 02_dehydrate.done" "variable st string cons" "variable is equal 1" "jump SELF next"
 variable n1 equal $(round(mass(clay)/18.0153))
 variable n1c equal $(v_ntgt*(v_n1<=v_ntgt)+v_nw0*(v_n1>=v_nw0)*(v_n1>v_ntgt)+v_n1*(v_n1>v_ntgt)*(v_n1<v_nw0))
 variable ndel0 equal $(round(v_dfrac*v_nw0)+(round(v_dfrac*v_nw0)<1))

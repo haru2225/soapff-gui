@@ -7,7 +7,9 @@ dehydration 02, at the end of each consolidation 03, and at the start and end of
   in stacks         particles that belong to a stack (a chain of stacked pairs);  largest = particles in the largest stack
   film              mean water film between the stacked particles (A);  S = orientational order of the normals (0 random, 1 aligned)
 
-  python3 stacks.py RUN_N22_one [--outdir RUN_N22_one/figs]     -> table on the screen, stacks.csv, stacks.png (when matplotlib is there)
+  foliation (04)    along each shear (--frames04 frames): S, the tilt of the mean particle plane from the shear plane (deg, in the
+                    plane of the shear xz; + towards +x), the share of particles within 20 deg of the shear plane, stacks; against the strain
+  python3 stacks.py RUN_N22_one [--outdir RUN_N22_one/figs]     -> table on the screen, stacks.csv, stacks.png, foliation.png, foliation.csv
 Needs numpy only (matplotlib for the figure).
 """
 import argparse, glob, mmap, os, re, sys
@@ -101,9 +103,14 @@ def analyse(fn, off, tna, args):
         sizes[root(k)] = sizes.get(root(k), 0) + 1
     instack = sum(s for s in sizes.values() if s > 1)
     Q = sum(1.5 * np.outer(n, n) - 0.5 * np.eye(3) for n in nrm) / max(N, 1)
-    S = float(np.linalg.eigvalsh(Q)[-1]) if N else np.nan
+    if N:
+        w, v = np.linalg.eigh(Q); S = float(w[-1]); dvec = v[:, -1] * (1 if v[2, -1] >= 0 else -1)
+        tilt = float(np.degrees(np.arctan2(dvec[0], dvec[2])))          # mean normal from z in the xz plane = plane tilt from the shear plane
+        flat = float(np.mean(np.abs(nrm[:, 2]) > np.cos(np.radians(20))))
+    else:
+        S = tilt = flat = np.nan
     return dict(step=step, N=N, pairs=len(pairs), instack=instack, largest=max(sizes.values()) if sizes else 0,
-                film=float(np.mean(films)) if films else np.nan, S=S)
+                film=float(np.mean(films)) if films else np.nan, S=S, tilt=tilt, flat=flat)
 
 
 def pick(n, k):
@@ -120,6 +127,7 @@ def main():
     ap.add_argument('--angle', type=float, default=25.0, help='deg: largest angle between the normals of stacked particles')
     ap.add_argument('--overlap', type=float, default=0.75, help='lateral offset of stacked particles < overlap * (R1 + R2)')
     ap.add_argument('--frames02', type=int, default=11, help='frames of the dehydration (02) to look at')
+    ap.add_argument('--frames04', type=int, default=16, help='frames of each shear (04) to look at')
     ap.add_argument('--outdir', default=None, help='default: <run>/figs')
     args = ap.parse_args()
     run = args.run.rstrip('/'); out = args.outdir or os.path.join(run, 'figs'); os.makedirs(out, exist_ok=True)
@@ -133,30 +141,42 @@ def main():
         todo.append((f'03 {re.findall(r"_([0-9.]+)[.]dump$", f)[0]} MPa end', f, [-1]))
     for f in sorted(glob.glob(os.path.join(run, 'shear_*.dump')), key=lambda x: x):
         m = re.match(r'shear_([0-9.]+)\.dump$', os.path.basename(f))
-        if m: todo.append((f'04 {m.group(1)} MPa', f, [0, -1]))
+        if m: todo.append((f'04 {m.group(1)} MPa', f, 'shear'))
     if not todo:
         sys.exit(f'{run}: no trajectory (01_equil.dump, 02_dehydrate.dump, 03_consolidate_*.dump, shear_*.dump) yet')
     rows = []
-    print(f'{"stage":<18} {"step":>9} {"stacked pairs":>13} {"in stacks":>10} {"largest":>8} {"film (A)":>9} {"S":>6}')
+    print(f'{"stage":<18} {"step":>9} {"stacked pairs":>13} {"in stacks":>10} {"largest":>8} {"film (A)":>9} {"S":>6}'
+          '   (tilt: deg of the mean particle plane from the shear plane; flat: share within 20 deg of it)')
     for lab, f, idx in todo:
         offs = frame_offsets(f)
         if not offs:
             continue
-        ks = pick(len(offs), args.frames02) if idx is None else sorted(set(i % len(offs) for i in idx))
+        ks = pick(len(offs), args.frames02) if idx is None else pick(len(offs), args.frames04) if idx == 'shear' else sorted(set(i % len(offs) for i in idx))
+        gam = None
+        if idx == 'shear':                                       # strain of each frame from shear_<s>.dat
+            fd = f[:-5] + '.dat'
+            try:
+                D = np.atleast_2d(np.array([[float(x) for x in l.split()[:2]] for l in open(fd) if l.strip() and not l.startswith('#')]))
+                if D.size == 0: raise ValueError('no lines')
+                gam = lambda st, D=D: float(np.interp(st, np.r_[0, D[:, 0]], np.r_[0, D[:, 1]]))
+            except Exception:
+                gam = None
         for k in ks:
             try:
                 d = analyse(f, offs[k], tna, args)
             except (ValueError, IndexError) as e:
                 print(f'  {os.path.basename(f)} frame {k}: not readable ({e})'); continue
             lb = lab if idx is not None or len(ks) == 1 else f'{lab} {k + 1}/{len(offs)}'
-            if lab.startswith('04'):
-                lb = f'{lab} {"start" if k == 0 else "end"}'
+            if idx == 'shear':
+                d['gamma'] = gam(d['step']) if gam else np.nan; d['sig'] = lab.split()[1]
+                lb = f'{lab} g {d["gamma"]:.2f}'
             rows.append((lb, d))
-            print(f'{lb:<18} {d["step"]:>9} {d["pairs"]:>13} {d["instack"]:>6} / {d["N"]:<3} {d["largest"]:>6} {d["film"]:>9.1f} {d["S"]:>6.3f}', flush=True)
+            print(f'{lb:<18} {d["step"]:>9} {d["pairs"]:>13} {d["instack"]:>6} / {d["N"]:<3} {d["largest"]:>6} {d["film"]:>9.1f} {d["S"]:>6.3f}'
+                  f'   tilt {d["tilt"]:6.1f}  flat {d["flat"]:.2f}', flush=True)
     with open(os.path.join(out, 'stacks.csv'), 'w') as fh:
-        fh.write('stage,step,particles,stacked_pairs,particles_in_stacks,largest_stack,mean_film_A,S\n')
+        fh.write('stage,step,particles,stacked_pairs,particles_in_stacks,largest_stack,mean_film_A,S,tilt_deg,flat_share,gamma\n')
         for lb, d in rows:
-            fh.write(f'{lb},{d["step"]},{d["N"]},{d["pairs"]},{d["instack"]},{d["largest"]},{d["film"]:.2f},{d["S"]:.4f}\n')
+            fh.write(f'{lb},{d["step"]},{d["N"]},{d["pairs"]},{d["instack"]},{d["largest"]},{d["film"]:.2f},{d["S"]:.4f},{d["tilt"]:.2f},{d["flat"]:.3f},{d.get("gamma", np.nan):.4f}\n')
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import hot_spots as hs
@@ -175,6 +195,24 @@ def main():
     fig.tight_layout()
     fig.savefig(os.path.join(out, 'stacks.png'), dpi=130); plt.close(fig)
     print(f'stacks.png and stacks.csv in {os.path.abspath(out)}')
+    # the foliation forming in the shear: against the strain, one line per normal stress
+    sh = [d for _, d in rows if 'gamma' in d and np.isfinite(d['gamma'])]
+    if not sh:
+        return
+    sigs = sorted({d['sig'] for d in sh}, key=float)
+    fig, axs = plt.subplots(1, 4, figsize=(18, 4.4))
+    keys = (('S', 'order parameter S'), ('tilt', 'tilt of the particles from the shear plane (deg)'),
+            ('flat', 'share of particles within 20 deg of the shear plane'), ('instack', 'particles in stacks'))
+    for ax, (key, yl) in zip(axs, keys):
+        for k, sg in enumerate(sigs):
+            dd = sorted([d for d in sh if d['sig'] == sg], key=lambda d: d['gamma'])
+            ax.plot([d['gamma'] for d in dd], [d[key] for d in dd], color=hs.SLOT[k % len(hs.SLOT)], lw=hs.LW, marker='o', ms=hs.MS, label=f'{sg} MPa')
+        if key == 'tilt': ax.axhline(0, color=hs.MUTED, lw=1)
+        ax.set_xlabel('shear strain'); ax.set_ylabel(yl); hs.style(ax, yl)
+    axs[0].legend(frameon=False)
+    fig.suptitle(f'Foliation forming in the shear · {os.path.basename(os.path.abspath(run))}', x=0.01, ha='left', fontweight='bold')
+    fig.tight_layout(); fig.savefig(os.path.join(out, 'foliation.png'), dpi=130); plt.close(fig)
+    print(f'foliation.png in {os.path.abspath(out)}')
 
 
 if __name__ == '__main__':
