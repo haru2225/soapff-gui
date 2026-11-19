@@ -22,6 +22,8 @@
 #                 03 NPzT in pieces of 50 ps until Lz changes by < 0.1 % over a piece (0.1-1 ns);  04 1e9 /s to the strain 3 (3 ns), then
 #                 3.2e9 and 1e10 /s, 0.5 of strain each;  05 hold 50 ps.  About 11 ns in all.  NRUN=2000: a test, every run 2000 steps.
 #                 The shear of a gouge of stacks (the foliation forming):  env STACK=3 MWMC0=1.5 WALLTIME=12 ./go.sh 22 "5.6 56" one 4 RUN_N22_fol
+#                 DRYNS=0: no dehydration, the shear at the water content of the structure (MWMC0):
+#                 env STACK=3 MWMC0=1.5 DRYNS=0 WALLTIME=12 ./go.sh 22 "5.6 56" one 4 RUN_N22_fol
 #                 Lengths (one): NEQ=100000 (01), DRYNS=2 (02 in ns), DFRAC=0.05 (02 per removal), NCONS=50000 (03 piece), CONSTOL=0.001, NCONSMAX=20,
 #                 RATE=1e9, GMAX=1, NVS=2, GSTEP=0.5, HOLD=50000 (05)
 #   STACK=3       the particles in stacks (tactoids) of 3, face to face at 15.5 A (2 water layers; D001=12.5: 1 layer), the stacks at random

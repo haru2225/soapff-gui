@@ -195,11 +195,13 @@ if "${kc} == 0 && ${mid} == 0" then "print '# k  n_water  mw/mc  rho_b(g/cm3)  l
 # chosen so that 02 lasts tdry ns in all; the last removal reaches final_mwmc.  A test (nrun > 0): ndry equal removals of nrun steps each.
 # Each water molecule is removed with probability ndel / n_water: about ndel of them.
 variable ntgt equal $(round(v_final_mwmc*mass(clay)/18.0153))
-# no water to take (built at m_w/m_c <= final_mwmc, e.g. go.sh MWMC0=1.5 MWMC=1.5): no dehydration, 03 starts from 01
-if "${mid} == 0 && ${kc} == 0 && $(count(wO)) <= ${ntgt}" then "print 'in.all: 02: m_w/m_c is already at most final_mwmc: no dehydration'" "write_data 02_dehydrate.data" "print 'DONE 02' file 02_dehydrate.done" "variable st string cons" "variable is equal 1" "jump SELF next"
 variable n1 equal $(round(mass(clay)/18.0153))
 variable n1c equal $(v_ntgt*(v_n1<=v_ntgt)+v_nw0*(v_n1>=v_nw0)*(v_n1>v_ntgt)+v_n1*(v_n1>v_ntgt)*(v_n1<v_nw0))
 variable ndel0 equal $(round(v_dfrac*v_nw0)+(round(v_dfrac*v_nw0)<1))
+# no dehydration (03 starts from the end of 01): tdry 0 (go.sh DRYNS=0: shear at the water content of the structure), or no water to take
+# (m_w/m_c already within half a removal of final_mwmc)
+variable nodry equal $((v_tdry<=0)||(count(wO)<=v_ntgt+0.5*v_ndel0))
+if "${mid} == 0 && ${kc} == 0 && ${nodry} == 1" then "print 'in.all: 02: no dehydration (tdry ${tdry} ns; $(count(wO)) water molecules, target ${ntgt})'" "write_data 02_dehydrate.data" "print 'DONE 02' file 02_dehydrate.done" "variable st string cons" "variable is equal 1" "jump SELF next"
 variable tau equal $(v_tdry*1.0e6/v_dt/((v_nw0-v_n1c)+2*(v_n1c-v_ntgt)+(v_nw0<=v_ntgt)))
 variable nleft equal $(count(wO)-v_ntgt)
 variable ndel equal $(v_tst*v_nleft/((v_ndry-v_kc)*(v_ndry>v_kc)+(v_ndry<=v_kc))+(1-v_tst)*(v_ndel0*(v_ndel0<v_nleft)+v_nleft*(v_ndel0>=v_nleft)))

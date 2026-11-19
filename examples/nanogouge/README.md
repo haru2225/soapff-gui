@@ -100,7 +100,7 @@ Options: `env NVS=0` (no velocity steps), `NVS=2`, `VFAC=10` (×10 each), `RATE=
 
 Everything in one input file, production lengths: `lammps/in.all` (dt 1 fs) runs 01 (minimisation, NVT 0.1 ns, NPzT 0.1 ns), 02 (2 ns: removals of
 5 % of the initial water down to m_w/m_c = 0.2, twice the time per removal below m_w/m_c = 1, the form of Underwood & Bourg 2020, who took 134 ns;
-none when the structure is built at m_w/m_c <= MWMC), then at each of the two normal stresses 03 (NPzT in pieces of 50 ps until Lz changes by less
+none with `DRYNS=0`: the shear at the water content of the structure, `MWMC0`), then at each of the two normal stresses 03 (NPzT in pieces of 50 ps until Lz changes by less
 than 0.1 % over a piece, 0.1-1 ns; `03_consolidate_<s>.pieces`), 04 (1e9 /s to the strain 3, then 3.2e9 and 1e10 /s, 0.5 of strain each) and 05
 (hold 50 ps): about 11 ns; after 02 the system is small (N=22, m_w/m_c 0.2: about 80,000 atoms). With PBS:
 `env STACK=3 MWMC0=1.5 WALLTIME=12 ./go.sh 22 "5.6 56" one 4 RUN_N22_fol` (a gouge of stacks built at m_w/m_c 1.5, compacted to 0.2 by 02, sheared;
