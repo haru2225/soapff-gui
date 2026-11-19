@@ -49,7 +49,8 @@ fi
 
 # ---- a python with numpy and matplotlib
 LOG=$HERE/figs_python.log; : > "$LOG"
-py_ok() { tmo 120 "$@" -c "import numpy, matplotlib" >>"$LOG" 2>&1 </dev/null; }
+PYTEST="import numpy, matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot, matplotlib.colors, matplotlib.ticker"
+py_ok() { tmo 120 "$@" -c "$PYTEST" >>"$LOG" 2>&1 </dev/null; }
 init_module() {
   type module >/dev/null 2>&1 && return 0
   local f
@@ -63,6 +64,7 @@ init_module() {
 wrap() {  # python [PYTHONPATH]
   { echo "#!/bin/bash"; echo "# python with numpy, matplotlib for the figures (written by figs.sh)"
     echo "export LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:-}\"${2:+ PYTHONPATH=\"$2\"} MPLCONFIGDIR=\"$HERE/.mplconfig\""
+    [ "${NUS:-0}" = 1 ] && echo "export PYTHONNOUSERSITE=1   # not the packages in ~/.local (a matplotlib there that does not fit the numpy)"
     echo "exec \"$1\" \"\$@\""; } > pyfigs
   chmod +x pyfigs
 }
@@ -84,6 +86,7 @@ find_py() {
   for p in $(command -v python3 python 2>/dev/null) $(ls -d /home/app/*/bin/python3 /home/app/*/*/bin/python3 /home/app/*/*/*/bin/python3 \
              /opt/*/bin/python3 /opt/*/*/bin/python3 /usr/local/bin/python3 /usr/bin/python3.* "$HOME"/*conda*/bin/python3 "$HOME"/.local/bin/python3 2>/dev/null | grep -v -- '-config'); do
     echo "   $p" >>"$LOG"
+    PYTHONNOUSERSITE=1 py_ok "$p" && { NUS=1 wrap "$p"; PY=$HERE/pyfigs; echo "   found $p"; return 0; }
     py_ok "$p" && { wrap "$p"; PY=$HERE/pyfigs; echo "   found $p"; return 0; }
   done
   if init_module; then
@@ -91,8 +94,8 @@ find_py() {
       echo "   module $m" >>"$LOG"
       p=$( set +u; module purge >/dev/null 2>&1; module load "$m" >/dev/null 2>&1 || exit 1
            for q in python3 python; do c=$(command -v $q 2>/dev/null) || continue
-             tmo 120 "$c" -c "import numpy, matplotlib" >/dev/null 2>&1 </dev/null && { echo "$c|$LD_LIBRARY_PATH"; exit 0; }; done; exit 1 ) || continue
-      LD_LIBRARY_PATH=${p#*|} wrap "${p%%|*}"; PY=$HERE/pyfigs; echo "   found module $m: ${p%%|*}"; return 0
+             PYTHONNOUSERSITE=1 tmo 120 "$c" -c "$PYTEST" >/dev/null 2>&1 </dev/null && { echo "$c|$LD_LIBRARY_PATH"; exit 0; }; done; exit 1 ) || continue
+      NUS=1 LD_LIBRARY_PATH=${p#*|} wrap "${p%%|*}"; PY=$HERE/pyfigs; echo "   found module $m: ${p%%|*}"; return 0
     done
   fi
   # 3. another Singularity image of this machine with python, numpy, matplotlib
@@ -104,7 +107,7 @@ find_py() {
     for s in $(ls /home/app/*.sif /home/app/*/*.sif /home/app/*/*/*.sif /home/app/*/*/*/*.sif "$HOME"/*.sif "$HOME"/*/*.sif 2>/dev/null | head -40); do
       [ "$s" = "$HERE/sifpy.sif" ] && continue
       echo "   $s" >>"$LOG"
-      tmo 120 $SING exec -e "$s" python3 -c "import numpy, matplotlib" >>"$LOG" 2>&1 </dev/null || continue
+      tmo 120 $SING exec -e "$s" python3 -c "$PYTEST" >>"$LOG" 2>&1 </dev/null || continue
       { echo "#!/bin/bash"; echo "# python with numpy, matplotlib in $s (written by figs.sh)"
         echo "B=\"-B $HERE\"; case \"\$(pwd -P)/\" in \"$HERE\"/*|\"\${HOME:-/nonexistent}\"/*) ;; *) B=\"\$B -B \$(pwd -P)\";; esac"
         echo "export SINGULARITYENV_MPLCONFIGDIR=\"$HERE/.mplconfig\" APPTAINERENV_MPLCONFIGDIR=\"$HERE/.mplconfig\""
@@ -117,12 +120,12 @@ find_py() {
   echo "== pip into pyfigs_lib" >>"$LOG"
   p=$(command -v python3 2>/dev/null) || return 1
   "$p" --version >>"$LOG" 2>&1
-  mkdir -p pyfigs_lib
+  rm -rf pyfigs_lib; mkdir -p pyfigs_lib
   PYTHONNOUSERSITE=1 tmo 600 "$p" -m pip install --no-cache-dir --disable-pip-version-check -q --only-binary=:all: --timeout 30 --retries 2 \
-      --target "$HERE/pyfigs_lib" matplotlib scipy >>"$LOG" 2>&1 \
+      --target "$HERE/pyfigs_lib" numpy matplotlib scipy >>"$LOG" 2>&1 \
     || PYTHONNOUSERSITE=1 tmo 600 "$p" -m pip install --no-cache-dir --disable-pip-version-check -q --only-binary=:all: --timeout 30 --retries 2 \
-      --target "$HERE/pyfigs_lib" matplotlib >>"$LOG" 2>&1
-  PYTHONPATH=$HERE/pyfigs_lib py_ok "$p" && { wrap "$p" "$HERE/pyfigs_lib"; PY=$HERE/pyfigs; echo "   found $p + pyfigs_lib"; return 0; }
+      --target "$HERE/pyfigs_lib" numpy matplotlib >>"$LOG" 2>&1
+  PYTHONNOUSERSITE=1 PYTHONPATH=$HERE/pyfigs_lib py_ok "$p" && { NUS=1 wrap "$p" "$HERE/pyfigs_lib"; PY=$HERE/pyfigs; echo "   found $p + pyfigs_lib"; return 0; }
   return 1
 }
 if ! find_py; then
@@ -147,16 +150,15 @@ NICE=""; command -v nice >/dev/null 2>&1 && NICE="nice -n 10"
 hs() {  # folder
   local r=$1; mkdir -p "$r/figs"
   echo "== hot_spots.py $r  (log: $r/figs/hot_spots.log)"
-  if $NICE $PY $A/hot_spots.py "$HERE/$r" --outdir "$HERE/$r/figs" --budget "$BUDGET" > "$r/figs/hot_spots.log" 2>&1; then
-    tail -3 "$r/figs/hot_spots.log" | sed 's/^/   /'
-  else echo "   failed:"; tail -8 "$r/figs/hot_spots.log" | sed 's/^/   /'; fi
+  $NICE $PY -u $A/hot_spots.py "$HERE/$r" --outdir "$HERE/$r/figs" --budget "$BUDGET" 2>&1 | tee "$r/figs/hot_spots.log" | sed 's/^/   /'
+  [ "${PIPESTATUS[0]}" = 0 ] || echo "   hot_spots.py $r failed (see above; $r/figs/hot_spots.log)"
 }
 for r in $RUNS; do
   if ls $r/w*/shear_*.dat >/dev/null 2>&1; then
     mkdir -p "$r/figs"
     echo "== lin_figs.py $r  (log: $r/figs/lin_figs.log)"
-    if $NICE $PY $A/lin_figs.py "$HERE/$r" --outdir "$HERE/$r/figs" > "$r/figs/lin_figs.log" 2>&1; then tail -3 "$r/figs/lin_figs.log" | sed 's/^/   /'
-    else echo "   failed:"; tail -8 "$r/figs/lin_figs.log" | sed 's/^/   /'; fi
+    $NICE $PY -u $A/lin_figs.py "$HERE/$r" --outdir "$HERE/$r/figs" 2>&1 | tee "$r/figs/lin_figs.log" | sed 's/^/   /'
+    [ "${PIPESTATUS[0]}" = 0 ] || echo "   lin_figs.py $r failed (see above; $r/figs/lin_figs.log)"
     for w in $r/w*/; do
       w=${w%/}; ls $w/shear_*.dat >/dev/null 2>&1 || continue
       for f in gouge.data config.env; do [ -e $w/$f ] || ln -s ../$f $w/$f; done

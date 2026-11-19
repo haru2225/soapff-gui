@@ -445,8 +445,10 @@ def water_cached(fn, off, names, args, cache_dir, allowed):
             pass
     if not allowed:
         return 'later'
+    t0 = time.time(); print(f'  fig9: water of {os.path.basename(fn)} (offset {off}) ...', end=' ', flush=True)
     try:
         w = water_frame(fn, off, names, args)
+        print(f'{time.time() - t0:.0f} s', flush=True)
     except (ValueError, IndexError) as e:                          # a snapshot still being written
         print(f'  {fn}: not readable ({e}): skipped'); return None
     os.makedirs(cache_dir, exist_ok=True)
@@ -734,6 +736,7 @@ def main():
     fig7(res, entcol, o('fig7_velocity_profile.png'), o('fig7_profiles.csv'))
     fig8_10(res, o('fig8_tau_v.png'), o('fig10_viscosity.png'), o('fig8_fig10_points.csv'), summary)
     open(o('hot_spots_summary.txt'), 'w').write('\n'.join(summary) + '\n')
+    print(f'fig6, fig7, fig8, fig10 in {os.path.abspath(args.outdir)}; now fig9 (the water of the snapshots; the slowest part)', flush=True)
     # fig9 last: the water of the snapshots takes the longest (a frame is analysed once and kept in <outdir>/.cache)
     try:
         import scipy  # noqa: F401
