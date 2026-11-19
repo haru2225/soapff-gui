@@ -28,6 +28,9 @@ p.add_argument('--nconf', type=int, default=300, help='number of random configur
 p.add_argument('--mind', type=float, default=3.5, help='minimum atom-atom distance between two particles (A)')
 p.add_argument('--water-mind', type=float, default=2.6, help='minimum distance water O to a clay atom (A)')
 p.add_argument('--clay-density', type=float, default=2.7, help='g/cm3, to size the box')
+p.add_argument('--stack', type=int, default=1, help='particles per stack: 1 = single particles at random (U&B 2020); k > 1: stacks (tactoids) of k particles '
+               'face to face at the layer spacing --d001, each turned at random about its normal; the stacks are placed and oriented at random')
+p.add_argument('--d001', type=float, default=15.5, help='A: layer spacing inside a stack (Na-montmorillonite: 2 water layers ~15.5, 1 layer ~12.5)')
 p.add_argument('--seed', type=int, default=1)
 p.add_argument('-o', '--out', default='gouge')
 a = p.parse_args()
@@ -97,8 +100,23 @@ def order_S(Rms):
         n = Rm[:, 2]; Q += 1.5 * np.outer(n, n) - 0.5 * np.eye(3)
     return np.linalg.eigvalsh(Q / len(Rms))[-1]
 
+def rotz(phi):
+    c, s_ = np.cos(phi), np.sin(phi)
+    return np.array([[c, -s_, 0], [s_, c, 0], [0, 0, 1]])
+
+def make_stack(ks):
+    """ks particles face to face along z (particle frame): (offset, rotation) of each; the spacing grows by 0.5 A until no two atoms of
+    neighbouring particles are closer than --mind"""
+    d = a.d001
+    while True:
+        rel = [(np.r_[(rng.random(2) - 0.5) * 0.2 * R, (j - (ks - 1) / 2) * d], rotz(rng.random() * 2 * np.pi)) for j in range(ks)]
+        xs = [pos0 @ Rz.T + off for off, Rz in rel]
+        if all(cKDTree(xs[j]).count_neighbors(cKDTree(xs[j + 1]), a.mind) == 0 for j in range(ks - 1)):
+            return rel, d
+        d += 0.5
+
 best = None
-for k in range(a.nconf):
+for k in range(a.nconf if a.stack <= 1 else 0):
     out = []; Rms = []
     ok = True
     for i in range(a.n):
@@ -115,6 +133,33 @@ for k in range(a.nconf):
     S = order_S(Rms)
     if best is None or S < best[0]: best = (S, out, Rms, k)
     if (k + 1) % 50 == 0: print(f'  config {k + 1}: best S = {best[0]:.3f}' if best else f'  config {k + 1}: none placed')
+# stacks of a.stack particles (the last one smaller when a.n is not a multiple), placed as rigid units
+for k in range(a.nconf if a.stack > 1 else 0):
+    out = []; Rms = []; units = []; dmax = 0.0
+    ok = True
+    sizes = [a.stack] * (a.n // a.stack) + ([a.n % a.stack] if a.n % a.stack else [])
+    for ks in sizes:
+        rel, d = make_stack(ks); dmax = max(dmax, d)
+        Ru = np.sqrt((1.1 * R) ** 2 + (0.5 * ((ks - 1) * d + thick)) ** 2)
+        for t in range(5000):
+            c = rng.random(3) * L; Rm = rotmat(rng.normal(size=4))
+            parts = [((c + Rm @ off) % L, Rm @ Rz) for off, Rz in rel]
+            xyzs = [(pos0 @ Rp.T + cp) % L for cp, Rp in parts]
+            tr = cKDTree(np.vstack(xyzs), boxsize=L); good = True
+            for (c2, tr2, Ru2) in units:
+                if np.linalg.norm(mic(c - c2)) > Ru + Ru2 + 2: continue
+                if tr.count_neighbors(tr2, a.mind) > 0: good = False; break
+            if good:
+                units.append((c, tr, Ru))
+                for (cp, Rp), xyz in zip(parts, xyzs): out.append((cp, xyz, None, Rp)); Rms.append(Rp)
+                break
+        else: ok = False; break
+    if not ok: continue
+    S = order_S(Rms)
+    if best is None or S < best[0]: best = (S, out, Rms, k)
+    if (k + 1) % 50 == 0: print(f'  config {k + 1}: best S = {best[0]:.3f}' if best else f'  config {k + 1}: none placed')
+if a.stack > 1 and best is not None:
+    print(f'stacks of {a.stack} particles (sizes {sizes}), layer spacing {dmax:.1f} A (asked {a.d001} A)')
 if best is None: sys.exit('could not place the particles: use fewer particles, a larger --mwmc (bigger box) or --mind smaller')
 S, out, Rms, kb = best
 print(f'kept configuration {kb} with S = {S:.3f}')
@@ -137,7 +182,7 @@ for i in range(n_w): wxyz[i] = (wat0 @ rotmat(rng.normal(size=4)).T) + g[i]
 # ---------------------------------------------------------------- write data + settings
 ntypes = ntp + 2; nat = a.n * natp + 3 * n_w
 with open(f'{a.out}.data', 'w') as f:
-    f.write(f'{a.n} Na-montmorillonite edge particles + {n_w} flexible SPC water (build_gouge.py), S = {S:.3f}\n\n')
+    f.write(f'{a.n} Na-montmorillonite edge particles' + (f' in stacks of {a.stack} (d001 {a.d001} A)' if a.stack > 1 else '') + f' + {n_w} flexible SPC water (build_gouge.py), S = {S:.3f}\n\n')
     f.write(f'{nat} atoms\n{ntypes} atom types\n{a.n * len(bonds) + 2 * n_w} bonds\n{n_bt + 1} bond types\n{a.n * len(angles) + n_w} angles\n{n_at + 1} angle types\n\n')
     for d, lab in zip(range(3), 'xyz'): f.write(f'0.0 {L[d]:.6f} {lab}lo {lab}hi\n')
     f.write('\nMasses\n\n')
@@ -173,5 +218,5 @@ with open(f'{a.out}.settings', 'w') as f:
     f.write(f'pair_coeff {T_HW} {T_HW} 0.0 0.0  # hw\npair_coeff {T_OW} {T_OW} 0.1554 3.1655413252962536  # ow\n')
     f.write(f'bond_coeff {B_W} 554.1349 1.0  # O-H (water)\nangle_coeff {A_W} 45.7696 109.47  # HOH (water)\n')
 json.dump(dict(n_particles=a.n, n_water=n_w, atoms_per_particle=natp, n_atom_types=ntypes, type_hw=T_HW, type_ow=T_OW, clay_types=list(range(1, ntp + 1)),
-               mass_clay_amu=a.n * mass_p, S_initial=float(S), box=L.tolist(), seed=a.seed, nconf=a.nconf, mwmc=a.mwmc), open(f'{a.out}.json', 'w'), indent=1)
+               mass_clay_amu=a.n * mass_p, S_initial=float(S), box=L.tolist(), seed=a.seed, nconf=a.nconf, mwmc=a.mwmc, stack=a.stack, d001=a.d001), open(f'{a.out}.json', 'w'), indent=1)
 print(f'wrote {a.out}.data, {a.out}.settings, {a.out}.json')

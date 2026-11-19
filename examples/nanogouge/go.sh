@@ -15,10 +15,17 @@
 #   NRUN=1000     a test of the whole chain: every run of every stage is 1000 steps (02: one water removal; 04: each of its 5 phases), outputs
 #                 every 100 steps; in its own folder RUN_N<N>_test1000 (the structure of RUN_N<N> is copied if there).  Checks that all runs and
 #                 all outputs work; the numbers mean nothing.   env NRUN=1000 WALLTIME=0:30:00 ./go.sh 22 "5.6 56" all 4
-#   ./go.sh 22 "5.6 56" one 4   everything in ONE input file, lammps/in.all: 01 (minimisation, NVT, NPzT), 02 (10 water removals), then 03, 04 (5 rates),
-#                 05 at each normal stress; every run 5000 steps (NRUN=2000 changes it); in its own folder RUN_N22_one; a job stopped by the wall time
-#                 is continued by the next one (all.state)
-#   NFAC=2        "one": the runs of 02, 03, 04, 05 are NFAC x nrun steps (01 stays nrun); also in a running folder: from its next run on
+#   ./go.sh 22 "5.6 56" one 4   everything in ONE input file, lammps/in.all, production lengths (dt 1 fs; a job stopped by the wall time is
+#                 continued by the next one, all.state), in its own folder RUN_N22_one (5th argument: another folder):
+#                 01 minimisation, NVT 0.1 ns, NPzT 0.1 ns;  02 10 water removals, 0.2 ns NPzT after each (2 ns);  then at each normal stress:
+#                 03 NPzT in pieces of 50 ps until Lz changes by < 0.1 % over a piece (0.1-1 ns);  04 1e9 /s to the strain 1 (1 ns), then
+#                 3.2e9 and 1e10 /s, 0.5 of strain each;  05 hold 50 ps.  About 7 ns in all.  NRUN=2000: a test, every run 2000 steps.
+#                 Lengths (one): NEQ=100000 (01), NDWELL=200000 (02, each removal), NCONS=50000 (03 piece), CONSTOL=0.001, NCONSMAX=20,
+#                 RATE=1e9, GMAX=1, NVS=2, GSTEP=0.5, HOLD=50000 (05)
+#   STACK=3       the particles in stacks (tactoids) of 3, face to face at 15.5 A (2 water layers; D001=12.5: 1 layer), the stacks at random
+#                 (default 1: single particles at random, U&B 2020; within 2 ns of dehydration they hardly come together face to face);
+#                 its own structure in RUN_N<N>_stack3 (copied to the run folder)
+#   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
 #   Python (build_gouge.py: numpy, scipy; the figures: matplotlib) = ./sifpy, python 3.11 in a Singularity image that make_sif.sh makes once
@@ -30,10 +37,13 @@
 set -eu
 cd "$(dirname "$0")"
 N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; BASE=RUN_N$N
+# the folder of the initial structure (seed 1): RUN_N<N>, or RUN_N<N>_stack<k> for stacks (STACK=k)
+STACK=${STACK:-1}; case "$STACK" in [1-9]) ;; *) echo "STACK=$STACK: particles per stack, 1 to 9"; exit 1;; esac
+GB=$BASE; [ "$STACK" -gt 1 ] && GB=${BASE}_stack$STACK
 # NRUN (a short test of the whole chain) never goes into a running folder: its own folder RUN_N<N>_test<NRUN> unless a 5th argument is given
 if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
 # stages "one": everything in one input file (lammps/in.all, every run 5000 steps), in its own folder RUN_N<N>_one
-if [ "$ST" = one ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_one; fi
+if [ "$ST" = one ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_one; [ "$STACK" -gt 1 ] && RUN=RUN_N${N}_one_stack$STACK; fi
 # stages "water": a series of water contents (lammps/in.water; go_water.sh), in its own folder RUN_N<N>_water
 if [ "$ST" = water ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_water; fi
 [ -n "${4:-}" ] && export NODES=$4      # 4th argument = number of nodes (works in any shell, no "NODES=4 ./go.sh" needed)
@@ -69,18 +79,18 @@ fi
 NCONF=${NCONF:-$([ "$N" -gt 20 ] && echo 30 || echo 300)}
 if [ ! -f "$RUN/gouge.data" ]; then
   mkdir -p "$RUN"
-  if [ "$SEED" = 1 ] && [ "$RUN" != "$BASE" ] && [ -f "$BASE/gouge.data" ]; then
+  if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ] && [ -f "$GB/gouge.data" ]; then
     # seed 1 builds the structure of RUN_N<N> again: copy it (minutes saved)
-    cp "$BASE/gouge.data" "$BASE/gouge.settings" "$RUN/"; [ -f "$BASE/gouge.json" ] && cp "$BASE/gouge.json" "$RUN/"
-    echo "$RUN: the same initial structure as $BASE (copied)"
+    cp "$GB/gouge.data" "$GB/gouge.settings" "$RUN/"; [ -f "$GB/gouge.json" ] && cp "$GB/gouge.json" "$RUN/"
+    echo "$RUN: the same initial structure as $GB (copied)"
   else
     # numpy and scipy are needed only here (building a new structure)
     get_py || { [ -z "${PYTHON:-}" ] && python3 -c "import numpy, scipy" 2>/dev/null </dev/null && PY=python3 && echo "(using python3 of this node, which has numpy and scipy)"; } \
       || { echo "no python with numpy and scipy to build the structure: ./sifpy could not be made (see above; ./make_sif.sh needs internet once)"; exit 1; }
     # seed 1 in another folder (a test, a rate series): built in RUN_N<N> and copied, so all of them start from the same structure
-    OUT=$RUN; if [ "$SEED" = 1 ] && [ "$RUN" != "$BASE" ]; then OUT=$BASE; mkdir -p "$BASE"; fi
-    $PY build_gouge.py -n $N --mwmc 3.0 --nconf $NCONF --seed $SEED -o "$OUT/gouge" || { echo "build_gouge.py failed"; exit 1; }
-    if [ "$OUT" != "$RUN" ]; then cp "$BASE/gouge.data" "$BASE/gouge.settings" "$RUN/"; [ -f "$BASE/gouge.json" ] && cp "$BASE/gouge.json" "$RUN/"; echo "$RUN: structure built in $BASE (for its real run too) and copied"; fi
+    OUT=$RUN; if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ]; then OUT=$GB; mkdir -p "$GB"; fi
+    $PY build_gouge.py -n $N --mwmc 3.0 --nconf $NCONF --seed $SEED --stack $STACK ${D001:+--d001 $D001} -o "$OUT/gouge" || { echo "build_gouge.py failed"; exit 1; }
+    if [ "$OUT" != "$RUN" ]; then cp "$GB/gouge.data" "$GB/gouge.settings" "$RUN/"; [ -f "$GB/gouge.json" ] && cp "$GB/gouge.json" "$RUN/"; echo "$RUN: structure built in $GB (for its real run too) and copied"; fi
   fi
   # another seed: LAMMPS uses it too (velocities, water removal, thermostat); job.sh reads lammps_seed
   [ "$SEED" != 1 ] && echo "$SEED" > "$RUN/lammps_seed"
@@ -108,6 +118,11 @@ if [ -n "${HEAL:-}" ]; then set_opt heal "$HEAL"; fi
 if [ -n "${GSTEP:-}" ]; then set_opt gstep "$GSTEP"; fi
 if [ -n "${HOLD:-}" ]; then set_opt nhold "$HOLD"; fi
 if [ -n "${DFRAC:-}" ]; then set_opt dfrac "$DFRAC"; fi
+if [ -n "${NEQ:-}" ]; then set_opt neq "$NEQ"; fi
+if [ -n "${NDWELL:-}" ]; then set_opt ndwell "$NDWELL"; fi
+if [ -n "${NCONS:-}" ]; then set_opt ncons "$NCONS"; fi
+if [ -n "${CONSTOL:-}" ]; then set_opt constol "$CONSTOL"; fi
+if [ -n "${NCONSMAX:-}" ]; then set_opt nconsmax "$NCONSMAX"; fi
 # WLIST (go_water.sh): the water contents m_w/m_c of in.water, wet to dry, at most 8
 if [ -n "${WLIST:-}" ]; then
   i=0; for w in $WLIST; do i=$((i+1)); set_opt w$i "$w" >/dev/null; done

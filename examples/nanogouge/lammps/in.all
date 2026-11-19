@@ -1,27 +1,37 @@
-# in.all: the whole calculation in one input file, every run nrun steps (default 5000; the runs of 02-05 nfac x nrun: -var nfac 2, go.sh NFAC=2):
-#   01 minimisation (miniter), NVT nrun, NPzT nrun at 1 atm                      -> 01_equil.data
-#   02 ndry water removals (down to m_w/m_c = final_mwmc), NPzT nrun after each    -> 02_dehydrate.data, dehydrate.dat
+# in.all: the whole calculation in one input file (production lengths below; -var nrun N: a test, every run N steps):
+#   01 minimisation (miniter), NVT neq, NPzT neq at 1 atm                                -> 01_equil.data
+#   02 ndry water removals (down to m_w/m_c = final_mwmc), NPzT ndwell after each           -> 02_dehydrate.data, dehydrate.dat
 #   then for the normal stress sig1, then sig2 (MPa; sig2 0 = only sig1):
-#   03 NPzT nrun at sigma                                                          -> 03_consolidate_<s>.data/.dat
-#   04 shear nrun at rate (Lees-Edwards + Langevin on the deviation from the linear profile + barostat on z, Lin's thesis), then nvs velocity steps
-#      of nrun each at rate x vfac^k                                               -> shear_<s>.dat, particles_<s>.*.dat, prof_<s>.*.dat, shear_<s>_all_*.dump
-#   05 hold: NPzT nrun at sigma from the end of the shear at "rate"                -> heal_<s>.dat, heal_<s>_final.data
-#   (defaults: 2 + 10 + 2 x (1 + 5 + 1) = 26 runs of 5000 steps = 130,000 steps).  Same output files as in.01_equil ... in.05_heal (hot_spots.py, OVITO).
+#   03 NPzT at sigma in pieces of ncons until Lz changes by less than constol over a piece (at most nconsmax pieces) -> 03_consolidate_<s>.data/.dat
+#   04 shear at rate to the strain gmax (Lees-Edwards + Langevin on the deviation from the linear profile + barostat on z, Lin's thesis), then nvs
+#      velocity steps of the strain gstep each at rate x vfac^k                           -> shear_<s>.dat, particles_<s>.*.dat, prof_<s>.*.dat, shear_<s>_all_*.dump
+#   05 hold: NPzT nhold at sigma from the end of the shear at "rate"                      -> heal_<s>.dat, heal_<s>_final.data
+#   Production (default, dt 1 fs): 01 0.1 + 0.1 ns, 02 10 x 0.2 ns, 03 0.1-1 ns, 04 1e9 /s to strain 1 (1 ns), 3.2e9 /s +0.5, 1e10 /s +0.5 (0.2 ns),
+#   05 0.05 ns: about 2.2 ns + 2 x 2.4 ns = 7 ns.  -var nfac 2: 02-05 twice as long (04: twice the strain).
+#   Outputs: about 200 lines per run in the .dat files, 20 frames per run in the trajectories (03: 5 per piece, 04: 50 per phase).
 #   lmp -in in.all -var data gouge.data -var settings gouge.settings                 both normal stresses (5.6 and 56 MPa)
-#   lmp -in in.all -var data gouge.data -var settings gouge.settings -var sig1 56 -var sig2 0 -var nrun 2000
+#   lmp -in in.all -var data gouge.data -var settings gouge.settings -var sig1 56 -var sig2 0 -var nrun 2000     a quick test
 #   PBS: ./go.sh 22 "5.6 56" one 4   (3rd argument "one": the jobs of the chain run this file in RUN_N22_one)
 # Continued: each run ends with all.restart and all.state (what comes next); a run that the time limit (-var tlimit, s) stops writes them too, so
-# started again in the same folder with -var resume 1 (job.sh does it), this file goes on where it stopped, also inside a run.
+# started again in the same folder, this file goes on where it stopped, also inside a run.
 variable data index gouge.data
 variable settings index gouge.settings
-variable nrun index 5000              # steps of every run of 01 (NVT, NPzT)
-variable nfac index 1                 # the runs of 02, 03, 04, 05 are nfac x nrun steps (go.sh: NFAC=2)
+variable nrun index 0                 # 0: the production lengths below;  N > 0: a test, every run N steps (03: one piece; 04: N per phase)
+variable neq index 100000             # 01: steps of the NVT and of the NPzT run (100 ps each)
+variable ndwell index 200000          # 02: steps after each water removal (200 ps: time for the particles to come together)
+variable ncons index 50000            # 03: steps of each piece of the consolidation (50 ps)
+variable constol index 0.001          # 03: done when Lz (mean of the last tenth of a piece) changed by less than this fraction over a piece
+variable nconsmax index 20            # 03: at most this many pieces (1 ns)
+variable nhold index 50000            # 05: steps of the hold (50 ps)
+variable nfac index 1                 # 02, 03, 04, 05 nfac x as long (04: nfac x the strain) (go.sh: NFAC=2)
 variable sig1 index 5.6               # MPa
 variable sig2 index 56                # MPa; 0 = none
 variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
 variable ndry index 10                # 02: number of water removals (each about the same number of molecules), each followed by nrun steps
-variable rate index 1.0e-7            # 04: shear rate in 1/fs (1.0e-7 = 1e8 /s)
-variable nvs index 4                  # 04: velocity steps after the first run (0 = none)
+variable rate index 1.0e-6            # 04: first shear rate in 1/fs (1.0e-6 = 1e9 /s)
+variable gmax index 1.0               # 04: shear strain at the first rate
+variable gstep index 0.5              # 04: shear strain of each velocity step
+variable nvs index 2                  # 04: velocity steps after the first rate (2: 1e9 -> 3.2e9 -> 1e10 /s; 0 = none)
 variable vfac index 3.16227766        # 04: rate factor from one velocity step to the next
 variable flow index 1                 # 04: 1 Langevin on the deviation from the linear profile (Lin), 2 Langevin on vy only, 3 no thermostat
 variable Tdamp index 1000.0           # fs, 04 Langevin
@@ -39,9 +49,19 @@ variable seed index 12345
 variable dump_group index clay        # atoms in the trajectories (clay or all)
 variable tlimit index off             # s of wall time for this LAMMPS (job.sh sets it from the PBS wall time).  Given: ONE run, then LAMMPS ends
                                       # (job.sh starts it again with the time left: no clock is needed in here, any LAMMPS version)
-variable nout equal $(10*round(v_nrun/100)+10*(round(v_nrun/100)<1))   # output interval: a tenth of a run (a multiple of 10)
-variable nextpr equal (floor((step+v_nout-1)/v_nout)+1)*v_nout   # lines of the .dat files: from one interval after the start of a run
-variable n2 equal $(round(v_nrun*v_nfac))   # steps of each run of 02 03 04 05
+# the steps of each kind of run (tst 1: a test, every run nrun steps)
+variable tst equal $(v_nrun>0)
+variable nb equal $(v_tst*v_nrun+(1-v_tst)*5000)
+variable LEQ equal $(round(v_tst*v_nrun+(1-v_tst)*v_neq))
+variable LDW equal $(round((v_tst*v_nrun+(1-v_tst)*v_ndwell)*v_nfac))
+variable LCO equal $(100*round((v_tst*v_nrun+(1-v_tst)*v_ncons)*v_nfac/100)+100*(round((v_tst*v_nrun+(1-v_tst)*v_ncons)*v_nfac/100)<1))
+variable NCM equal $(v_tst+(1-v_tst)*v_nconsmax)
+variable LHO equal $(round((v_tst*v_nrun+(1-v_tst)*v_nhold)*v_nfac))
+variable nout equal $(10*round(v_nb/100)+10*(round(v_nb/100)<1))   # smallest output interval (a multiple of 10)
+# per run (set at its start): nso = interval of the .dat lines and thermo (about 200 per run), ndump = of the trajectory frames
+variable nso equal ${nout}
+variable ndump equal ${nout}
+variable nextpr equal (floor((step+v_nso-1)/v_nso)+1)*v_nso   # lines of the .dat files: from one interval after the start of a run
 log log.one append
 
 # where the calculation is: st = the next run (min nvt npt dry cons shear heal end: 01 01 01 02 03 04 05), is = 1 or 2 (sig1, sig2),
@@ -55,6 +75,8 @@ variable nw0 equal -1
 variable kk equal 0
 variable Gb equal 0.0
 variable rprev equal 0.0
+variable kcs equal 0
+variable lzp equal 0.0
 # S0, S1: first and last step of the run st (kept in all.state: a run stopped by the time limit ends where it was to end, also when nrun or
 # nfac were changed meanwhile; S1 = -1: an all.state of an earlier version, whose runs end at the multiples of nrun)
 variable S0 equal 0
@@ -80,10 +102,10 @@ variable infile string all.restart
 variable fromdata equal 0
 if "${mid} == 0 && ${st} == min" then "variable infile string ${data}" "variable fromdata equal 1"
 if "${mid} == 0 && ${st} == dry && ${kc} == 0" then "variable infile string 01_equil.data" "variable fromdata equal 1"
-if "${mid} == 0 && ${st} == cons" then "variable infile string 02_dehydrate.data" "variable fromdata equal 1"
+if "${mid} == 0 && ${st} == cons && ${kcs} == 0" then "variable infile string 02_dehydrate.data" "variable fromdata equal 1"
 if "${mid} == 0 && ${st} == shear && ${kk} == 0" then "variable infile string 03_consolidate_${sigma}.data" "variable fromdata equal 1"
 if "${mid} == 0 && ${st} == heal" then "variable infile string shear_${sigma}_final.data" "variable fromdata equal 1"
-print "in.all: run ${st}  sigma ${sigma}  kc ${kc}  kk ${kk}  from ${infile} (mid ${mid})"
+print "in.all: run ${st}  sigma ${sigma}  kc ${kc}  kcs ${kcs}  kk ${kk}  from ${infile} (mid ${mid})"
 processors * * * file procs.txt
 if "${fromdata} == 1" then "jump SELF read_data"
 read_restart all.restart
@@ -131,22 +153,28 @@ jump SELF next
 
 label s_nvt
 if "${mid} == 0" then "velocity all create ${T} ${seed} dist gaussian mom yes rot yes"
-dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LEQ)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_nb)"
+variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
+thermo ${nso}
+dump dm ${dump_group} custom ${ndump} 01_equil.dump id mol type xu yu zu
 dump_modify dm append yes
 fix fnvt all nvt temp ${T} ${T} 100.0
-if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_nrun)"
-if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_nrun)"
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 variable st string npt
 jump SELF next
 
 label s_npt
-dump dm ${dump_group} custom ${nout} 01_equil.dump id mol type xu yu zu
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LEQ)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_nb)" "variable S1 equal $(2*v_nb)"
+variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
+thermo ${nso}
+dump dm ${dump_group} custom ${ndump} 01_equil.dump id mol type xu yu zu
 dump_modify dm append yes
 fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
-if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_nrun)"
-if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_nrun)" "variable S1 equal $(2*v_nrun)"
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 write_data 01_equil.data
@@ -163,11 +191,14 @@ variable ntgt equal $(round(v_final_mwmc*mass(clay)/18.0153))
 variable ndel equal $((count(wO)-v_ntgt)/(v_ndry-v_kc))
 if "${ndel} > 0 && ${mid} == 0" then "variable rsel atom type==${tow}&&random(0,1,$(v_seed+v_kc+1))<$(v_ndel/count(wO))" "group gdel variable rsel" "delete_atoms group gdel mol yes bond yes compress yes"
 print "in.all: 02 removal $(v_kc+1) of ${ndry}: $(count(wO)) water molecules left (target ${ntgt})"
-dump dm ${dump_group} custom ${nout} 02_dehydrate.dump id mol type xu yu zu
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LDW)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_kc*v_nb)" "variable S1 equal $((v_kc+1)*v_nb)"
+variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
+thermo ${nso}
+dump dm ${dump_group} custom ${ndump} 02_dehydrate.dump id mol type xu yu zu
 dump_modify dm append yes
 fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
-if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_n2)"
-if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_kc*v_nrun)" "variable S1 equal $((v_kc+1)*v_nrun)"
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 print "$(v_kc+1) $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
@@ -177,18 +208,36 @@ jump SELF next
 
 # ================= 03 consolidation at sigma =================
 label s_cons
+# piece kcs+1 of LCO steps (the pieces end at the multiples of LCO: the consolidation starts at step 0); done when the mean Lz of the last
+# tenth of a piece changed by less than constol since the piece before (at least 2 pieces), or after NCM pieces
 variable lzv equal lz
 variable dens equal mass(clay)*1.66054/vol
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LCO)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_nb)"
+variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
+thermo ${nso}
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(5*v_nout))))
 fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
-fix av all ave/time $(v_nout/10) 10 ${nout} v_lzv v_dens
-if "${mid} == 0" then "print '# TimeStep v_lzv v_dens' file 03_consolidate_${sigma}.dat"
+fix av all ave/time $(v_nso/10) 10 ${nso} v_lzv v_dens
+fix lzc all ave/time 10 $(v_LCO/100) $(v_LCO/10) v_lzv
+if "${mid} == 0 && ${kcs} == 0" then "print '# TimeStep v_lzv v_dens' file 03_consolidate_${sigma}.dat"
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g)" append 03_consolidate_${sigma}.dat screen no
-dump dm ${dump_group} custom ${nout} 03_consolidate_${sigma}.dump id mol type xu yu zu
-if "${mid} == 1" then "dump_modify dm append yes"
-if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_n2)"
-if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_nrun)"
+dump dm ${dump_group} custom ${ndump} 03_consolidate_${sigma}.dump id mol type xu yu zu
+if "${mid} == 1 || ${kcs} > 0" then "dump_modify dm append yes"
+print "in.all: 03 at ${sigma} MPa, piece $(v_kcs+1) of at most ${NCM}: steps ${S0} -> ${S1}"
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
+variable lzn equal $(f_lzc+(f_lzc==0)*lz)
+variable dlz equal $(abs(v_lzn-v_lzp)/v_lzn)
+variable kcs equal $(v_kcs+1)
+variable lzp equal ${lzn}
+variable cdone equal $((v_kcs>=v_NCM)||((v_kcs>=2)&&(v_dlz<v_constol)))
+print "in.all: 03 at ${sigma} MPa, piece ${kcs}: Lz $(v_lzn:%.3f) A, change $(v_dlz:%.5f) over the piece (done below ${constol}): done ${cdone}"
+print "$(step) $(v_lzn:%.4f) $(v_dlz:%.6f)" append 03_consolidate_${sigma}.pieces
+if "${cdone} == 0" then "jump SELF next"
+variable kcs equal 0
+variable lzp equal 0.0
 write_data 03_consolidate_${sigma}.data
 print "DONE 03" file 03_consolidate_${sigma}.done
 variable st string shear
@@ -200,8 +249,15 @@ jump SELF next
 # ================= 04 shear: phase kk (0 = rate, then the velocity steps) =================
 label s_shear
 variable rk equal $(v_rate*v_vfac^v_kk)
-if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_n2)"
-if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_kk*v_nrun)" "variable S1 equal $((v_kk+1)*v_nrun)"
+# steps of this phase: the strain gmax (first rate) or gstep (velocity steps) at this rate, x nfac; a test (nrun > 0): nrun
+variable gk equal $(v_gmax*(v_kk==0)+v_gstep*(v_kk>0))
+variable L0 equal $(v_tst*v_nrun+(1-v_tst)*((v_gk>0)*round(v_gk/(v_rk*v_dt))+(v_gk<=0)*v_nb))
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+round(v_L0*v_nfac))"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_kk*v_nb)" "variable S1 equal $((v_kk+1)*v_nb)"
+variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
+thermo ${nso}
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(50*v_nout))))
 variable Sb equal ${S0}
 variable Se equal ${S1}
 print "in.all: 04 phase ${kk}: rate $(v_rk*1e15:%.4g) /s, steps ${Sb} -> ${Se}, strain ${Gb} -> $(v_Gb+(v_Se-v_Sb)*v_rk*v_dt)"
@@ -222,7 +278,7 @@ variable lzv equal lz
 variable lxv equal lx
 variable lyv equal ly
 variable rks equal ${rk}*1e15
-fix av all ave/time $(v_nout/10) 10 ${nout} v_gam v_ss v_sn v_mu v_lzv v_dens c_tdef v_lxv v_lyv v_rks
+fix av all ave/time $(v_nso/10) 10 ${nso} v_gam v_ss v_sn v_mu v_lzv v_dens c_tdef v_lxv v_lyv v_rks
 if "${kk} == 0 && ${mid} == 0" then "print '# TimeStep gamma tau(MPa) sigma_n(MPa) mu Lz(A) rho_b(g/cm3) T(K) Lx(A) Ly(A) rate(1/s)' file shear_${sigma}.dat" "print 'in.all with phases' file shear_${sigma}.v2"
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g) $(f_av[5]:%.6g) $(f_av[6]:%.6g) $(f_av[7]:%.5g) $(f_av[8]:%.6g) $(f_av[9]:%.6g) $(f_av[10]:%.5g)" append shear_${sigma}.dat screen no
 # particles (clay without Na): centre of mass, velocity, gyration tensor, internal temperature;  profiles across the gouge
@@ -247,9 +303,9 @@ if "${kk} == 0 && ${mid} == 0" then "write_dump all custom shear_${sigma}_all_0.
 # (not when a stopped phase goes on: its velocities have it)
 fix fd all deform 1 xz erate ${rk} remap v units box
 if "${flow} > 0 && ${mid} == 0" then "velocity all ramp vx 0.0 $((v_rk-v_rprev)*lz) z $(zlo) $(zhi) sum yes units box"
-fix fpart part ave/time $(v_nout/5) 1 $(v_nout/5) c_pcom[1] c_pcom[2] c_pcom[3] c_pvcm[1] c_pvcm[2] c_pvcm[3] c_pgyr[1] c_pgyr[2] c_pgyr[3] c_pgyr[4] c_pgyr[5] c_pgyr[6] c_ptmp[1] mode vector file particles_${sigma}.$(step).dat
-fix fprof all ave/time $(v_nout/10) 10 ${nout} c_zpw[2] c_zpw[1] c_zvw[1] c_zpc c_zvc[1] c_zta[1] mode vector file prof_${sigma}.$(step).dat
-dump dm ${dump_group} custom ${nout} shear_${sigma}.dump id mol type xu yu zu
+fix fpart part ave/time $(v_nso/5) 1 $(v_nso/5) c_pcom[1] c_pcom[2] c_pcom[3] c_pvcm[1] c_pvcm[2] c_pvcm[3] c_pgyr[1] c_pgyr[2] c_pgyr[3] c_pgyr[4] c_pgyr[5] c_pgyr[6] c_ptmp[1] mode vector file particles_${sigma}.$(step).dat
+fix fprof all ave/time $(v_nso/10) 10 ${nso} c_zpw[2] c_zpw[1] c_zvw[1] c_zpc c_zvc[1] c_zta[1] mode vector file prof_${sigma}.$(step).dat
+dump dm ${dump_group} custom ${ndump} shear_${sigma}.dump id mol type xu yu zu
 dump_modify dm append yes
 run ${Se} upto
 if "$(step) < ${Se}" then "jump SELF stop"
@@ -268,14 +324,17 @@ variable ss equal -c_pt[5]*0.101325
 variable sn equal c_pt[3]*0.101325
 variable dens equal mass(clay)*1.66054/vol
 variable lzv equal lz
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LHO)"
+if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_nb)"
+variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
+thermo ${nso}
 fix fnpt all npt temp ${T} ${T} 100.0 z ${Pn} ${Pn} 1000.0
-fix av all ave/time $(v_nout/10) 10 ${nout} v_ss v_sn v_lzv v_dens
+fix av all ave/time $(v_nso/10) 10 ${nso} v_ss v_sn v_lzv v_dens
 if "${mid} == 0" then "print '# TimeStep v_ss v_sn v_lzv v_dens' file heal_${sigma}.dat"
 fix pr all print v_nextpr "$(step) $(f_av[1]:%.6g) $(f_av[2]:%.6g) $(f_av[3]:%.6g) $(f_av[4]:%.6g)" append heal_${sigma}.dat screen no
-dump dm ${dump_group} custom ${nout} heal_${sigma}.dump id mol type xu yu zu
+dump dm ${dump_group} custom ${ndump} heal_${sigma}.dump id mol type xu yu zu
 if "${mid} == 1" then "dump_modify dm append yes"
-if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_n2)"
-if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(0)" "variable S1 equal $(v_nrun)"
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 write_data heal_${sigma}_final.data
@@ -300,6 +359,8 @@ print "variable nw0 equal ${nw0}" append all.state
 print "variable kk equal ${kk}" append all.state
 print "variable Gb equal ${Gb}" append all.state
 print "variable rprev equal ${rprev}" append all.state
+print "variable kcs equal ${kcs}" append all.state
+print "variable lzp equal ${lzp}" append all.state
 print "variable mid equal ${mid}" append all.state
 print "variable S0 equal ${S0}" append all.state
 print "variable S1 equal ${S1}" append all.state

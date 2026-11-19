@@ -7,6 +7,7 @@
 #   env JOB=1 ./figs.sh RUN_N22_one            the same as a short PBS job (when the login node has no singularity or limits the time)
 #   env BUDGET=1800 ./figs.sh ...              s for the water analysis of the trajectory (fig9; default 600, 0 = no limit); a frame done is
 #                                              kept in figs/.cache, so the next ./figs.sh goes on
+# Also stacks.py: are the particles stacked (01, 02, 03, 04)?  RUN_*/figs/stacks.png, stacks.csv
 # Out: RUN_N22_one/figs/*.png + hot_spots_summary.txt;  RUN_N22_water/figs/lin_*.png and RUN_N22_water/w<m_w/m_c>/figs/*.png
 # Python with numpy and matplotlib (scipy for fig9): ./sifpy (Singularity, make_sif.sh: made now when it is missing), else any python of this
 # machine that has them (PATH, modules, /home/app, other .sif images), else the python3 of this node + matplotlib from pip in pyfigs_lib/.
@@ -22,13 +23,13 @@ BUDGET=${BUDGET:-600}
 if [ -n "${PBS_JOBID:-}" ] && [ -f .figs_args ]; then set -- $(cat .figs_args); fi
 RUNS=""
 if [ $# -eq 0 ]; then
-  for r in RUN_*/; do r=${r%/}; { ls $r/shear_*.dat || ls $r/w*/shear_*.dat; } >/dev/null 2>&1 && RUNS="$RUNS $r"; done
-  [ -n "$RUNS" ] || { echo "figs.sh: no run folder RUN_*/ here has a shear yet (shear_*.dat)"; exit 1; }
+  for r in RUN_*/; do r=${r%/}; { ls $r/shear_*.dat || ls $r/w*/shear_*.dat || ls $r/0*.dump; } >/dev/null 2>&1 && RUNS="$RUNS $r"; done
+  [ -n "$RUNS" ] || { echo "figs.sh: no run folder RUN_*/ here has results yet (*.dump, shear_*.dat)"; exit 1; }
 else
   for r in "$@"; do
     r=${r%/}; case "$r" in "$HERE"/*) r=${r#$HERE/};; esac
     [ -d "$r" ] || { echo "figs.sh: no folder $r in $HERE"; exit 1; }
-    { ls $r/shear_*.dat || ls $r/w*/shear_*.dat; } >/dev/null 2>&1 || { echo "figs.sh: $r has no shear_*.dat yet (the figures need the shear, stage 04)"; exit 1; }
+    { ls $r/shear_*.dat || ls $r/w*/shear_*.dat || ls $r/0*.dump; } >/dev/null 2>&1 || { echo "figs.sh: $r has no results yet (*.dump, shear_*.dat)"; exit 1; }
     RUNS="$RUNS $r"
   done
 fi
@@ -154,6 +155,12 @@ hs() {  # folder
   [ "${PIPESTATUS[0]}" = 0 ] || echo "   hot_spots.py $r failed (see above; $r/figs/hot_spots.log)"
 }
 for r in $RUNS; do
+  # are the particles stacked? (from the trajectories of 01, 02, 03, 04; quick)
+  if ls $r/0*.dump $r/shear_*.dump >/dev/null 2>&1; then
+    mkdir -p "$r/figs"
+    echo "== stacks.py $r  (are the particles stacked?)"
+    $NICE $PY -u $A/stacks.py "$HERE/$r" --outdir "$HERE/$r/figs" 2>&1 | tee "$r/figs/stacks.log" | sed 's/^/   /'
+  fi
   if ls $r/w*/shear_*.dat >/dev/null 2>&1; then
     mkdir -p "$r/figs"
     echo "== lin_figs.py $r  (log: $r/figs/lin_figs.log)"
