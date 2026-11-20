@@ -44,7 +44,7 @@
 #   Fabrics made by a dehydration, then the water of choice (packmol) and the shear (two steps):
 #   FABRIC=dis    1) a fabric: the particles at random (MWMC0=2, a cube), dehydrated the same in x y z (NPT iso) as Underwood & Bourg
 #                 2020: removals of 1 % of the initial water (DFRAC=0.01), twice the time per removal below m_w/m_c 1 (where the particles
-#                 meet and stack), DRYNS=10 ns in all (their rate, 1 % per ns: DRYNS=150); on the way the first state at each m_w/m_c of
+#                 meet and stack), DRYNS=100 ns in all (about their rate, 1 % per ns; they took 134 ns); on the way the first state at each m_w/m_c of
 #                 WSNAP="0.5 0.3 0.2 0.1 0" is written: 02_w<value>.data (snapshots.dat lists them); it ends at the last one
 #                 (02_dehydrate.data, the trajectory 02_dehydrate.dump: analysis/stacks.py follows the stacking and the order)
 #                 env FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_dis
@@ -61,8 +61,9 @@
 #                 GPU_QSUB="-q <queue> -l select=1:ncpus=..:mpiprocs=..:ngpus=1" (default: the line of pbs/gpu_check.sh), GPU_MODULES="module
 #                 load cuda", GPU_PKG=gpu|kokkos, GPU_RPG=8 (ranks per GPU).  The 4th argument (nodes) does not count then; GPU=0: the CPU again.
 #                 env GPU=1 FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 1 RUN_N54_fab_dis
-#   MAXHOURS=72   at most 72 h of jobs from this submission on (WALLTIME=24: 3 jobs), then the chain stops; the same command again: 72 h
-#                 more (MAXHOURS=0: no limit).  Without it the chain goes on until the calculation is done.
+#   MAXJOBS=5     at most 5 jobs of WALLTIME from this submission on (a job running now not counted), then the chain stops; the same command
+#                 again: 5 more (MAXJOBS=0: no limit).  MAXHOURS=72: the same in hours (WALLTIME=24: 3 jobs).  Without them the chain goes on
+#                 until the calculation is done.
 #   NOSUB=1       build the structure only (RUN/gouge.data and RUN/gouge.xyz to look at in OVITO), submit nothing; the same command
 #                 without NOSUB then submits it
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
@@ -267,8 +268,8 @@ fi
 if [ -n "$FABRIC" ]; then
   set_opt c01 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
   set_opt c02 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
-  # as U&B 2020: removals of 1 % of the initial water (DFRAC), twice the time per removal below m_w/m_c 1, DRYNS ns in all (default 10;
-  # their rate, 1 % per ns: about 150), down to the driest snapshot; snapshots WSNAP on the way (wet to dry, at most 8): 02_w<value>.data,
+  # as U&B 2020: removals of 1 % of the initial water (DFRAC), twice the time per removal below m_w/m_c 1, DRYNS ns in all (default 100:
+  # about their rate, 1 % per ns, 134 ns), down to the driest snapshot; snapshots WSNAP on the way (wet to dry, at most 8): 02_w<value>.data,
   # the initial structures of the shear runs (FROMFAB=<this folder> MWMC0=<value>)
   WS=$(for w in ${WSNAP:-0.5 0.3 0.2 0.1 0}; do echo "$w"; done | awk -v w0="$MWMC0" '$1 + 0 >= 0 && $1 + 0 < w0 + 0 {printf "%g\n", $1}' | sort -g -r -u | head -8 | tr '\n' ' ')
   [ -n "$WS" ] || { echo "WSNAP=${WSNAP:-}: no water content between 0 and MWMC0=$MWMC0"; exit 1; }
@@ -276,7 +277,7 @@ if [ -n "$FABRIC" ]; then
   echo "$RUN: snapshots at m_w/m_c $WS(02_w<value>.data)"
   [ -z "${MWMC:-}" ] && set_opt final_mwmc "$(echo $WS | awk '{print $NF}')"
   [ -z "${DFRAC:-}" ] && set_opt dfrac 0.01
-  [ -z "${DRYNS:-}" ] && set_opt tdry 10
+  [ -z "${DRYNS:-}" ] && set_opt tdry 100
   set_opt stop02 1
   echo "FABRIC=$FABRIC" > "$RUN/fabric.env"
 fi
@@ -307,10 +308,13 @@ if [ -n "${GPU:-}" ]; then
     *) echo "GPU=$GPU: the number of GPUs per node (0: the CPU)"; exit 1;;
   esac
 fi
-# MAXHOURS=72: at most 72 hours of jobs from this submission on (24 h jobs: 3), then the chain stops; the same command again: 72 h more.
-# MAXHOURS=0: no limit again (default: none, the chain goes on until the calculation is done)
+# MAXJOBS=5 / MAXHOURS=72: at most that many jobs / hours of jobs from this submission on (not counting a job running now), then the chain
+# stops; the same command again: as many more.  0: no limit again (default: none, the chain goes on until the calculation is done)
 if [ -n "${MAXHOURS:-}" ]; then
-  case "$MAXHOURS" in 0) set_cfg MAX_HOURS ""; echo "$RUN: no limit on the hours of the jobs";; [1-9]*) set_cfg MAX_HOURS "$MAXHOURS";; *) echo "MAXHOURS=$MAXHOURS: hours"; exit 1;; esac
+  case "$MAXHOURS" in 0) set_cfg MAX_HOURS ""; echo "$RUN: no limit on the hours of the jobs";; [1-9]*) set_cfg MAX_HOURS "$MAXHOURS"; set_cfg MAX_JOBS "";; *) echo "MAXHOURS=$MAXHOURS: hours"; exit 1;; esac
+fi
+if [ -n "${MAXJOBS:-}" ]; then
+  case "$MAXJOBS" in 0) set_cfg MAX_JOBS ""; echo "$RUN: no limit on the number of jobs";; [1-9]*) set_cfg MAX_JOBS "$MAXJOBS"; set_cfg MAX_HOURS "";; *) echo "MAXJOBS=$MAXJOBS: a number of jobs"; exit 1;; esac
 fi
 # WLIST (go_water.sh): the water contents m_w/m_c of in.water, wet to dry, at most 8
 if [ -n "${WLIST:-}" ]; then

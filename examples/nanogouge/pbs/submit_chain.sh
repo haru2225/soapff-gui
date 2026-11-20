@@ -39,7 +39,11 @@ fi
 # MAX_HOURS (go.sh MAXHOURS=72): from this submission on, at most that many hours of jobs (72 h of 24 h jobs: 3 jobs, no more after them;
 # chain.left counts the jobs left; ./go.sh again gives MAX_HOURS more)
 MAXH=$(sed -n 's/^MAX_HOURS="\{0,1\}\([0-9][0-9]*\).*/\1/p' ./config.env | tail -1)
-if [ -n "$MAXH" ] && [ "$MAXH" -gt 0 ]; then
+MAXJ=$(sed -n 's/^MAX_JOBS="\{0,1\}\([0-9][0-9]*\).*/\1/p' ./config.env | tail -1)
+if [ -n "$MAXJ" ] && [ "$MAXJ" -gt 0 ]; then
+  N_JOBS=$MAXJ; echo "$N_JOBS" > chain.left
+  echo "MAX_JOBS=$MAXJ: $N_JOBS job(s), then the chain stops (./go.sh again: $MAXJ more)"
+elif [ -n "$MAXH" ] && [ "$MAXH" -gt 0 ]; then
   WJ=$(echo "$QSUB_OPTS" | grep -o 'walltime=[0-9:]*' | head -1 | cut -d= -f2); WJ=${WJ:-24:00:00}
   N_JOBS=$(echo "$WJ" | awk -F: -v m="$MAXH" '{h = $1 + $2 / 60 + $3 / 3600; n = int(m / h + 0.999); if (n < 1) n = 1; print n}')
   echo "$N_JOBS" > chain.left
@@ -72,8 +76,9 @@ done
 [ -f chain.failed ] && { echo "removing chain.failed: $(cat chain.failed)"; rm -f chain.failed; }
 # a chain of this folder that is still queued or running: the new jobs start after it
 J=""; OLD=""
-if [ -n "$NEWWALL" ]; then
-  # new wall time: the waiting jobs of this folder still have the old one.  The new jobs start after the job working now; the waiting ones are deleted below.
+if [ -n "$NEWWALL" ] || [ -f chain.left ]; then
+  # new wall time (the waiting jobs of this folder still have the old one), or a limit of jobs (MAX_JOBS / MAX_HOURS: the waiting jobs are
+  # replaced by the counted ones).  The new jobs start after the job working now; the waiting ones are deleted below.
   OLD=$(folder_jobs QH | tr '\n' ' ' | sed 's/ *$//')
   command -v qselect >/dev/null 2>&1 || echo "WARNING: no qselect: delete the waiting jobs of this folder by hand (qstat -u $USER; qdel <id>), they still have the old wall time"
 elif [ -f chain.tail ]; then T=$(cat chain.tail); qstat "$T" >/dev/null 2>&1 && { J=$T; echo "the chain of this folder is still queued ($T): the new jobs follow it"; }; fi
@@ -96,5 +101,5 @@ for i in $(seq 1 ${N_JOBS}); do
   fi
   echo "$J" > chain.tail; echo "job $i: $J"
 done
-[ -n "$OLD" ] && { qdel $OLD && echo "deleted the waiting jobs with the old wall time: $OLD"; }
-echo "stages: $STAGES   sigmas: $SIGMAS   ($N_JOBS jobs; $([ -f chain.left ] && echo "no more after them (MAX_HOURS)" || echo "the last one submits more while work is left"))   qsub options: ${QSUB_OPTS}"
+[ -n "$OLD" ] && { qdel $OLD && echo "deleted the waiting jobs of this folder (replaced by the new ones): $OLD"; }
+echo "stages: $STAGES   sigmas: $SIGMAS   ($N_JOBS jobs; $([ -f chain.left ] && echo "no more after them: MAX_JOBS / MAX_HOURS" || echo "the last one submits more while work is left"))   qsub options: ${QSUB_OPTS}"

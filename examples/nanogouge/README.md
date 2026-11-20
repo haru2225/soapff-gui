@@ -117,7 +117,7 @@ only: `RUN_N54_w0_nro/gouge.xyz` for OVITO (`analysis/data2xyz.py` converts any 
 
 Fabrics made by a dehydration, as Underwood & Bourg 2020, and the shear of snapshots taken on the way (two steps). 1) `FABRIC=dis`: the
 particles at random in a cube (m_w/m_c 2), dehydrated the same in x, y, z (NPT iso): removals of 1 % of the initial water (`DFRAC`), twice
-the time per removal below m_w/m_c 1, 10 ns in all (`DRYNS`; their rate, 1 % per ns: about 150). The first state at each m_w/m_c of
+the time per removal below m_w/m_c 1, 100 ns in all (`DRYNS`; about their rate, 1 % per ns; they took 134 ns). The first state at each m_w/m_c of
 `WSNAP="0.5 0.3 0.2 0.1 0"` is written, `02_w<value>.data` (listed in `snapshots.dat`), and the calculation ends at the last one; no shear:
 `env FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_dis` (0.84 M atoms at the start). `FABRIC=ori`: the particles placed as
 sedimented (layers within 30 deg of the horizontal, `TILT`) in a tall box (m_w/m_c 1.5), dehydrated along z only (NPzT with x, y fixed: a
@@ -136,9 +136,9 @@ job checks with a tiny run that LAMMPS works on the GPU and whether its pppm tak
 the hold run pppm on the CPU, the rest on the GPU); kept in `lmp_gpu.auto`. `GPU=0`: the CPU again.
 
 The jobs of a folder form a chain: go.sh submits 10 jobs of WALLTIME, each starting when the one before has ended and continuing from its
-restart (all.restart, all.state), and the last one submits more while work is left, until the calculation is done. `MAXHOURS=72` limits
-it: from this submission on at most 72 h of jobs (WALLTIME=24: 3 jobs), then it stops; the same command again gives 72 h more
-(`MAXHOURS=0`: no limit).
+restart (all.restart, all.state), and the last one submits more while work is left, until the calculation is done. `MAXJOBS=5` limits
+it: from this submission on at most 5 jobs (a job running now not counted; its waiting jobs are replaced), then it stops; the same
+command again gives 5 more (`MAXJOBS=0`: no limit). `MAXHOURS=72` does the same in hours.
 
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
