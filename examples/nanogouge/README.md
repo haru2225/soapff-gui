@@ -115,17 +115,18 @@ the layers within 10 deg of the shear plane, NPzT), with no dehydration. N=54 gi
 way: `env MWMC0=0 ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro` (dry 0.12 M atoms, 20 %: 0.20 M). `NOSUB=1` builds
 only: `RUN_N54_w0_nro/gouge.xyz` for OVITO (`analysis/data2xyz.py` converts any data file).
 
-Fabrics made by a dehydration, then the water of choice and the shear (two steps). 1) `FABRIC=ori`: the particles placed as sedimented
-(layers within 30 deg of the horizontal, `TILT`) in a tall box full of water (m_w/m_c 1.5), dehydrated along z only (NPzT with x, y fixed: a
-uniaxial dehydration, the particles align and stack) to m_w/m_c 0.3 (`MWMC`) in 10 ns (`DRYNS`; U&B 2020: 134 ns); `FABRIC=dis`: the particles at random in a
-cube (m_w/m_c 2), dehydrated the same in x, y, z (NPT iso: stacks here and there, no direction preferred). The calculation ends after 02
-(`02_dehydrate.data`; `analysis/stacks.py` follows the stacking and the order along the dehydration):
-`env FABRIC=ori WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_ori` (0.66 M atoms at the start; dis: 0.84 M).
-2) `FROMFAB`: `rewater.py` takes all the water out of the fabric and puts m_w/m_c `MWMC0` into the space between the particles with packmol
-(`./get_packmol.sh` makes `bin/packmol` from its source; go.sh calls it once; without packmol, or `REWATER=grid`: liquid-density grid
-sites, the nearest to the clay first); then minimisation, NVT 0.1 ns, the slow compaction at the first normal stress (ori: along z, dis:
-x, y, z), 0.3 ns NPT, 03, 04, 05 as for the dense gouges:
-`env FROMFAB=RUN_N54_fab_ori MWMC0=0.1 WALLTIME=24 ./go.sh 54 "5.6 56" one 4 RUN_N54_ori_w0.1`.
+Fabrics made by a dehydration, as Underwood & Bourg 2020, and the shear of snapshots taken on the way (two steps). 1) `FABRIC=dis`: the
+particles at random in a cube (m_w/m_c 2), dehydrated the same in x, y, z (NPT iso): removals of 1 % of the initial water (`DFRAC`), twice
+the time per removal below m_w/m_c 1, 10 ns in all (`DRYNS`; their rate, 1 % per ns: about 150). The first state at each m_w/m_c of
+`WSNAP="0.5 0.3 0.2 0.1 0"` is written, `02_w<value>.data` (listed in `snapshots.dat`), and the calculation ends at the last one; no shear:
+`env FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_dis` (0.84 M atoms at the start). `FABRIC=ori`: the particles placed as
+sedimented (layers within 30 deg of the horizontal, `TILT`) in a tall box (m_w/m_c 1.5), dehydrated along z only (NPzT with x, y fixed: a
+uniaxial dehydration). `analysis/stacks.py` follows the stacking and the order along the dehydration (02_dehydrate.dump).
+2) `FROMFAB=RUN_N54_fab_dis MWMC0=0.2`: the shear of the snapshot `02_w0.2.data` with its own water (it can start while the dehydration goes
+on): minimisation, NVT 0.1 ns, the slow compaction at the first normal stress (dis: x, y, z; ori: along z), 0.3 ns NPT, 03, 04, 05 as for
+the dense gouges: `env FROMFAB=RUN_N54_fab_dis MWMC0=0.2 WALLTIME=24 ./go.sh 54 "5.6 56" one 4 RUN_N54_dis_w0.2`. A water content without
+a snapshot (or `REWATER=packmol`), once the dehydration is done: `rewater.py` takes all the water out of `02_dehydrate.data` and puts MWMC0
+in with packmol (`./get_packmol.sh` makes `bin/packmol`; without it a grid, the sites nearest to the clay first).
 
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks

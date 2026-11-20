@@ -48,6 +48,17 @@ variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
 variable c02 index z                  # 02: the box during the dehydration: z (NPzT, x y fixed: a uniaxial dehydration, the particles align
                                       #     and stack) or iso (NPT the same in x y z: no direction preferred) (go.sh FABRIC=ori: z, dis: iso)
 variable stop02 index 0               # 1: the calculation ends after 02 (a fabric: 02_dehydrate.data; go.sh FABRIC=...)
+variable nsnap index 0                # 02: snapshots: the first state at or below each water content ws1 .. ws<nsnap> (m_w/m_c, wet to dry,
+                                      #     at most 8; go.sh WSNAP) is written once: 02_w<value>.data, listed in snapshots.dat (initial
+                                      #     structures for the shear: go.sh FROMFAB=<folder> MWMC0=<value>)
+variable ws1 index -1
+variable ws2 index -1
+variable ws3 index -1
+variable ws4 index -1
+variable ws5 index -1
+variable ws6 index -1
+variable ws7 index -1
+variable ws8 index -1
 variable ndry index 10                # 02, a test (nrun > 0) only: number of equal water removals, each followed by nrun steps
 variable rate index 1.0e-6            # 04: first shear rate in 1/fs (1.0e-6 = 1e9 /s)
 variable gmax index 3.0               # 04: shear strain at the first rate (a foliation needs a few units of strain)
@@ -100,6 +111,7 @@ variable kcs equal 0
 variable lzp equal 0.0
 variable n01 equal 0                  # 01 NPT: its last step (0: not begun)
 variable kcm equal 0                  # 01 compaction pieces done (-1: the compaction is over)
+variable ksn equal 0                  # 02 snapshots written
 # S0, S1: first and last step of the run st (kept in all.state: a run stopped by the time limit ends where it was to end, also when nrun or
 # nfac were changed meanwhile; S1 = -1: an all.state of an earlier version, whose runs end at the multiples of nrun)
 variable S0 equal 0
@@ -275,6 +287,26 @@ fix fnpt all npt temp ${T} ${T} 100.0 ${c02} 1.0 1.0 1000.0
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 print "$(v_kc+1) $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
+# snapshots: each target water content (wet to dry) reached within half a removal is written once (two at once when one removal passes both)
+if "${kc} == 0 && ${nsnap} > 0" then "print '# target_mw/mc  mw/mc  n_water  step  lx ly lz (A)  file' file snapshots.dat"
+variable tolw equal $(0.5*v_ndel0*18.0153/mass(clay))
+label snapchk
+if "${ksn} >= ${nsnap}" then "jump SELF snapdone"
+if "${ksn} == 0" then "variable wnx equal ${ws1}"
+if "${ksn} == 1" then "variable wnx equal ${ws2}"
+if "${ksn} == 2" then "variable wnx equal ${ws3}"
+if "${ksn} == 3" then "variable wnx equal ${ws4}"
+if "${ksn} == 4" then "variable wnx equal ${ws5}"
+if "${ksn} == 5" then "variable wnx equal ${ws6}"
+if "${ksn} == 6" then "variable wnx equal ${ws7}"
+if "${ksn} == 7" then "variable wnx equal ${ws8}"
+if "$(mass(water)/mass(clay)) > $(v_wnx+v_tolw)" then "jump SELF snapdone"
+write_data 02_w${wnx}.data
+print "${wnx} $(mass(water)/mass(clay):%.4f) $(count(wO)) $(step) $(lx:%.2f) $(ly:%.2f) $(lz:%.2f) 02_w${wnx}.data" append snapshots.dat
+print "in.all: 02 snapshot at m_w/m_c ${wnx}: 02_w${wnx}.data (m_w/m_c $(mass(water)/mass(clay):%.4f))"
+variable ksn equal $(v_ksn+1)
+jump SELF snapchk
+label snapdone
 variable kc equal $(v_kc+1)
 variable ddone equal $(v_tst*(v_kc>=v_ndry)+(1-v_tst)*((count(wO)<=v_ntgt+0.1*v_ndel0)||(v_kc>=5000)))
 if "${ddone} == 1" then "write_data 02_dehydrate.data" "print 'DONE 02' file 02_dehydrate.done" "variable st string cons" "variable is equal 1"
@@ -439,6 +471,7 @@ print "variable lzp equal ${lzp}" append all.state
 print "variable mid equal ${mid}" append all.state
 print "variable n01 equal ${n01}" append all.state
 print "variable kcm equal ${kcm}" append all.state
+print "variable ksn equal ${ksn}" append all.state
 print "variable S0 equal ${S0}" append all.state
 print "variable S1 equal ${S1}" append all.state
 if "${quitnow} == 1" then "print 'in.all: the time limit stopped ${st} at step $(step); the next job goes on from all.restart'" "quit 0"

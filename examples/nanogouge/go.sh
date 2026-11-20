@@ -42,18 +42,21 @@
 #                 env MWMC0=0   ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro
 #                 env MWMC0=0.1 ORIENT=po  WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0.1_po
 #   Fabrics made by a dehydration, then the water of choice (packmol) and the shear (two steps):
-#   FABRIC=ori    1) a fabric: the particles placed as sedimented (layers within TILT=30 deg of the horizontal) in a tall box with water
-#                 (MWMC0=1.5), dehydrated along z only (NPzT, x y fixed: a uniaxial dehydration, the particles align and stack) down to
-#                 m_w/m_c MWMC=0.3 in DRYNS=10 ns (twice the time per removal below m_w/m_c 1, where the particles meet and stack);
-#                 the calculation ends there (02_dehydrate.data, the trajectory 02_dehydrate.dump)
+#   FABRIC=dis    1) a fabric: the particles at random (MWMC0=2, a cube), dehydrated the same in x y z (NPT iso) as Underwood & Bourg
+#                 2020: removals of 1 % of the initial water (DFRAC=0.01), twice the time per removal below m_w/m_c 1 (where the particles
+#                 meet and stack), DRYNS=10 ns in all (their rate, 1 % per ns: DRYNS=150); on the way the first state at each m_w/m_c of
+#                 WSNAP="0.5 0.3 0.2 0.1 0" is written: 02_w<value>.data (snapshots.dat lists them); it ends at the last one
+#                 (02_dehydrate.data, the trajectory 02_dehydrate.dump: analysis/stacks.py follows the stacking and the order)
+#                 env FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_dis
+#   FABRIC=ori    the same from particles placed as sedimented (layers within TILT=30 deg of the horizontal, a tall box, MWMC0=1.5),
+#                 dehydrated along z only (NPzT, x y fixed: a uniaxial dehydration, the particles align and stack)
 #                 env FABRIC=ori WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_ori
-#   FABRIC=dis    the same from particles at random (MWMC0=2, a cube), dehydrated the same in x y z (NPT iso): stacks here and there,
-#                 no direction preferred (dispersed)       env FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_dis
-#   FROMFAB=RUN_N54_fab_ori MWMC0=0.1    2) the shear of that fabric with m_w/m_c MWMC0 of water: rewater.py takes out all its water and
-#                 puts MWMC0 into the space between the particles (packmol: ./bin/packmol made by ./get_packmol.sh, called by go.sh once;
+#   FROMFAB=RUN_N54_fab_dis MWMC0=0.2    2) the shear of the snapshot 02_w0.2.data (its own water); it can start while the dehydration
+#                 goes on.  MWMC0 without a snapshot (or REWATER=packmol / grid), when the dehydration is done: rewater.py takes out all the
+#                 water of 02_dehydrate.data and puts MWMC0 into the space between the particles (packmol: ./bin/packmol made by ./get_packmol.sh, called by go.sh once;
 #                 no packmol: a grid, the sites nearest to the clay first; REWATER=grid chooses that); then in.all: minimisation, NVT
 #                 0.1 ns, the compaction at the first normal stress (ori: along z, dis: x y z) and the shear as for the dense gouges
-#                 env FROMFAB=RUN_N54_fab_ori MWMC0=0.1 WALLTIME=24 ./go.sh 54 "5.6 56" one 4 RUN_N54_ori_w0.1
+#                 env FROMFAB=RUN_N54_fab_dis MWMC0=0.2 WALLTIME=24 ./go.sh 54 "5.6 56" one 4 RUN_N54_dis_w0.2
 #   NOSUB=1       build the structure only (RUN/gouge.data and RUN/gouge.xyz to look at in OVITO), submit nothing; the same command
 #                 without NOSUB then submits it
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
@@ -155,9 +158,22 @@ if [ -n "${FROM:-}" ]; then
   for s in $SIG; do for f in 03_consolidate_$s.done 03_consolidate_$s.data 03_consolidate_$s.dat; do [ -f "$FROM/$f" ] && [ ! -f "$RUN/$f" ] && cp "$FROM/$f" "$RUN/"; done; done
   echo "$RUN: starts from the compacted gouge of $FROM (finished there: $(cd "$FROM" && ls *.done 2>/dev/null | tr '\n' ' '))"
 fi
-# FROMFAB: the clay of a fabric (02_dehydrate.data of a FABRIC run) with MWMC0 of water: rewater.py (packmol, else a grid)
+# FROMFAB: the snapshot of the dehydration of a FABRIC run at m_w/m_c MWMC0 (02_w<MWMC0>.data, with its own water); none (or REWATER
+# given): the clay of the fabric (02_dehydrate.data) with MWMC0 of water put in by rewater.py (packmol, else a grid)
+WS0=$(awk -v w="$MWMC0" 'BEGIN{printf "%g", w}')
+if [ -n "$FROMFAB" ] && [ ! -f "$RUN/gouge.data" ] && [ -z "${REWATER:-}" ] && [ -f "$FROMFAB/02_w$WS0.data" ]; then
+  [ "$FROMFAB" != "$RUN" ] || { echo "FROMFAB=$FROMFAB is the run folder itself: give another 5th argument"; exit 1; }
+  mkdir -p "$RUN"
+  cp "$FROMFAB/02_w$WS0.data" "$RUN/gouge.data"; cp "$FROMFAB/gouge.settings" "$RUN/"
+  { echo "FROMFAB=$FROMFAB"; echo "FABRIC=${FFAB:-unknown}"; echo "MWMC0=$MWMC0"; echo "SNAPSHOT=02_w$WS0.data"; } > "$RUN/fabric.env"
+  echo "$RUN: the snapshot of the dehydration of $FROMFAB at m_w/m_c $WS0 (02_w$WS0.data, its own water: $(grep "^$WS0 " "$FROMFAB/snapshots.dat" 2>/dev/null | awk '{print "m_w/m_c " $2 ", " $3 " molecules"}'))"
+fi
 if [ -n "$FROMFAB" ] && [ ! -f "$RUN/gouge.data" ]; then
   [ "$FROMFAB" != "$RUN" ] || { echo "FROMFAB=$FROMFAB is the run folder itself: give another 5th argument"; exit 1; }
+  if [ -z "${REWATER:-}" ] && [ ! -f "$FROMFAB/02_dehydrate.done" ]; then
+    echo "FROMFAB=$FROMFAB: no snapshot at m_w/m_c $WS0 yet ($FROMFAB/02_w$WS0.data); there: $(cd "$FROMFAB" 2>/dev/null && ls 02_w*.data 2>/dev/null | tr '\n' ' ')"
+    echo "  wait for it (the dehydration is going on), or REWATER=packmol to put the water into the end of the dehydration when it is done"; exit 1
+  fi
   [ -f "$FROMFAB/02_dehydrate.done" ] && [ -f "$FROMFAB/02_dehydrate.data" ] || { echo "FROMFAB=$FROMFAB: the fabric is not ready (no $FROMFAB/02_dehydrate.done yet)"; exit 1; }
   [ -n "$FFAB" ] || echo "(no $FROMFAB/fabric.env: compacted as ORIENT=$ORIENT, $([ "$ORIENT" = po ] && echo "along z" || echo "the same in x y z"))"
   mkdir -p "$RUN"
@@ -241,13 +257,20 @@ if [ "$LOOSE" = 1 ] && [ "$ST" = one ]; then
   [ -z "${NRUN:-}" ] && [ -z "${CONSTOL:-}" ] && set_opt constol 0.0005
   [ -z "${DRYNS:-}" ] && set_opt tdry 0
 fi
-# a fabric: 01 at 1 atm (ori: NPzT, dis: NPT iso), 02 dehydration in DRYNS (default 10) ns (ori: along z, dis: x y z) to MWMC (default 0.3),
-# then the end
+# a fabric: 01 at 1 atm (ori: NPzT, dis: NPT iso), 02 dehydration (ori: along z, dis: x y z) with snapshots, then the end
 if [ -n "$FABRIC" ]; then
   set_opt c01 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
   set_opt c02 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
-  [ -z "${MWMC:-}" ] && set_opt final_mwmc 0.3
-  [ -z "${DRYNS:-}" ] && set_opt tdry 10            # ns of the dehydration (U&B 2020: 134 ns; 2 ns: the particles have little time to align)
+  # as U&B 2020: removals of 1 % of the initial water (DFRAC), twice the time per removal below m_w/m_c 1, DRYNS ns in all (default 10;
+  # their rate, 1 % per ns: about 150), down to the driest snapshot; snapshots WSNAP on the way (wet to dry, at most 8): 02_w<value>.data,
+  # the initial structures of the shear runs (FROMFAB=<this folder> MWMC0=<value>)
+  WS=$(for w in ${WSNAP:-0.5 0.3 0.2 0.1 0}; do echo "$w"; done | awk -v w0="$MWMC0" '$1 + 0 >= 0 && $1 + 0 < w0 + 0 {printf "%g\n", $1}' | sort -g -r -u | head -8 | tr '\n' ' ')
+  [ -n "$WS" ] || { echo "WSNAP=${WSNAP:-}: no water content between 0 and MWMC0=$MWMC0"; exit 1; }
+  i=0; for w in $WS; do i=$((i+1)); set_opt ws$i "$w" >/dev/null; done; set_opt nsnap $i
+  echo "$RUN: snapshots at m_w/m_c $WS(02_w<value>.data)"
+  [ -z "${MWMC:-}" ] && set_opt final_mwmc "$(echo $WS | awk '{print $NF}')"
+  [ -z "${DFRAC:-}" ] && set_opt dfrac 0.01
+  [ -z "${DRYNS:-}" ] && set_opt tdry 10
   set_opt stop02 1
   echo "FABRIC=$FABRIC" > "$RUN/fabric.env"
 fi
