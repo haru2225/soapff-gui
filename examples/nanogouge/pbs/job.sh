@@ -25,9 +25,19 @@ echo "===== job ${PBS_JOBID:-$$} on $(hostname)   start $(date)"
 QSUB_OPTS=""; MODULES=""; SIF=""; SING_OPTS=""; LMP="lmp"; LMP_IN_IMAGE="lmp"; MPIRUN="mpirun"; MPI_OPTS=""; HOSTFILE_FMT="none"; CORES_PER_NODE="${CORES_PER_NODE:-}"
 LMP_LIBDIRS=""; MPIRUN_OK=""
 [ -f ./config.auto ] && source ./config.auto
+# GPU (go.sh GPU=<GPUs per node>, in config.env): the jobs run a LAMMPS with the GPU or KOKKOS package; its own cache lmp_gpu.auto
+GPUMODE=""; [ -f ./config.env ] && GPUMODE=$(sed -n 's/^GPU="\{0,1\}\([1-9][0-9]*\).*/\1/p' ./config.env | tail -1)
+AUTO=lmp.auto; [ -n "$GPUMODE" ] && AUTO=lmp_gpu.auto
 # lmp.auto: the LAMMPS build and the MPI launcher an earlier job of this folder found and checked (no search again; delete lmp.auto to search again)
-[ -f ./lmp.auto ] && source ./lmp.auto
+[ -f ./$AUTO ] && source ./$AUTO
 [ -f ./config.env ] && source ./config.env
+if [ -n "$GPUMODE" ]; then
+  # GPU_QSUB: the qsub options of the GPU jobs (also for the jobs this one submits); GPU_MODULES: modules for them (CUDA ...);
+  # GPU_LMP: a LAMMPS with the GPU or KOKKOS package (else one is looked for, as for press/langevin below)
+  [ -n "${GPU_QSUB:-}" ] && QSUB_OPTS=$GPU_QSUB
+  [ -n "${GPU_MODULES:-}" ] && MODULES="${MODULES:+$MODULES; }$GPU_MODULES"
+  SIF=""; [ -n "${GPU_LMP:-}" ] && LMP=$GPU_LMP
+fi
 # the wall time of the jobs (file "walltime" of the run folder, written by WALLTIME=3 ./go.sh): every walltime in the qsub options is replaced by it
 set_walltime() { echo "$1" | sed -E 's/walltime=[0-9:]+,//g; s/,walltime=[0-9:]+//g; s/-l[[:space:]]*walltime=[0-9:]+//g' | awk -v w="$2" '{ if (NF) { $1 = $1; print $0 " -l walltime=" w } else print "-l walltime=" w }'; }
 [ -f ./walltime ] && QSUB_OPTS=$(set_walltime "${QSUB_OPTS:-}" "$(cat ./walltime)")
@@ -116,6 +126,14 @@ if [ -z "${SIF}" ]; then
     local so; so=$(ldd "$1" 2>/dev/null | awk '/liblammps/ && $3 ~ /^\//{print $3; exit}')
     [ -n "$so" ] && LC_ALL=C grep -aq 'press/langevin' "$so" 2>/dev/null
   }
+  # GPU: a build with the GPU or KOKKOS package (the style names are in the program or its liblammps.so)
+  in_lmp() {
+    LC_ALL=C grep -aqE "$2" "$1" 2>/dev/null && return 0
+    local so; so=$(ldd "$1" 2>/dev/null | awk '/liblammps/ && $3 ~ /^\//{print $3; exit}')
+    [ -n "$so" ] && LC_ALL=C grep -aqE "$2" "$so" 2>/dev/null
+  }
+  has_gpu() { in_lmp "$1" 'pppm/(gpu|kk)'; }
+  ok_build() { if [ -n "$GPUMODE" ]; then has_gpu "$1"; else has_pl "$1"; fi; }
   # can it start here?  A library not found, or a build made with another MPI version (lmp_icex 3Mar20 with HPE MPT 2.33:
   # "symbol lookup error: undefined symbol: mpi_sgi_status_ignore"), stops before LAMMPS begins.  ldd -r resolves every symbol without running it.
   load_errors() { command -v ldd >/dev/null 2>&1 || return 0; ldd -r "$1" 2>&1 | grep -E 'not found|undefined symbol' | sort -u | head -5; }
@@ -124,11 +142,11 @@ if [ -z "${SIF}" ]; then
     local c CE OLDLD OLDADD
     for c in "$@"; do
       [ -f "$c" ] && [ -x "$c" ] && [ "$c" != "$LMPABS" ] || continue
-      has_pl "$c" || continue
+      ok_build "$c" || continue
       OLDLD=${LD_LIBRARY_PATH:-}; OLDADD=$ADDED_LIBDIRS; fixlibs "$c" >/dev/null 2>&1
       CE=$(load_errors "$c")
       if [ -z "$CE" ]; then
-        LMPABS=$c; LMPCMD=$c; echo "using $c (has press/langevin; the notes above are no problem)"
+        LMPABS=$c; LMPCMD=$c; echo "using $c (has $([ -n "$GPUMODE" ] && echo "the GPU or KOKKOS package" || echo press/langevin); the notes above are no problem)"
         [ -n "$ADDED_LIBDIRS" ] && echo "  libraries from: $ADDED_LIBDIRS"; return 0
       fi
       echo "  skipped $c:"; echo "$CE" | sed 's/^/    /'; export LD_LIBRARY_PATH="$OLDLD"; ADDED_LIBDIRS=$OLDADD
@@ -136,19 +154,28 @@ if [ -z "${SIF}" ]; then
     return 1
   }
   E=$(load_errors "$LMPABS")
-  if ! has_pl "$LMPABS" || [ -n "$E" ]; then
+  if ! ok_build "$LMPABS" || [ -n "$E" ]; then
     # normal on the first job with the centre's lmp_icex (3Mar20): another build is chosen here and kept in lmp.auto for the next jobs
-    has_pl "$LMPABS" || echo "note: $LMPABS has no 'fix press/langevin' (LAMMPS older than 21Nov2023)"
+    if [ -n "$GPUMODE" ]; then has_gpu "$LMPABS" || echo "note: $LMPABS has no GPU or KOKKOS package (GPU=$GPUMODE in config.env)"
+    else has_pl "$LMPABS" || echo "note: $LMPABS has no 'fix press/langevin' (LAMMPS older than 21Nov2023)"; fi
     [ -n "$E" ] && { echo "note: $LMPABS cannot start in this environment:"; echo "$E" | sed 's/^/    /'; }
-    echo "looking for another LAMMPS build (with press/langevin, starting here) ..."
+    echo "looking for another LAMMPS build (with $([ -n "$GPUMODE" ] && echo "the GPU or KOKKOS package" || echo press/langevin), starting here) ..."
     # the centre's LAMMPS folders first (/home/app/lammps/<version>/..., e.g. 29Aug2024/lammps-29Aug2024_cpu/install_cpu/bin/lmp): seconds
     G=$(ls -d "$APP"/lammps*/bin/lmp* "$APP"/lammps*/*/bin/lmp* "$APP"/lammps*/*/*/bin/lmp* "$APP"/lammps*/*/*/*/bin/lmp* "$APP"/lammps*/*/*/*/*/bin/lmp* 2>/dev/null | grep -v '\.so' | sort -r)
     if ! pick $G; then
       # then a search of the disks (slow: up to 2 min per folder), not again when an earlier job searched in vain
-      if [ "${PL_SEARCHED:-}" = "$LMPABS" ]; then echo "  (an earlier job searched the disks in vain: not again; delete lmp.auto to search again)"
+      if [ -z "$GPUMODE" ] && [ "${PL_SEARCHED:-}" = "$LMPABS" ]; then echo "  (an earlier job searched the disks in vain: not again; delete lmp.auto to search again)"
       else for root in $SEARCH_ROOTS; do [ -d "$root" ] || continue; pick $(tmo 120 find "$root" -maxdepth 7 -type f \( -name 'lmp' -o -name 'lmp_*' \) -perm -u+x 2>/dev/null | grep -v '\.so' | sort -r | head -30) && break; done; fi
     fi
-    has_pl "$LMPABS" || echo "note: no LAMMPS with press/langevin found: all stages run (the shear uses fix nph on z, flow 1); only FLOW=0 (SLLOD) needs press/langevin"
+    if [ -n "$GPUMODE" ]; then
+      if ! has_gpu "$LMPABS"; then
+        echo "ERROR: GPU=$GPUMODE but no LAMMPS with the GPU or KOKKOS package found (ls /home/app/lammps*; module avail lammps).  Give it to go.sh:"
+        echo "  env GPU_LMP=/path/to/lmp GPU=$GPUMODE ... ./go.sh ...   (or GPU=0: back to the CPU)"
+        echo "stage - job ${PBS_JOBID:-} $(date): GPU=$GPUMODE: no LAMMPS with the GPU or KOKKOS package (GPU_LMP=...)" > chain.failed; exit 1
+      fi
+    else
+      has_pl "$LMPABS" || echo "note: no LAMMPS with press/langevin found: all stages run (the shear uses fix nph on z, flow 1); only FLOW=0 (SLLOD) needs press/langevin"
+    fi
   fi
   E=$(load_errors "$LMPABS")
   if [ -n "$E" ]; then
@@ -194,16 +221,48 @@ if [ -z "${SIF}" ]; then
       has_pl "$LMPABS" || echo "PL_SEARCHED=\"$LMPABS\""
       echo "LMP_LIBDIRS=\"${ADDED_LIBDIRS}${LMP_LIBDIRS:+${ADDED_LIBDIRS:+:}$LMP_LIBDIRS}\""
       [ -n "${MPIRUN_OK}" ] && echo "MPIRUN_FROM=\"${MPIRUN_FROM_NOW}\"; MPIRUN_OK=\"${MPIRUN_OK}\""
-    } > lmp.auto
+      [ -n "$GPUMODE" ] && [ -n "${GPUTRI:-}" ] && echo "GPUTRI=$GPUTRI"
+    } > $AUTO
   fi
+fi
+# ---- GPU: the package of this build, the MPI ranks, and whether its pppm runs a triclinic box (the shear) on the GPU: a tiny LAMMPS run
+#      tells it once (GPUTRI in lmp_gpu.auto; LAMMPS 3Mar2020: no, newer: yes); no: in.all runs pppm on the CPU for a triclinic box
+GPUOPT=""; GVAR=""
+if [ -n "$GPUMODE" ]; then
+  GPKG=${GPU_PKG:-}
+  if [ -z "$GPKG" ]; then if [ -n "${LMPABS:-}" ] && in_lmp "$LMPABS" 'pppm/gpu'; then GPKG=gpu; else GPKG=kokkos; fi; fi
+  NN=${NODES:-1}
+  if [ "$GPKG" = kokkos ]; then
+    GPUOPT="-k on g $GPUMODE -sf kk"; G1="-k on g 1 -sf kk"; NP=$((NN * GPUMODE))                     # KOKKOS: one rank per GPU
+  else
+    GPUOPT="-sf gpu -pk gpu $GPUMODE"; G1="-sf gpu -pk gpu 1"                                        # GPU package: GPU_RPG ranks share a GPU
+    NPG=$((NN * GPUMODE * ${GPU_RPG:-8})); [ "$NPG" -lt "$NP" ] && NP=$NPG
+  fi
+  gprobe() {   # $1 = 1: a triclinic box
+    local R="region b block 0 24 0 24 0 24"; [ "$1" = 1 ] && R="region b prism 0 24 0 24 0 24 3 0 0"
+    printf 'units real\natom_style charge\n%s\ncreate_box 2 b\ncreate_atoms 1 random 20 11 NULL\ncreate_atoms 2 random 20 12 NULL\nmass * 10.0\nset type 1 charge 1.0\nset type 2 charge -1.0\npair_style lj/cut/coul/long 8.0\npair_coeff * * 0.1 3.0\nkspace_style pppm 1.0e-4\nrun 0\n' "$R" > gprobe.in
+    rm -f gprobe.out; tmo 300 ${MPIRUN} -np 1 ${LMPCMD} ${G1} -in gprobe.in -log none -screen gprobe.out >/dev/null 2>&1 </dev/null
+  }
+  if [ -z "${GPUTRI:-}" ]; then
+    if ! gprobe 0; then
+      echo "ERROR: LAMMPS does not run on the GPU here (${LMPCMD} ${G1}):"; grep -E "ERROR|rror" gprobe.out 2>/dev/null | head -5; tail -5 gprobe.out 2>/dev/null
+      echo "  GPU_MODULES='module load cuda' (the modules of the GPU build), GPU_LMP=..., GPU_PKG=gpu|kokkos to go.sh; GPU=0: back to the CPU"
+      echo "stage - job ${PBS_JOBID:-} $(date): LAMMPS does not run on the GPU: $(grep -m1 ERROR gprobe.out 2>/dev/null)" > chain.failed; exit 1
+    fi
+    if gprobe 1; then GPUTRI=1; else GPUTRI=0; fi
+    echo "GPUTRI=$GPUTRI   # pppm of a triclinic box on the GPU (1) or the CPU (0)" >> $AUTO
+  fi
+  rm -f gprobe.in gprobe.out
+  GVAR="-var gpu 1 -var gputri $GPUTRI"
+  echo "GPU: package $GPKG, $GPUMODE GPU(s) per node x $NN node(s), MPI $NP ranks; pppm of the triclinic box (shear) on the $([ "$GPUTRI" = 1 ] && echo GPU || echo CPU)"
 fi
 # the normal stress of the shear (04): fix press/langevin if this LAMMPS has it, else none (-var pl 0: Lz of stage 03 kept; EXTRA="-var pl 1" overrides)
 PLVAR=""
 if [ -z "${SIF}" ] && ! has_pl "$LMPABS"; then PLVAR="-var pl 0"; echo "note: $LMPABS has no press/langevin: stage 04 shears at the Lz of stage 03 (constant volume; the normal stress is written in shear_<s>.dat)"; fi
 # the screen output of rank 0 goes to lmp.screen (each LAMMPS start overwrites it): an error that only one rank sees ("ERROR on proc N",
 # e.g. Out of range atoms, Bond atoms missing) is not in the log file, only on the screen (rank 0: lmp.screen; other ranks: this job's output)
-RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen lmp.screen"
-SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
+RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} ${GPUOPT} -screen lmp.screen"
+SIGMA=${SIGMA:-5.6}; EXTRA="${EXTRA:-} ${GVAR}"
 [ -f ./chain.env ] && source ./chain.env          # SIGMAS and STAGES of the chain (written by submit_chain.sh)
 [ -f ./lammps_seed ] && EXTRA="-var seed $(cat ./lammps_seed) ${EXTRA}"   # an independent run (go.sh, 6th argument)
 SIGMAS=${SIGMAS:-$SIGMA}; STAGES=${STAGES:-all}

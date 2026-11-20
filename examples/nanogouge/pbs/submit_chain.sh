@@ -23,6 +23,9 @@ for f in "$HERE/lin_figs.py" "$TOP/analysis/lin_figs.py"; do if [ -f "$f" ]; the
 cd "$RUNDIR"; N_JOBS=10; QSUB_OPTS=""
 [ -f ./config.auto ] && source ./config.auto
 source ./config.env
+# GPU jobs (go.sh GPU=...): their own qsub options
+GPUMODE=$(sed -n 's/^GPU="\{0,1\}\([1-9][0-9]*\).*/\1/p' ./config.env | tail -1)
+[ -n "$GPUMODE" ] && { [ -n "${GPU_QSUB:-}" ] && QSUB_OPTS=$GPU_QSUB; echo "GPU jobs ($GPUMODE GPU(s) per node): qsub $QSUB_OPTS"; }
 # the wall time of the jobs (file "walltime" of the run folder, written by WALLTIME=3 ./go.sh): every walltime in the qsub options is replaced by it
 set_walltime() { echo "$1" | sed -E 's/walltime=[0-9:]+,//g; s/,walltime=[0-9:]+//g; s/-l[[:space:]]*walltime=[0-9:]+//g' | awk -v w="$2" '{ if (NF) { $1 = $1; print $0 " -l walltime=" w } else print "-l walltime=" w }'; }
 # WALLTIME=3 (hours) or 3:00:00: kept in this folder for every later job; the waiting jobs of this folder (old wall time) are replaced

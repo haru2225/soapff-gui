@@ -79,6 +79,9 @@ variable thw index 19
 variable tow index 20
 variable seed index 12345
 variable dump_group index clay        # atoms in the trajectories (clay or all)
+variable gpu index 0                  # job.sh (go.sh GPU=...): 1 = this LAMMPS runs with the GPU or KOKKOS suffix (-sf gpu / kk)
+variable gputri index 0               # job.sh: 1 = its pppm also runs a triclinic box (the shear) on the GPU (newer LAMMPS); 0 = pppm on the CPU
+                                      #     then (pppm/gpu and pppm/kk of LAMMPS 3Mar2020: no triclinic box)
 variable tlimit index off             # s of wall time for this LAMMPS (job.sh sets it from the PBS wall time).  Given: ONE run, then LAMMPS ends
                                       # (job.sh starts it again with the time left: no clock is needed in here, any LAMMPS version)
 # the steps of each kind of run (tst 1: a test, every run nrun steps)
@@ -158,7 +161,13 @@ read_data ${infile}
 include ${settings}
 if "${st} == shear" then "change_box all triclinic"
 label read_done
+# the box is triclinic in the shear (04) and the hold (05); 03 starts again from the orthogonal box of 02 at every normal stress
+variable tri equal 0
+if "${st} == shear || ${st} == heal" then "variable tri equal 1"
+variable kcpu equal $((v_gpu==1)&&(v_gputri==0)&&(v_tri==1))
+if "${kcpu} == 1" then "suffix off"
 kspace_style pppm ${acc}
+if "${kcpu} == 1" then "suffix on" "print 'in.all: GPU, triclinic box: pppm on the CPU (this LAMMPS has no triclinic pppm on the GPU)'"
 neighbor 2.0 bin
 neigh_modify delay 0 every 1 check yes
 group clay type 1:${nclay}

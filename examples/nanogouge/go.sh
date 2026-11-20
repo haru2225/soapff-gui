@@ -57,6 +57,10 @@
 #                 no packmol: a grid, the sites nearest to the clay first; REWATER=grid chooses that); then in.all: minimisation, NVT
 #                 0.1 ns, the compaction at the first normal stress (ori: along z, dis: x y z) and the shear as for the dense gouges
 #                 env FROMFAB=RUN_N54_fab_dis MWMC0=0.2 WALLTIME=24 ./go.sh 54 "5.6 56" one 4 RUN_N54_dis_w0.2
+#   GPU=1         the jobs on a GPU node (GPUs per node), with a LAMMPS of the GPU or KOKKOS package (found by pbs/job.sh, or GPU_LMP=/path/lmp);
+#                 GPU_QSUB="-q <queue> -l select=1:ncpus=..:mpiprocs=..:ngpus=1" (default: the line of pbs/gpu_check.sh), GPU_MODULES="module
+#                 load cuda", GPU_PKG=gpu|kokkos, GPU_RPG=8 (ranks per GPU).  The 4th argument (nodes) does not count then; GPU=0: the CPU again.
+#                 env GPU=1 FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 1 RUN_N54_fab_dis
 #   NOSUB=1       build the structure only (RUN/gouge.data and RUN/gouge.xyz to look at in OVITO), submit nothing; the same command
 #                 without NOSUB then submits it
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
@@ -273,6 +277,33 @@ if [ -n "$FABRIC" ]; then
   [ -z "${DRYNS:-}" ] && set_opt tdry 10
   set_opt stop02 1
   echo "FABRIC=$FABRIC" > "$RUN/fabric.env"
+fi
+# GPU=<GPUs per node>: the jobs on a GPU node with a LAMMPS of the GPU or KOKKOS package (pbs/job.sh finds it, or GPU_LMP=/path/lmp);
+# GPU_QSUB: their qsub options (default: the line pbs/gpu_check.sh suggests), GPU_MODULES: modules for them (CUDA ...), GPU_PKG=gpu|kokkos,
+# GPU_RPG: MPI ranks per GPU (GPU package, default 8).  Kept in $RUN/config.env; GPU=0: back to the CPU.
+set_cfg() {
+  { grep -v "# go.sh: $1\$" "$RUN/config.env" 2>/dev/null || true; if [ -n "$2" ]; then echo "$1=\"$2\"   # go.sh: $1"; fi; } > "$RUN/config.env.tmp"
+  mv -f "$RUN/config.env.tmp" "$RUN/config.env"
+}
+if [ -n "${GPU:-}" ]; then
+  case "$GPU" in
+    0) for k in GPU GPU_QSUB GPU_LMP GPU_MODULES GPU_PKG GPU_RPG; do set_cfg $k ""; done; echo "$RUN: the jobs run on the CPU again";;
+    [1-9]|[1-9][0-9])
+      set_cfg GPU "$GPU"
+      for k in GPU_LMP GPU_MODULES GPU_PKG GPU_RPG GPU_QSUB; do [ -n "${!k:-}" ] && set_cfg $k "${!k}"; done
+      if ! grep -q "^GPU_QSUB=" "$RUN/config.env"; then
+        GC=pbs/gpu_check.sh; [ -f "$GC" ] || GC=./gpu_check.sh
+        GCO=$(bash "$GC" 2>&1); SUG=$(echo "$GCO" | sed -n 's/^SUGGEST: //p' | tail -1)
+        if [ "${SUG#-q }" != "$SUG" ]; then
+          set_cfg GPU_QSUB "$SUG"; echo "$RUN: GPU jobs with qsub $SUG (from $GC; another line: GPU_QSUB=\"...\")"
+        else
+          echo "$GCO"; echo "GPU=$GPU: the qsub options of the GPU jobs are not known; give them, e.g."
+          echo "  env GPU=$GPU GPU_QSUB=\"-q <GPU queue> -l select=1:ncpus=<cores>:mpiprocs=<ranks>:ngpus=<GPUs>\" ... ./go.sh ..."; exit 1
+        fi
+      fi
+      echo "$RUN: GPU jobs, $GPU GPU(s) per node ($RUN/config.env: $(grep '^GPU' "$RUN/config.env" | sed 's/   # go.sh.*//' | tr '\n' ' '))";;
+    *) echo "GPU=$GPU: the number of GPUs per node (0: the CPU)"; exit 1;;
+  esac
 fi
 # WLIST (go_water.sh): the water contents m_w/m_c of in.water, wet to dry, at most 8
 if [ -n "${WLIST:-}" ]; then

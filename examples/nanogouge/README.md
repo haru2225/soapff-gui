@@ -128,6 +128,13 @@ the dense gouges: `env FROMFAB=RUN_N54_fab_dis MWMC0=0.2 WALLTIME=24 ./go.sh 54 
 a snapshot (or `REWATER=packmol`), once the dehydration is done: `rewater.py` takes all the water out of `02_dehydrate.data` and puts MWMC0
 in with packmol (`./get_packmol.sh` makes `bin/packmol`; without it a grid, the sites nearest to the clay first).
 
+GPU: `env GPU=1 ...  ./go.sh ...` runs the jobs of the folder on a GPU node (GPUs per node) with a LAMMPS of the GPU or KOKKOS package
+(`pbs/job.sh` looks for one in /home/app/lammps*, or `GPU_LMP=/path/lmp`). The qsub options: `GPU_QSUB="-q <queue> -l
+select=1:ncpus=..:mpiprocs=..:ngpus=1"`, else the line `bash pbs/gpu_check.sh` suggests (it lists the queues, the GPU nodes, the GPU builds of
+LAMMPS and the CUDA modules); `GPU_MODULES="module load cuda"`, `GPU_PKG=gpu|kokkos`, `GPU_RPG=8` (MPI ranks per GPU, GPU package). The first
+job checks with a tiny run that LAMMPS works on the GPU and whether its pppm takes a triclinic box (LAMMPS 3Mar2020: no; then the shear and
+the hold run pppm on the CPU, the rest on the GPU); kept in `lmp_gpu.auto`. `GPU=0`: the CPU again.
+
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
 (tactoids) of 3 at 15.5 A (2 water layers; `D001=12.5`: 1 layer), the stacks at random (structure in `RUN_N<N>_stack3`). Whether they are stacked:
