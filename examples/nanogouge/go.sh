@@ -188,7 +188,7 @@ if [ -n "$FROMFAB" ] && [ ! -f "$RUN/gouge.data" ]; then
   echo "$RUN: the fabric of $FROMFAB (${FFAB:-?}) with m_w/m_c $MWMC0 of water"
 fi
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
-NCONF=${NCONF:-$(if [ "$STACK" -gt 1 ] || [ "$LOOSE" = 1 ]; then echo 10; elif [ "$N" -gt 20 ]; then echo 30; else echo 300; fi)}   # stacks: 10 (N=22: about 20 s each)
+NCONF=${NCONF:-$(if [ -n "$FABRIC" ]; then echo 2; elif [ "$STACK" -gt 1 ] || [ "$LOOSE" = 1 ]; then echo 10; elif [ "$N" -gt 20 ]; then echo 30; else echo 300; fi)}   # stacks: 10 (N=22: about 20 s each)
 if [ ! -f "$RUN/gouge.data" ]; then
   mkdir -p "$RUN"
   if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ] && [ -f "$GB/gouge.data" ]; then

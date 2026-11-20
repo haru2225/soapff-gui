@@ -200,10 +200,12 @@ for k in range(a.nconf if a.stack <= 1 else 0):
                 if tr.count_neighbors(tr2, a.mind) > 0: good = False; break
             if good: out.append((c, xyz, tr, Rm)); Rms.append(Rm); break
         else: ok = False; break
-    if not ok: continue
+    if not ok:
+        if a.nconf <= 50: print(f'  config {k + 1} of {a.nconf}: the particles did not all fit', flush=True)
+        continue
     S = order_S(Rms)
     if best is None or S < best[0]: best = (S, out, Rms, k)
-    if (k + 1) % 50 == 0: print(f'  config {k + 1}: best S = {best[0]:.3f}' if best else f'  config {k + 1}: none placed')
+    if a.nconf <= 50 or (k + 1) % 50 == 0: print(f'  config {k + 1} of {a.nconf}: S = {S:.3f}, best S = {best[0]:.3f}', flush=True)
 # stacks of a.stack particles (the last one smaller when a.n is not a multiple), placed as rigid units
 for k in range(a.nconf if a.stack > 1 else 0):
     out = []; Rms = []; units = []; dmax = 0.0
