@@ -45,6 +45,9 @@ variable npt01 index 0                # 01 NPT steps (0: neq; go.sh 300000 for a
 variable p01 index 1.0                # 01 NPT pressure (atm; go.sh for a loose structure: the first normal stress)
 variable pdrag index 0.0              # NPT drag of 01 and 03 (go.sh 1 for a loose structure: damps the box when it is compacted)
 variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
+variable c02 index z                  # 02: the box during the dehydration: z (NPzT, x y fixed: a uniaxial dehydration, the particles align
+                                      #     and stack) or iso (NPT the same in x y z: no direction preferred) (go.sh FABRIC=ori: z, dis: iso)
+variable stop02 index 0               # 1: the calculation ends after 02 (a fabric: 02_dehydrate.data; go.sh FABRIC=...)
 variable ndry index 10                # 02, a test (nrun > 0) only: number of equal water removals, each followed by nrun steps
 variable rate index 1.0e-6            # 04: first shear rate in 1/fs (1.0e-6 = 1e9 /s)
 variable gmax index 3.0               # 04: shear strain at the first rate (a foliation needs a few units of strain)
@@ -268,13 +271,14 @@ variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(2*v_nout))))
 thermo ${nso}
 dump dm ${dump_group} custom ${ndump} 02_dehydrate.dump id mol type xu yu zu
 dump_modify dm append yes
-fix fnpt all npt temp ${T} ${T} 100.0 z 1.0 1.0 1000.0
+fix fnpt all npt temp ${T} ${T} 100.0 ${c02} 1.0 1.0 1000.0
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 print "$(v_kc+1) $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
 variable kc equal $(v_kc+1)
 variable ddone equal $(v_tst*(v_kc>=v_ndry)+(1-v_tst)*((count(wO)<=v_ntgt+0.1*v_ndel0)||(v_kc>=5000)))
 if "${ddone} == 1" then "write_data 02_dehydrate.data" "print 'DONE 02' file 02_dehydrate.done" "variable st string cons" "variable is equal 1"
+if "${ddone} == 1 && ${stop02} == 1" then "print 'in.all: the fabric is ready: 02_dehydrate.data (stop02 1: no 03-05 here)'" "variable st string end"
 jump SELF next
 
 # ================= 03 consolidation at sigma =================

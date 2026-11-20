@@ -2,3 +2,6 @@ sifpy.sif
 sifpy_lib/
 sifpy
 .sifpy_failed
+bin/
+.packmol_src/
+.packmol_failed

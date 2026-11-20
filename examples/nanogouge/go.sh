@@ -41,6 +41,18 @@
 #                 about 2 particle diameters each way; dry 0.12 M atoms, 20 %: 0.20 M; NOSUB=1 first to look at RUN/gouge.xyz):
 #                 env MWMC0=0   ORIENT=nro WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0_nro
 #                 env MWMC0=0.1 ORIENT=po  WALLTIME=12 ./go.sh 54 "5.6 56" one 4 RUN_N54_w0.1_po
+#   Fabrics made by a dehydration, then the water of choice (packmol) and the shear (two steps):
+#   FABRIC=ori    1) a fabric: the particles placed as sedimented (layers within TILT=30 deg of the horizontal) in a tall box with water
+#                 (MWMC0=1.5), dehydrated along z only (NPzT, x y fixed: a uniaxial dehydration, the particles align and stack) down to
+#                 m_w/m_c MWMC=0.3 in DRYNS=2 ns; the calculation ends there (02_dehydrate.data, the trajectory 02_dehydrate.dump)
+#                 env FABRIC=ori WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_ori
+#   FABRIC=dis    the same from particles at random (MWMC0=2, a cube), dehydrated the same in x y z (NPT iso): stacks here and there,
+#                 no direction preferred (dispersed)       env FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_dis
+#   FROMFAB=RUN_N54_fab_ori MWMC0=0.1    2) the shear of that fabric with m_w/m_c MWMC0 of water: rewater.py takes out all its water and
+#                 puts MWMC0 into the space between the particles (packmol: ./bin/packmol made by ./get_packmol.sh, called by go.sh once;
+#                 no packmol: a grid, the sites nearest to the clay first; REWATER=grid chooses that); then in.all: minimisation, NVT
+#                 0.1 ns, the compaction at the first normal stress (ori: along z, dis: x y z) and the shear as for the dense gouges
+#                 env FROMFAB=RUN_N54_fab_ori MWMC0=0.1 WALLTIME=24 ./go.sh 54 "5.6 56" one 4 RUN_N54_ori_w0.1
 #   NOSUB=1       build the structure only (RUN/gouge.data and RUN/gouge.xyz to look at in OVITO), submit nothing; the same command
 #                 without NOSUB then submits it
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
@@ -57,20 +69,40 @@ cd "$(dirname "$0")"
 N=${1:-12}; SIG=${2:-"5.6 56"}; ST=${3:-all}; RUN=${5:-RUN_N$N}; SEED=${6:-1}; BASE=RUN_N$N
 # the folder of the initial structure (seed 1): RUN_N<N>, or RUN_N<N>_stack<k> for stacks (STACK=k)
 STACK=${STACK:-1}; case "$STACK" in [1-9]) ;; *) echo "STACK=$STACK: particles per stack, 1 to 9"; exit 1;; esac
+MWMC0_GIVEN=${MWMC0:-}
+FABRIC=${FABRIC:-}; FROMFAB=${FROMFAB:-}; FFAB=""
+case "$FABRIC" in
+  "") ;;
+  ori) ORIENT=po; TILT=${TILT:-30}; MWMC0=${MWMC0:-1.5};;
+  dis) ORIENT=nro; TILT=${TILT:-90}; MWMC0=${MWMC0:-2};;
+  *) echo "FABRIC=$FABRIC: ori (aligned and stacked by a uniaxial dehydration) or dis (dispersed: an isotropic one)"; exit 1;;
+esac
+if [ -n "$FABRIC$FROMFAB" ] && [ "$ST" != one ]; then echo "FABRIC / FROMFAB: with the stages \"one\" (3rd argument)"; exit 1; fi
+if [ -n "$FROMFAB" ]; then
+  FROMFAB=${FROMFAB%/}
+  [ -z "$FABRIC" ] || { echo "FABRIC and FROMFAB: one or the other"; exit 1; }
+  [ -n "$MWMC0_GIVEN" ] || { echo "FROMFAB=$FROMFAB: give the water content of the new structure, e.g. MWMC0=0, 0.1 or 0.2 (m_w/m_c)"; exit 1; }
+  FFAB=$(sed -n 's/^FABRIC=//p' "$FROMFAB/fabric.env" 2>/dev/null | head -1)
+  case "$FFAB" in ori) ORIENT=po;; dis) ORIENT=nro;; *) FFAB="";; esac
+fi
 MWMC0=${MWMC0:-3}
 awk -v w="$MWMC0" 'BEGIN{ exit !(w + 0 >= 0 && w + 0 <= 5) }' || { echo "MWMC0=$MWMC0: the water content of the new structure, 0 <= m_w/m_c <= 5"; exit 1; }
 ORIENT=${ORIENT:-nro}; case "$ORIENT" in nro) TILT=${TILT:-90};; po) TILT=${TILT:-10};; *) echo "ORIENT=$ORIENT: nro or po"; exit 1;; esac
 # below m_w/m_c 1.5 the particles do not fit at random: a loose structure (the box of BOXW: po 1.5, nro 2 = N=54 stacks at random in a cube),
 # compacted by LAMMPS in 01, no dehydration
 BOXW=${BOXW:-$([ "$ORIENT" = po ] && echo 1.5 || echo 2)}; LOOSE=$(awk -v w="$MWMC0" -v b="$BOXW" 'BEGIN{print (w + 0 < b + 0) ? 1 : 0}')
+# a fabric is built full of water (no loose box); the shear of a fabric (FROMFAB) is compacted and sheared as a dense gouge
+[ -n "$FABRIC" ] && LOOSE=0
+[ -n "$FROMFAB" ] && LOOSE=1
 [ -z "${D001:-}" ] && [ "$(awk -v w="$MWMC0" 'BEGIN{print (w + 0 < 0.15)}')" = 1 ] && D001=12.5     # dry, 10 %: 1 water layer (or none)
 SHAPE=""
-if [ "$LOOSE" = 1 ]; then
+if [ "$LOOSE" = 1 ] || [ -n "$FABRIC" ]; then
   # nro: a cube (compacted iso, stays a cube); po: Lx = Ly about the compacted height (clay 24,630 A^3 per particle, porosity ~0.4)
   if [ "$ORIENT" = po ]; then SHAPE="--lx ${LX:-$(awk -v n="$N" 'BEGIN{printf "%.1f", (n * 41000) ^ (1 / 3)}')}"; else SHAPE="--aspect 1"; fi
 fi
 GB=$BASE; [ "$STACK" -gt 1 ] && GB=${GB}_stack$STACK; [ "$(awk -v w="$MWMC0" 'BEGIN{print (w + 0 == 3)}')" = 1 ] || GB=${GB}_w$MWMC0
 [ "$ORIENT" = po ] && GB=${GB}_po
+[ "$TILT" != "$([ "$ORIENT" = po ] && echo 10 || echo 90)" ] && GB=${GB}_t$TILT
 # NRUN (a short test of the whole chain) never goes into a running folder: its own folder RUN_N<N>_test<NRUN> unless a 5th argument is given
 if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
 # stages "one": everything in one input file (lammps/in.all, every run 5000 steps), in its own folder RUN_N<N>_one
@@ -93,6 +125,22 @@ get_py() {
   if [ -x sifpy ] && py_ok ./sifpy; then PY=$PWD/sifpy; return 0; fi
   return 1
 }
+# a python with numpy to build a structure: ./sifpy first; else python3 of this node (numpy is enough: without a working scipy.spatial
+# build_gouge.py uses its numpy cell list, the same structure, about 10 times slower)
+pick_py() {
+  get_py && return 0
+  [ -n "${PYTHON:-}" ] && { echo "PYTHON=$PYTHON does not work"; return 1; }
+  local c
+  for c in "env PYTHONNOUSERSITE=1 python3" python3; do
+    if tmo 120 $c -c "import numpy" >/dev/null 2>&1 </dev/null; then
+      PY=$c
+      if tmo 120 $c -c "from scipy.spatial import cKDTree" >/dev/null 2>&1 </dev/null; then echo "(no ./sifpy: using '$c' of this node, numpy and scipy)"
+      else echo "(no ./sifpy: using '$c' of this node, numpy only: no scipy.spatial, build_gouge.py uses its numpy cell list, slower)"; fi
+      return 0
+    fi
+  done
+  echo "no python with numpy to build the structure: ./sifpy could not be made (see above; ./make_sif.sh needs internet once)"; return 1
+}
 # FROM: the new folder starts where the other one finished the compaction
 if [ -n "${FROM:-}" ]; then
   FROM=${FROM%/}
@@ -106,6 +154,22 @@ if [ -n "${FROM:-}" ]; then
   for s in $SIG; do for f in 03_consolidate_$s.done 03_consolidate_$s.data 03_consolidate_$s.dat; do [ -f "$FROM/$f" ] && [ ! -f "$RUN/$f" ] && cp "$FROM/$f" "$RUN/"; done; done
   echo "$RUN: starts from the compacted gouge of $FROM (finished there: $(cd "$FROM" && ls *.done 2>/dev/null | tr '\n' ' '))"
 fi
+# FROMFAB: the clay of a fabric (02_dehydrate.data of a FABRIC run) with MWMC0 of water: rewater.py (packmol, else a grid)
+if [ -n "$FROMFAB" ] && [ ! -f "$RUN/gouge.data" ]; then
+  [ "$FROMFAB" != "$RUN" ] || { echo "FROMFAB=$FROMFAB is the run folder itself: give another 5th argument"; exit 1; }
+  [ -f "$FROMFAB/02_dehydrate.done" ] && [ -f "$FROMFAB/02_dehydrate.data" ] || { echo "FROMFAB=$FROMFAB: the fabric is not ready (no $FROMFAB/02_dehydrate.done yet)"; exit 1; }
+  [ -n "$FFAB" ] || echo "(no $FROMFAB/fabric.env: compacted as ORIENT=$ORIENT, $([ "$ORIENT" = po ] && echo "along z" || echo "the same in x y z"))"
+  mkdir -p "$RUN"
+  pick_py || exit 1
+  if [ "${REWATER:-auto}" != grid ] && [ -z "${PACKMOL:-}" ] && [ ! -x bin/packmol ] && ! command -v packmol >/dev/null 2>&1 && [ ! -f .packmol_failed ]; then
+    echo "making ./bin/packmol (once): ./get_packmol.sh"; ./get_packmol.sh || { touch .packmol_failed; echo "(get_packmol.sh failed, not tried again: the water goes on a grid; ./get_packmol.sh by hand)"; }
+  fi
+  $PY rewater.py "$FROMFAB/02_dehydrate.data" --mwmc "$MWMC0" --seed "$SEED" --method "${REWATER:-auto}" -o "$RUN/gouge.data" \
+    || { rm -f "$RUN/gouge.data"; echo "rewater.py failed"; exit 1; }
+  cp "$FROMFAB/gouge.settings" "$RUN/"
+  { echo "FROMFAB=$FROMFAB"; echo "FABRIC=${FFAB:-unknown}"; echo "MWMC0=$MWMC0"; } > "$RUN/fabric.env"
+  echo "$RUN: the fabric of $FROMFAB (${FFAB:-?}) with m_w/m_c $MWMC0 of water"
+fi
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
 NCONF=${NCONF:-$(if [ "$STACK" -gt 1 ] || [ "$LOOSE" = 1 ]; then echo 10; elif [ "$N" -gt 20 ]; then echo 30; else echo 300; fi)}   # stacks: 10 (N=22: about 20 s each)
 if [ ! -f "$RUN/gouge.data" ]; then
@@ -118,18 +182,7 @@ if [ ! -f "$RUN/gouge.data" ]; then
     # numpy and scipy are needed only here (building a new structure)
     # ./sifpy (Singularity) first; else python3 of this node: build_gouge.py needs only numpy (without a working scipy.spatial it uses a
     # numpy cell list: the same structure, about 10 times slower)
-    if ! get_py; then
-      [ -n "${PYTHON:-}" ] && { echo "PYTHON=$PYTHON does not work"; exit 1; }
-      for c in "env PYTHONNOUSERSITE=1 python3" python3; do
-        if tmo 120 $c -c "import numpy" >/dev/null 2>&1 </dev/null; then
-          PY=$c
-          if tmo 120 $c -c "from scipy.spatial import cKDTree" >/dev/null 2>&1 </dev/null; then echo "(no ./sifpy: using '$c' of this node, numpy and scipy)"
-          else echo "(no ./sifpy: using '$c' of this node, numpy only: no scipy.spatial, build_gouge.py uses its numpy cell list, slower)"; fi
-          break
-        fi
-      done
-      [ -n "$PY" ] || { echo "no python with numpy to build the structure: ./sifpy could not be made (see above; ./make_sif.sh needs internet once)"; exit 1; }
-    fi
+    pick_py || exit 1
     echo "build_gouge.py with: $PY"
     # seed 1 in another folder (a test, a rate series): built in RUN_N<N> and copied, so all of them start from the same structure
     OUT=$RUN; if [ "$SEED" = 1 ] && [ "$RUN" != "$GB" ]; then OUT=$GB; mkdir -p "$GB"; fi
@@ -141,8 +194,9 @@ if [ ! -f "$RUN/gouge.data" ]; then
   [ "$SEED" != 1 ] && echo "$SEED" > "$RUN/lammps_seed"
 fi
 # the initial structure for OVITO: $RUN/gouge.xyz (extended XYZ; analysis/data2xyz.py, no numpy needed)
+D2X=analysis/data2xyz.py; [ -f "$D2X" ] || D2X=data2xyz.py        # the pack: flat
 if [ -f "$RUN/gouge.data" ] && [ ! -f "$RUN/gouge.xyz" ]; then
-  { python3 analysis/data2xyz.py "$RUN/gouge.data" 2>/dev/null </dev/null || ${PY:-false} analysis/data2xyz.py "$RUN/gouge.data" </dev/null; } || echo "(no $RUN/gouge.xyz: python3 analysis/data2xyz.py $RUN/gouge.data)"
+  { python3 $D2X "$RUN/gouge.data" 2>/dev/null </dev/null || ${PY:-false} $D2X "$RUN/gouge.data" </dev/null; } || echo "(no $RUN/gouge.xyz: python3 $D2X $RUN/gouge.data)"
 fi
 # a new folder takes the settings the jobs of RUN_N<N> found and checked (your config.env, the LAMMPS build and MPI launcher in lmp.auto)
 if [ "$RUN" != "$BASE" ]; then for f in config.env lmp.auto; do [ -f "$BASE/$f" ] && [ ! -f "$RUN/$f" ] && cp "$BASE/$f" "$RUN/"; done; fi
@@ -185,6 +239,14 @@ if [ "$LOOSE" = 1 ] && [ "$ST" = one ]; then
   [ -z "${NRUN:-}" ] && [ -z "${NCONS:-}" ] && set_opt ncons 20000 && set_opt nconsmax 50
   [ -z "${NRUN:-}" ] && [ -z "${CONSTOL:-}" ] && set_opt constol 0.0005
   [ -z "${DRYNS:-}" ] && set_opt tdry 0
+fi
+# a fabric: 01 at 1 atm (ori: NPzT, dis: NPT iso), 02 dehydration (ori: along z, dis: x y z) to MWMC (default 0.3), then the end
+if [ -n "$FABRIC" ]; then
+  set_opt c01 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
+  set_opt c02 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
+  [ -z "${MWMC:-}" ] && set_opt final_mwmc 0.3
+  set_opt stop02 1
+  echo "FABRIC=$FABRIC" > "$RUN/fabric.env"
 fi
 # WLIST (go_water.sh): the water contents m_w/m_c of in.water, wet to dry, at most 8
 if [ -n "${WLIST:-}" ]; then
