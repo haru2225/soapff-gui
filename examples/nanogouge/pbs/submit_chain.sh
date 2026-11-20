@@ -36,6 +36,17 @@ if [ -n "${WALLTIME:-}" ]; then
   OLDWALL=$(cat walltime 2>/dev/null || true); echo "$W" > walltime; NEWWALL=1; echo "wall time of the jobs of this folder: $W (kept in $RUNDIR/walltime)"
 fi
 [ -f walltime ] && QSUB_OPTS=$(set_walltime "$QSUB_OPTS" "$(cat walltime)")
+# MAX_HOURS (go.sh MAXHOURS=72): from this submission on, at most that many hours of jobs (72 h of 24 h jobs: 3 jobs, no more after them;
+# chain.left counts the jobs left; ./go.sh again gives MAX_HOURS more)
+MAXH=$(sed -n 's/^MAX_HOURS="\{0,1\}\([0-9][0-9]*\).*/\1/p' ./config.env | tail -1)
+if [ -n "$MAXH" ] && [ "$MAXH" -gt 0 ]; then
+  WJ=$(echo "$QSUB_OPTS" | grep -o 'walltime=[0-9:]*' | head -1 | cut -d= -f2); WJ=${WJ:-24:00:00}
+  N_JOBS=$(echo "$WJ" | awk -F: -v m="$MAXH" '{h = $1 + $2 / 60 + $3 / 3600; n = int(m / h + 0.999); if (n < 1) n = 1; print n}')
+  echo "$N_JOBS" > chain.left
+  echo "MAX_HOURS=$MAXH: $N_JOBS job(s) of $WJ, then the chain stops (./go.sh again: $MAXH h more)"
+else
+  rm -f chain.left
+fi
 # jobs of this user that work in this folder, in the given states (qselect -s: R running, QH waiting)
 folder_jobs() {
   command -v qselect >/dev/null 2>&1 || return 0
@@ -86,4 +97,4 @@ for i in $(seq 1 ${N_JOBS}); do
   echo "$J" > chain.tail; echo "job $i: $J"
 done
 [ -n "$OLD" ] && { qdel $OLD && echo "deleted the waiting jobs with the old wall time: $OLD"; }
-echo "stages: $STAGES   sigmas: $SIGMAS   ($N_JOBS jobs; the last one submits more while work is left)   qsub options: ${QSUB_OPTS}"
+echo "stages: $STAGES   sigmas: $SIGMAS   ($N_JOBS jobs; $([ -f chain.left ] && echo "no more after them (MAX_HOURS)" || echo "the last one submits more while work is left"))   qsub options: ${QSUB_OPTS}"

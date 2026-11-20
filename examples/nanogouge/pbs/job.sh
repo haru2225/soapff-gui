@@ -391,6 +391,9 @@ run_stage() {
 # $1 = the job it waits for (default: this one)
 extend_chain() {
   [ -n "${PBS_JOBID:-}" ] && [ -f chain.tail ] && [ "$(cat chain.tail)" = "$PBS_JOBID" ] || return 0
+  if [ -f chain.left ] && [ "$(cat chain.left 2>/dev/null || echo 0)" -le 0 ]; then
+    echo "MAX_HOURS reached: no more jobs.  ./go.sh again (the same command) continues from the last restart"; return 0
+  fi
   local J dep=${1:-$PBS_JOBID}
   if J=$(qsub -N ng_next ${QSUB_OPTS} -W depend=afterany:${dep} -v "SUBDIR_PHYS=$(pwd -P),SUBDIR_LOGICAL=$PWD" job.sh 2>&1); then
     echo "$J" > chain.tail; echo "submitted the next job of the chain: $J (starts after ${dep})"
@@ -410,6 +413,12 @@ fi
 echo "setup of this job: ${SECONDS} s"
 echo "${PBS_JOBID:-$$}" > $LOCK; trap '[ "$(cat $LOCK 2>/dev/null)" = "${PBS_JOBID:-$$}" ] && rm -f $LOCK' EXIT
 [ -f chain.failed ] && { echo "an earlier job failed: $(cat chain.failed).  Fix it and run ./go.sh again (it deletes chain.failed)."; exit 1; }
+# MAX_HOURS (submit_chain.sh: chain.left = the jobs left): this job counts; none left: it ends at once
+if [ -f chain.left ]; then
+  L=$(cat chain.left 2>/dev/null || echo 0)
+  if [ "${L:-0}" -le 0 ]; then echo "MAX_HOURS used up: this job ends.  ./go.sh again (the same command) continues from the last restart"; exit 0; fi
+  echo $((L - 1)) > chain.left; echo "MAX_HOURS: $((L - 1)) job(s) left after this one"
+fi
 
 if [ -n "${STAGE:-}" ] && [ "${STAGE}" != auto ]; then
   # one given stage (run.sh, qsub -v STAGE=..): continue it until it is done or the time is up

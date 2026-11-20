@@ -135,6 +135,11 @@ LAMMPS and the CUDA modules); `GPU_MODULES="module load cuda"`, `GPU_PKG=gpu|kok
 job checks with a tiny run that LAMMPS works on the GPU and whether its pppm takes a triclinic box (LAMMPS 3Mar2020: no; then the shear and
 the hold run pppm on the CPU, the rest on the GPU); kept in `lmp_gpu.auto`. `GPU=0`: the CPU again.
 
+The jobs of a folder form a chain: go.sh submits 10 jobs of WALLTIME, each starting when the one before has ended and continuing from its
+restart (all.restart, all.state), and the last one submits more while work is left, until the calculation is done. `MAXHOURS=72` limits
+it: from this submission on at most 72 h of jobs (WALLTIME=24: 3 jobs), then it stops; the same command again gives 72 h more
+(`MAXHOURS=0`: no limit).
+
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
 (tactoids) of 3 at 15.5 A (2 water layers; `D001=12.5`: 1 layer), the stacks at random (structure in `RUN_N<N>_stack3`). Whether they are stacked:

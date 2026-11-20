@@ -61,6 +61,8 @@
 #                 GPU_QSUB="-q <queue> -l select=1:ncpus=..:mpiprocs=..:ngpus=1" (default: the line of pbs/gpu_check.sh), GPU_MODULES="module
 #                 load cuda", GPU_PKG=gpu|kokkos, GPU_RPG=8 (ranks per GPU).  The 4th argument (nodes) does not count then; GPU=0: the CPU again.
 #                 env GPU=1 FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 1 RUN_N54_fab_dis
+#   MAXHOURS=72   at most 72 h of jobs from this submission on (WALLTIME=24: 3 jobs), then the chain stops; the same command again: 72 h
+#                 more (MAXHOURS=0: no limit).  Without it the chain goes on until the calculation is done.
 #   NOSUB=1       build the structure only (RUN/gouge.data and RUN/gouge.xyz to look at in OVITO), submit nothing; the same command
 #                 without NOSUB then submits it
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
@@ -304,6 +306,11 @@ if [ -n "${GPU:-}" ]; then
       echo "$RUN: GPU jobs, $GPU GPU(s) per node ($RUN/config.env: $(grep '^GPU' "$RUN/config.env" | sed 's/   # go.sh.*//' | tr '\n' ' '))";;
     *) echo "GPU=$GPU: the number of GPUs per node (0: the CPU)"; exit 1;;
   esac
+fi
+# MAXHOURS=72: at most 72 hours of jobs from this submission on (24 h jobs: 3), then the chain stops; the same command again: 72 h more.
+# MAXHOURS=0: no limit again (default: none, the chain goes on until the calculation is done)
+if [ -n "${MAXHOURS:-}" ]; then
+  case "$MAXHOURS" in 0) set_cfg MAX_HOURS ""; echo "$RUN: no limit on the hours of the jobs";; [1-9]*) set_cfg MAX_HOURS "$MAXHOURS";; *) echo "MAXHOURS=$MAXHOURS: hours"; exit 1;; esac
 fi
 # WLIST (go_water.sh): the water contents m_w/m_c of in.water, wet to dry, at most 8
 if [ -n "${WLIST:-}" ]; then
