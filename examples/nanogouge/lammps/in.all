@@ -37,7 +37,7 @@ variable npc index 10000              # 01 NPT in pieces of npc steps, each a LA
                                       #     that moment (a box that shrinks a lot within one run: "Out of range atoms - cannot compute PPPM")
 variable crate index 0                # 01, 1/fs: > 0: before the NPT, the box is compacted at this true strain rate (fix deform; c01 iso: x y z,
                                       #     z: z only), NVT, in pieces of npc steps, until the pressure (iso: press, z: pzz; mean of the last
-                                      #     1000 steps) reaches p01, the clay density dmax or ncmmax pieces; go.sh 2e-6 (2e9 /s) for a loose
+                                      #     1000 steps) reaches p01, the clay density dmax or ncmmax pieces; go.sh 1e-6 (1e9 /s) for a loose
                                       #     structure.  npc: a multiple of 1000
 variable dmax index 2.2               # 01 compaction: stop at this clay density (g/cm3 of the box)
 variable ncmmax index 300             # 01 compaction: at most this many pieces
