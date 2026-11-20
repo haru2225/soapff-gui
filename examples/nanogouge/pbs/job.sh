@@ -200,7 +200,9 @@ fi
 # the normal stress of the shear (04): fix press/langevin if this LAMMPS has it, else none (-var pl 0: Lz of stage 03 kept; EXTRA="-var pl 1" overrides)
 PLVAR=""
 if [ -z "${SIF}" ] && ! has_pl "$LMPABS"; then PLVAR="-var pl 0"; echo "note: $LMPABS has no press/langevin: stage 04 shears at the Lz of stage 03 (constant volume; the normal stress is written in shear_<s>.dat)"; fi
-RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen none"
+# the screen output of rank 0 goes to lmp.screen (each LAMMPS start overwrites it): an error that only one rank sees ("ERROR on proc N",
+# e.g. Out of range atoms, Bond atoms missing) is not in the log file, only on the screen (rank 0: lmp.screen; other ranks: this job's output)
+RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} -screen lmp.screen"
 SIGMA=${SIGMA:-5.6}; EXTRA=${EXTRA:-}
 [ -f ./chain.env ] && source ./chain.env          # SIGMAS and STAGES of the chain (written by submit_chain.sh)
 [ -f ./lammps_seed ] && EXTRA="-var seed $(cat ./lammps_seed) ${EXTRA}"   # an independent run (go.sh, 6th argument)
@@ -315,8 +317,10 @@ run_stage() {
   fi
   if [ $rc -ne 0 ]; then
     # LAMMPS stopped with an error (a stop by the time limit ends with status 0): do not let the following jobs repeat it
-    echo "stage $st sigma $S job ${PBS_JOBID:-} $(date): LAMMPS ended with status $rc" > chain.failed
+    local EM; EM=$( { grep -h -E "^ERROR|Last command" lmp.screen 2>/dev/null; tail -400 jobs.log 2>/dev/null | grep -E "ERROR on proc|MPT ERROR|MPI_ABORT|Segmentation|signal [0-9]|Killed|Bus error|out of memory|oom" | grep -v "^ERROR: LAMMPS ended"; } | tail -4 | cut -c1-300)
+    { echo "stage $st sigma $S job ${PBS_JOBID:-} $(date): LAMMPS ended with status $rc"; [ -n "$EM" ] && echo "$EM"; } > chain.failed
     echo "ERROR: LAMMPS ended with status $rc.  The chain stops here (chain.failed); the following jobs end at once."
+    echo "--- the error (lmp.screen = the screen of rank 0; the other ranks print to this output):"; echo "${EM:-  (no error message found: see lmp.screen and the lines above)}"
     for f in $(ls -t log.${st}* 2>/dev/null | head -1); do echo "--- $f"; grep -E "ERROR|WARNING" "$f" | tail -5; tail -3 "$f"; done
     echo "Fix the cause, then run ./go.sh again (it deletes chain.failed and continues from the last restart)."
     exit 1
