@@ -33,6 +33,8 @@ variable sig1 index 5.6               # MPa
 variable sig2 index 56                # MPa; 0 = none
 variable c01 index z                  # 01 NPT coupling: z (NPzT) or iso (go.sh for a loose nominally random structure: compacted the same in
                                       #     x, y, z, its orientations stay random)
+variable npc index 10000              # 01 NPT in pieces of npc steps, each a LAMMPS start of its own: PPPM sets its grid for the box of
+                                      #     that moment (a box that shrinks a lot within one run: "Out of range atoms - cannot compute PPPM")
 variable npt01 index 0                # 01 NPT steps (0: neq; go.sh 300000 for a loose structure: its compaction takes ~0.1-0.3 ns)
 variable p01 index 1.0                # 01 NPT pressure (atm; go.sh for a loose structure: the first normal stress)
 variable pdrag index 0.0              # NPT drag of 01 and 03 (go.sh 1 for a loose structure: damps the box when it is compacted)
@@ -87,6 +89,7 @@ variable Gb equal 0.0
 variable rprev equal 0.0
 variable kcs equal 0
 variable lzp equal 0.0
+variable n01 equal 0                  # 01 NPT: its last step (0: not begun)
 # S0, S1: first and last step of the run st (kept in all.state: a run stopped by the time limit ends where it was to end, also when nrun or
 # nfac were changed meanwhile; S1 = -1: an all.state of an earlier version, whose runs end at the multiples of nrun)
 variable S0 equal 0
@@ -177,16 +180,25 @@ variable st string npt
 jump SELF next
 
 label s_npt
-if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_LNP)"
+# the whole NPT ends at n01; each LAMMPS start runs one piece of at most npc steps (with a time limit; without one, all pieces in turn), so
+# PPPM sets its grid for the box of the moment
+if "${mid} == 0 && ${n01} <= 0" then "variable n01 equal $(step+v_LNP)"
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(v_n01*((v_n01-step)<=v_npc)+(step+v_npc)*((v_n01-step)>v_npc))"
 if "${mid} == 1 && ${S1} < 0" then "variable S0 equal $(v_nb)" "variable S1 equal $(2*v_nb)"
-variable nso equal $(v_nout*(1+floor((v_S1-v_S0)/(200*v_nout))))
-variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(20*v_nout))))
+# stopped inside the one long NPT run of an earlier version: its end becomes n01, it goes on in pieces
+if "${mid} == 1 && ${n01} <= 0" then "variable n01 equal ${S1}" "variable S1 equal $(v_n01*((v_n01-step)<=v_npc)+(step+v_npc)*((v_n01-step)>v_npc))"
+print "in.all: 01 NPT piece: steps $(step) -> ${S1} (the NPT ends at ${n01})"
+# output intervals of the whole NPT (not of one piece)
+variable nso equal $(v_nout*(1+floor(v_LNP/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor(v_LNP/(20*v_nout))))
 thermo ${nso}
 dump dm ${dump_group} custom ${ndump} 01_equil.dump id mol type xu yu zu
 dump_modify dm append yes
 fix fnpt all npt temp ${T} ${T} 100.0 ${c01} ${p01} ${p01} 1000.0 drag ${pdrag}
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
+if "$(step) < ${n01}" then "jump SELF next"
+variable n01 equal 0
 write_data 01_equil.data
 print "DONE 01" file 01_equil.done
 variable st string dry
@@ -387,6 +399,7 @@ print "variable rprev equal ${rprev}" append all.state
 print "variable kcs equal ${kcs}" append all.state
 print "variable lzp equal ${lzp}" append all.state
 print "variable mid equal ${mid}" append all.state
+print "variable n01 equal ${n01}" append all.state
 print "variable S0 equal ${S0}" append all.state
 print "variable S1 equal ${S1}" append all.state
 if "${quitnow} == 1" then "print 'in.all: the time limit stopped ${st} at step $(step); the next job goes on from all.restart'" "quit 0"
