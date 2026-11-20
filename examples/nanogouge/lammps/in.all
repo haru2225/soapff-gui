@@ -35,6 +35,12 @@ variable c01 index z                  # 01 NPT coupling: z (NPzT) or iso (go.sh 
                                       #     x, y, z, its orientations stay random)
 variable npc index 10000              # 01 NPT in pieces of npc steps, each a LAMMPS start of its own: PPPM sets its grid for the box of
                                       #     that moment (a box that shrinks a lot within one run: "Out of range atoms - cannot compute PPPM")
+variable crate index 0                # 01, 1/fs: > 0: before the NPT, the box is compacted at this true strain rate (fix deform; c01 iso: x y z,
+                                      #     z: z only), NVT, in pieces of npc steps, until the pressure (iso: press, z: pzz; mean of the last
+                                      #     1000 steps) reaches p01, the clay density dmax or ncmmax pieces; go.sh 2e-6 (2e9 /s) for a loose
+                                      #     structure.  npc: a multiple of 1000
+variable dmax index 2.2               # 01 compaction: stop at this clay density (g/cm3 of the box)
+variable ncmmax index 300             # 01 compaction: at most this many pieces
 variable npt01 index 0                # 01 NPT steps (0: neq; go.sh 300000 for a loose structure: its compaction takes ~0.1-0.3 ns)
 variable p01 index 1.0                # 01 NPT pressure (atm; go.sh for a loose structure: the first normal stress)
 variable pdrag index 0.0              # NPT drag of 01 and 03 (go.sh 1 for a loose structure: damps the box when it is compacted)
@@ -90,6 +96,7 @@ variable rprev equal 0.0
 variable kcs equal 0
 variable lzp equal 0.0
 variable n01 equal 0                  # 01 NPT: its last step (0: not begun)
+variable kcm equal 0                  # 01 compaction pieces done (-1: the compaction is over)
 # S0, S1: first and last step of the run st (kept in all.state: a run stopped by the time limit ends where it was to end, also when nrun or
 # nfac were changed meanwhile; S1 = -1: an all.state of an earlier version, whose runs end at the multiples of nrun)
 variable S0 equal 0
@@ -177,9 +184,36 @@ fix fnvt all nvt temp ${T} ${T} 100.0
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 variable st string npt
+if "${tst} == 0 && $(v_crate>0) == 1" then "variable st string cmp" "variable kcm equal 0"
+jump SELF next
+
+# 01 compaction of a loose structure at a set rate: one piece of npc steps per LAMMPS start (PPPM set for the box of the moment)
+label s_cmp
+if "${mid} == 0" then "variable S0 equal $(step)" "variable S1 equal $(step+v_npc)"
+variable nso equal $(v_nout*(1+floor(v_LNP/(200*v_nout))))
+variable ndump equal $(v_nout*(1+floor(v_LNP/(20*v_nout))))
+thermo ${nso}
+dump dm ${dump_group} custom ${ndump} 01_equil.dump id mol type xu yu zu
+dump_modify dm append yes
+compute pcmp all pressure thermo_temp
+variable pcv equal c_pcmp
+if "${c01} == z" then "variable pcv equal c_pcmp[3]"
+variable dcl equal mass(clay)*1.66054/vol
+fix fnvt all nvt temp ${T} ${T} 100.0
+if "${c01} == z" then "fix fdef all deform 1 z trate -${crate} remap x" else "fix fdef all deform 1 x trate -${crate} y trate -${crate} z trate -${crate} remap x"
+fix pav all ave/time 10 100 1000 v_pcv v_dcl
+run ${S1} upto
+if "$(step) < ${S1}" then "jump SELF stop"
+variable kcm equal $(v_kcm+1)
+variable cdone equal $((f_pav[1]>=v_p01)||(f_pav[2]>=v_dmax)||(v_kcm>=v_ncmmax))
+print "in.all: 01 compaction piece ${kcm}: pressure $(f_pav[1]:%.1f) atm (stop at ${p01}), clay density $(f_pav[2]:%.3f) g/cm3, box $(lx:%.1f) x $(ly:%.1f) x $(lz:%.1f) A" append 01_compaction.dat
+if "${cdone} == 1" then "variable st string npt" "variable kcm equal -1"
 jump SELF next
 
 label s_npt
+# a loose structure (crate > 0) whose NPT has not begun and that was not compacted yet (also a run of an earlier version stopped there): first
+# the compaction at a set rate
+if "${mid} == 0 && ${n01} <= 0 && ${kcm} == 0 && ${tst} == 0 && $(v_crate>0) == 1" then "variable st string cmp" "jump SELF s_cmp"
 # the whole NPT ends at n01; each LAMMPS start runs one piece of at most npc steps (with a time limit; without one, all pieces in turn), so
 # PPPM sets its grid for the box of the moment
 if "${mid} == 0 && ${n01} <= 0" then "variable n01 equal $(step+v_LNP)"
@@ -400,6 +434,7 @@ print "variable kcs equal ${kcs}" append all.state
 print "variable lzp equal ${lzp}" append all.state
 print "variable mid equal ${mid}" append all.state
 print "variable n01 equal ${n01}" append all.state
+print "variable kcm equal ${kcm}" append all.state
 print "variable S0 equal ${S0}" append all.state
 print "variable S1 equal ${S1}" append all.state
 if "${quitnow} == 1" then "print 'in.all: the time limit stopped ${st} at step $(step); the next job goes on from all.restart'" "quit 0"

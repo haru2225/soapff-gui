@@ -32,7 +32,8 @@
 #   MWMC0=1.5     water content of the new structure (default 3, U&B 2020): less water, fewer atoms (N=22: 0.27 M instead of 0.49 M), a short 02
 #   Dense gouges at a set water content, two fabrics (as Sakuma et al. 2023: nominally randomly oriented NRO, preferentially oriented PO):
 #   MWMC0=0, 0.1, 0.2 (dry, 10 %, 20 % = m_w/m_c), below 1.5: a loose structure (the box of m_w/m_c 1.5 (po) or 2 (nro), BOXW) with the water on the clay
-#                 surfaces and in the interlayers first, compacted in 01 at the first normal stress (0.3 ns in pieces of 10 ps, barostat drag 1; 03 in pieces of 20 ps), no dehydration
+#                 surfaces and in the interlayers first, compacted slowly in 01 (the box shrinks at CRATE = 1e9 /s, fix deform, in pieces of 10 ps, until the pressure reaches the first normal
+#                 stress; then 0.3 ns NPT at it; 03 in pieces of 20 ps), no dehydration
 #   ORIENT=nro    the particles (single, or stacks with STACK) at random orientation in a cube, compacted the same in x, y, z (01 NPT iso):
 #                 nominally random (default)
 #   ORIENT=po     the particles with their layers within 10 deg of the shear plane (TILT=10) in a tall box Lx = Ly = LX (default ~ the
@@ -176,7 +177,10 @@ if [ "$LOOSE" = 1 ] && [ "$ST" = one ]; then
   set_opt c01 "$([ "$ORIENT" = po ] && echo z || echo iso)"
   set_opt p01 "$(awk -v s="${SIG%% *}" 'BEGIN{printf "%.4g", s * 9.86923}')"
   set_opt pdrag 1.0
-  [ -z "${NRUN:-}" ] && set_opt npt01 300000      # 0.3 ns: a loose structure takes ~0.1-0.3 ns to compact
+  # first a slow compaction at a set rate (fix deform, CRATE 1/s, default 1e9: nro ~0.35 ns, po ~1 ns) until the pressure reaches the
+  # first normal stress, then 0.3 ns NPT at it
+  [ -z "${NRUN:-}" ] && set_opt crate "$(awk -v r="${CRATE:-1e9}" 'BEGIN{printf "%.6g", r / 1e15}')"
+  [ -z "${NRUN:-}" ] && set_opt npt01 300000
   # 03 in pieces of 20 ps (each a LAMMPS start: PPPM set for the box of the moment while it still shrinks), at most 1 ns
   [ -z "${NRUN:-}" ] && [ -z "${NCONS:-}" ] && set_opt ncons 20000 && set_opt nconsmax 50
   [ -z "${NRUN:-}" ] && [ -z "${CONSTOL:-}" ] && set_opt constol 0.0005
