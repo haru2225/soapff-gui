@@ -117,7 +117,7 @@ only: `RUN_N54_w0_nro/gouge.xyz` for OVITO (`analysis/data2xyz.py` converts any 
 
 Fabrics made by a dehydration, then the water of choice and the shear (two steps). 1) `FABRIC=ori`: the particles placed as sedimented
 (layers within 30 deg of the horizontal, `TILT`) in a tall box full of water (m_w/m_c 1.5), dehydrated along z only (NPzT with x, y fixed: a
-uniaxial dehydration, the particles align and stack) to m_w/m_c 0.3 (`MWMC`) in 2 ns (`DRYNS`); `FABRIC=dis`: the particles at random in a
+uniaxial dehydration, the particles align and stack) to m_w/m_c 0.3 (`MWMC`) in 10 ns (`DRYNS`; U&B 2020: 134 ns); `FABRIC=dis`: the particles at random in a
 cube (m_w/m_c 2), dehydrated the same in x, y, z (NPT iso: stacks here and there, no direction preferred). The calculation ends after 02
 (`02_dehydrate.data`; `analysis/stacks.py` follows the stacking and the order along the dehydration):
 `env FABRIC=ori WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_ori` (0.66 M atoms at the start; dis: 0.84 M).

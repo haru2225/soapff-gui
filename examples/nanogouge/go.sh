@@ -44,7 +44,8 @@
 #   Fabrics made by a dehydration, then the water of choice (packmol) and the shear (two steps):
 #   FABRIC=ori    1) a fabric: the particles placed as sedimented (layers within TILT=30 deg of the horizontal) in a tall box with water
 #                 (MWMC0=1.5), dehydrated along z only (NPzT, x y fixed: a uniaxial dehydration, the particles align and stack) down to
-#                 m_w/m_c MWMC=0.3 in DRYNS=2 ns; the calculation ends there (02_dehydrate.data, the trajectory 02_dehydrate.dump)
+#                 m_w/m_c MWMC=0.3 in DRYNS=10 ns (twice the time per removal below m_w/m_c 1, where the particles meet and stack);
+#                 the calculation ends there (02_dehydrate.data, the trajectory 02_dehydrate.dump)
 #                 env FABRIC=ori WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_ori
 #   FABRIC=dis    the same from particles at random (MWMC0=2, a cube), dehydrated the same in x y z (NPT iso): stacks here and there,
 #                 no direction preferred (dispersed)       env FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 4 RUN_N54_fab_dis
@@ -240,11 +241,13 @@ if [ "$LOOSE" = 1 ] && [ "$ST" = one ]; then
   [ -z "${NRUN:-}" ] && [ -z "${CONSTOL:-}" ] && set_opt constol 0.0005
   [ -z "${DRYNS:-}" ] && set_opt tdry 0
 fi
-# a fabric: 01 at 1 atm (ori: NPzT, dis: NPT iso), 02 dehydration (ori: along z, dis: x y z) to MWMC (default 0.3), then the end
+# a fabric: 01 at 1 atm (ori: NPzT, dis: NPT iso), 02 dehydration in DRYNS (default 10) ns (ori: along z, dis: x y z) to MWMC (default 0.3),
+# then the end
 if [ -n "$FABRIC" ]; then
   set_opt c01 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
   set_opt c02 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
   [ -z "${MWMC:-}" ] && set_opt final_mwmc 0.3
+  [ -z "${DRYNS:-}" ] && set_opt tdry 10            # ns of the dehydration (U&B 2020: 134 ns; 2 ns: the particles have little time to align)
   set_opt stop02 1
   echo "FABRIC=$FABRIC" > "$RUN/fabric.env"
 fi
