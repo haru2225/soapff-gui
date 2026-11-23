@@ -320,10 +320,11 @@ if [ -n "${MAXJOBS:-}" ]; then
 fi
 # OMP=2: MPI x OpenMP: each MPI rank runs OMP threads (cores per node / OMP ranks per node; qsub mpiprocs=.. ompthreads=..; LAMMPS -sf omp,
 # its OPENMP package).  The same cores, fewer ranks: less communication (PPPM).  OMP=1: MPI only again.  The waiting jobs are replaced.
-omp_in() {   # $1 = LAMMPS program: has the OPENMP package (the style names are in the program or its liblammps.so)
-  LC_ALL=C grep -aq 'lj/cut/coul/long/omp' "$1" 2>/dev/null && return 0
+omp_in() {   # $1 = LAMMPS program: has the OPENMP package (USER-OMP): its class PairLJCutCoulLongOMP is in the program or its liblammps.so
+  # (not the style name lj/cut/coul/long/omp: LAMMPS keeps the style names of all packages, installed or not, for its error messages)
+  LC_ALL=C grep -aq 'PairLJCutCoulLongOMP' "$1" 2>/dev/null && return 0
   local so; so=$(ldd "$1" 2>/dev/null | awk '/liblammps/ && $3 ~ /^\//{print $3; exit}')
-  [ -n "$so" ] && LC_ALL=C grep -aq 'lj/cut/coul/long/omp' "$so" 2>/dev/null
+  [ -n "$so" ] && LC_ALL=C grep -aq 'PairLJCutCoulLongOMP' "$so" 2>/dev/null
 }
 if [ -n "${OMP:-}" ]; then
   case "$OMP" in
@@ -332,7 +333,7 @@ if [ -n "${OMP:-}" ]; then
       [ "$ST" = one ] || { echo "OMP: with the stages \"one\" (3rd argument)"; exit 1; }
       LMPB=$(sed -n 's/^LMP="\(.*\)"$/\1/p' "$RUN/lmp.auto" 2>/dev/null | tail -1)
       if [ -n "$LMPB" ] && [ -f "$LMPB" ] && ! omp_in "$LMPB"; then
-        echo "OMP=$OMP: $LMPB (the LAMMPS of this folder, lmp.auto) has no OPENMP package (no lj/cut/coul/long/omp): not set, the jobs stay MPI only"; exit 1
+        echo "OMP=$OMP: $LMPB (the LAMMPS of this folder, lmp.auto) has no OPENMP (USER-OMP) package: not set, the jobs stay MPI only"; exit 1
       fi
       [ -n "$LMPB" ] && [ -f "$LMPB" ] && echo "$RUN: $LMPB has the OPENMP package"
       set_cfg OMP "$OMP"; echo "$RUN: $OMP OpenMP threads per MPI rank (config.env; OMP=1: MPI only)";;

@@ -141,9 +141,9 @@ if [ -z "${SIF}" ]; then
   # the shear stage needs "fix press/langevin" (LAMMPS 21Nov2023 or newer).  The style name is stored in the program (or in its liblammps.so), so it is
   # looked for there; running "lmp -h" printed nothing when a library was missing or MPI did not start without mpirun, and a good build looked old.
   has_pl() {
-    LC_ALL=C grep -aq 'press/langevin' "$1" 2>/dev/null && return 0
+    LC_ALL=C grep -aq 'FixPressLangevin' "$1" 2>/dev/null && return 0
     local so; so=$(ldd "$1" 2>/dev/null | awk '/liblammps/ && $3 ~ /^\//{print $3; exit}')
-    [ -n "$so" ] && LC_ALL=C grep -aq 'press/langevin' "$so" 2>/dev/null
+    [ -n "$so" ] && LC_ALL=C grep -aq 'FixPressLangevin' "$so" 2>/dev/null
   }
   # GPU: a build with the GPU or KOKKOS package (the style names are in the program or its liblammps.so)
   in_lmp() {
@@ -151,7 +151,8 @@ if [ -z "${SIF}" ]; then
     local so; so=$(ldd "$1" 2>/dev/null | awk '/liblammps/ && $3 ~ /^\//{print $3; exit}')
     [ -n "$so" ] && LC_ALL=C grep -aqE "$2" "$so" 2>/dev/null
   }
-  has_gpu() { in_lmp "$1" 'pppm/(gpu|kk)'; }
+  # (class names: LAMMPS keeps the style names of all packages, installed or not, for its error messages; a class is there only when built)
+  has_gpu() { in_lmp "$1" 'PPPMGPU|PPPMKokkos'; }
   ok_build() { if [ -n "$GPUMODE" ]; then has_gpu "$1"; else has_pl "$1"; fi; }
   # can it start here?  A library not found, or a build made with another MPI version (lmp_icex 3Mar20 with HPE MPT 2.33:
   # "symbol lookup error: undefined symbol: mpi_sgi_status_ignore"), stops before LAMMPS begins.  ldd -r resolves every symbol without running it.
@@ -249,7 +250,7 @@ fi
 GPUOPT=""; GVAR=""
 if [ -n "$GPUMODE" ]; then
   GPKG=${GPU_PKG:-}
-  if [ -z "$GPKG" ]; then if [ -n "${LMPABS:-}" ] && in_lmp "$LMPABS" 'pppm/gpu'; then GPKG=gpu; else GPKG=kokkos; fi; fi
+  if [ -z "$GPKG" ]; then if [ -n "${LMPABS:-}" ] && in_lmp "$LMPABS" 'PPPMGPU'; then GPKG=gpu; else GPKG=kokkos; fi; fi
   NN=${NODES:-1}
   if [ "$GPKG" = kokkos ]; then
     GPUOPT="-k on g $GPUMODE -sf kk"; G1="-k on g 1 -sf kk"; NP=$((NN * GPUMODE))                     # KOKKOS: one rank per GPU
@@ -279,8 +280,8 @@ fi
 #      rank on cores of their own with omplace (without it, all threads of a rank share one core); in.all: plain pppm for a triclinic box
 OMPOPT=""; OMPW=""; OVAR=""
 if [ -n "$OMPN" ]; then
-  if [ -z "${SIF}" ] && ! in_lmp "$LMPABS" 'lj/cut/coul/long/omp'; then
-    echo "ERROR: OMP=$OMPN, but $LMPABS has no OPENMP package (no lj/cut/coul/long/omp).  env OMP=1 ./go.sh (the same command): MPI only"
+  if [ -z "${SIF}" ] && ! in_lmp "$LMPABS" 'PairLJCutCoulLongOMP'; then
+    echo "ERROR: OMP=$OMPN, but $LMPABS has no OPENMP (USER-OMP) package.  env OMP=1 ./go.sh (the same command): MPI only"
     echo "stage - job ${PBS_JOBID:-} $(date): OMP=$OMPN, but LAMMPS has no OPENMP package; env OMP=1 ./go.sh (the same command) runs MPI only" > chain.failed; exit 1
   fi
   OMPOPT="-sf omp -pk omp $OMPN"; OVAR="-var omp 1"
