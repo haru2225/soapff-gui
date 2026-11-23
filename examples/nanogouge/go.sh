@@ -61,6 +61,8 @@
 #                 GPU_QSUB="-q <queue> -l select=1:ncpus=..:mpiprocs=..:ngpus=1" (default: the line of pbs/gpu_check.sh), GPU_MODULES="module
 #                 load cuda", GPU_PKG=gpu|kokkos, GPU_RPG=8 (ranks per GPU).  The 4th argument (nodes) does not count then; GPU=0: the CPU again.
 #                 env GPU=1 FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 1 RUN_N54_fab_dis
+#   C02=z         the dehydration (02) in NPzT (x y fixed, z only), as U&B 2020 for their particles (FABRIC=dis: NPT iso, ori: z);
+#                 also for a folder that runs (from its next LAMMPS start).  C01: the same for the NPT of 01.
 #   OMP=2         MPI x OpenMP: 2 threads per MPI rank (40 cores per node: 20 ranks x 2), LAMMPS -sf omp (its OPENMP package); the
 #                 same cores, fewer ranks (less communication).  OMP=1: MPI only again.  The waiting jobs are replaced.
 #   MAXJOBS=5     at most 5 jobs of WALLTIME from this submission on (a job running now not counted), then the chain stops; the same command
@@ -110,11 +112,13 @@ BOXW=${BOXW:-$([ "$ORIENT" = po ] && echo 1.5 || echo 2)}; LOOSE=$(awk -v w="$MW
 [ -z "${D001:-}" ] && [ "$(awk -v w="$MWMC0" 'BEGIN{print (w + 0 < 0.15)}')" = 1 ] && D001=12.5     # dry, 10 %: 1 water layer (or none)
 SHAPE=""
 if [ "$LOOSE" = 1 ] || [ -n "$FABRIC" ]; then
-  # nro: a cube (compacted iso, stays a cube); po: Lx = Ly about the compacted height (clay 24,630 A^3 per particle, porosity ~0.4)
-  if [ "$ORIENT" = po ]; then SHAPE="--lx ${LX:-$(awk -v n="$N" 'BEGIN{printf "%.1f", (n * 41000) ^ (1 / 3)}')}"; else SHAPE="--aspect 1"; fi
+  # nro: a cube (compacted iso, stays a cube); po, and a dehydration along z (C02=z): Lx = Ly about the compacted height (clay 24,630 A^3
+  # per particle, porosity ~0.4): a tall box that ends about a cube
+  if [ "$ORIENT" = po ] || [ "${C02:-}" = z ]; then SHAPE="--lx ${LX:-$(awk -v n="$N" 'BEGIN{printf "%.1f", (n * 41000) ^ (1 / 3)}')}"; else SHAPE="--aspect 1"; fi
 fi
 GB=$BASE; [ "$STACK" -gt 1 ] && GB=${GB}_stack$STACK; [ "$(awk -v w="$MWMC0" 'BEGIN{print (w + 0 == 3)}')" = 1 ] || GB=${GB}_w$MWMC0
 [ "$ORIENT" = po ] && GB=${GB}_po
+[ "$ORIENT" != po ] && [ -n "$SHAPE" ] && [ "${C02:-}" = z ] && GB=${GB}_tall     # the tall box of a dehydration along z (not the cube)
 [ "$TILT" != "$([ "$ORIENT" = po ] && echo 10 || echo 90)" ] && GB=${GB}_t$TILT
 # NRUN (a short test of the whole chain) never goes into a running folder: its own folder RUN_N<N>_test<NRUN> unless a 5th argument is given
 if [ -n "${NRUN:-}" ] && [ -z "${5:-}" ]; then RUN=RUN_N${N}_test$NRUN; fi
@@ -267,9 +271,11 @@ if [ "$LOOSE" = 1 ] && [ "$ST" = one ]; then
   [ -z "${DRYNS:-}" ] && set_opt tdry 0
 fi
 # a fabric: 01 at 1 atm (ori: NPzT, dis: NPT iso), 02 dehydration (ori: along z, dis: x y z) with snapshots, then the end
+# (the defaults only for a new folder: an option given before, C02=z, DRYNS=151, ..., stays when the same command is given again)
+has_opt() { grep -q "# go.sh: $1\$" "$RUN/config.env" 2>/dev/null; }
 if [ -n "$FABRIC" ]; then
-  set_opt c01 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
-  set_opt c02 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
+  has_opt c01 || set_opt c01 "$({ [ "$FABRIC" = ori ] || [ "${C02:-}" = z ]; } && echo z || echo iso)"
+  has_opt c02 || set_opt c02 "$([ "$FABRIC" = ori ] && echo z || echo iso)"
   # as U&B 2020: removals of 1 % of the initial water (DFRAC), twice the time per removal below m_w/m_c 1, DRYNS ns in all (default 100:
   # about their rate, 1 % per ns, 134 ns), down to the driest snapshot; snapshots WSNAP on the way (wet to dry, at most 8): 02_w<value>.data,
   # the initial structures of the shear runs (FROMFAB=<this folder> MWMC0=<value>)
@@ -278,11 +284,17 @@ if [ -n "$FABRIC" ]; then
   i=0; for w in $WS; do i=$((i+1)); set_opt ws$i "$w" >/dev/null; done; set_opt nsnap $i
   echo "$RUN: snapshots at m_w/m_c $WS(02_w<value>.data)"
   [ -z "${MWMC:-}" ] && set_opt final_mwmc "$(echo $WS | awk '{print $NF}')"
-  [ -z "${DFRAC:-}" ] && set_opt dfrac 0.01
-  [ -z "${DRYNS:-}" ] && set_opt tdry 100
+  [ -z "${DFRAC:-}" ] && ! has_opt dfrac && set_opt dfrac 0.01
+  [ -z "${DRYNS:-}" ] && ! has_opt tdry && set_opt tdry 100
   set_opt stop02 1
   echo "FABRIC=$FABRIC" > "$RUN/fabric.env"
 fi
+# C02=z: the dehydration (02) in NPzT (x y fixed, z only: the box shrinks along z, the particles lie down and align, as U&B 2020 for
+# their particles); C02=iso: NPT the same in x y z.  C01: the same for the NPT of 01.  Also for a folder that runs: from its next LAMMPS start.
+for k in C01 C02; do
+  v=${!k:-}; [ -n "$v" ] || continue
+  case $v in z|iso) set_opt "$(echo $k | tr C c)" "$v";; *) echo "$k=$v: z (NPzT) or iso (NPT)"; exit 1;; esac
+done
 # GPU=<GPUs per node>: the jobs on a GPU node with a LAMMPS of the GPU or KOKKOS package (pbs/job.sh finds it, or GPU_LMP=/path/lmp);
 # GPU_QSUB: their qsub options (default: the line pbs/gpu_check.sh suggests), GPU_MODULES: modules for them (CUDA ...), GPU_PKG=gpu|kokkos,
 # GPU_RPG: MPI ranks per GPU (GPU package, default 8).  Kept in $RUN/config.env; GPU=0: back to the CPU.

@@ -146,6 +146,11 @@ HPE MPT `omplace -nt 2` places the threads on cores of their own; the shear and 
 box). Fewer ranks: less communication (PPPM); faster only when that takes much of the time (`grep -A12 "MPI task timing" log.one`).
 `OMP=1`: MPI only again. A change of the qsub options (nodes, OMP) replaces the waiting jobs of the folder.
 
+The box in the dehydration: `FABRIC=dis` NPT iso (a cube, no direction preferred), `FABRIC=ori` NPzT. `C02=z` makes it NPzT (x y fixed,
+z only), as U&B 2020 for their particles: the particles lie down and align as the water goes. For a new folder also the NPT of 01 and a tall
+box that ends about a cube (as ori); for a running folder from its next job (the box then ends thin along z). Options given once (C02,
+DRYNS, DFRAC) stay when the same command is given again.
+
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
 (tactoids) of 3 at 15.5 A (2 water layers; `D001=12.5`: 1 layer), the stacks at random (structure in `RUN_N<N>_stack3`). Whether they are stacked:
