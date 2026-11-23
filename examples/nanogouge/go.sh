@@ -63,6 +63,8 @@
 #                 env GPU=1 FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 1 RUN_N54_fab_dis
 #   C02=z         the dehydration (02) in NPzT (x y fixed, z only), as U&B 2020 for their particles (FABRIC=dis: NPT iso, ori: z);
 #                 also for a folder that runs (from its next LAMMPS start).  C01: the same for the NPT of 01.
+#   ZFROM=50      the dehydration NPT iso until 50 ns of it, then NPzT (from the removal run that begins after that; also for a folder
+#                 that runs, from its next job).  ZFROM=-1: off.
 #   OMP=2         MPI x OpenMP: 2 threads per MPI rank (40 cores per node: 20 ranks x 2), LAMMPS -sf omp (its OPENMP package); the
 #                 same cores, fewer ranks (less communication).  OMP=1: MPI only again.  The waiting jobs are replaced.
 #   MAXJOBS=5     at most 5 jobs of WALLTIME from this submission on (a job running now not counted), then the chain stops; the same command
@@ -291,6 +293,11 @@ if [ -n "$FABRIC" ]; then
 fi
 # C02=z: the dehydration (02) in NPzT (x y fixed, z only: the box shrinks along z, the particles lie down and align, as U&B 2020 for
 # their particles); C02=iso: NPT the same in x y z.  C01: the same for the NPT of 01.  Also for a folder that runs: from its next LAMMPS start.
+# ZFROM=50: the dehydration as before (c02) until 50 ns of it, NPzT (z only) from the removal run that begins after that on (ZFROM=-1: off)
+if [ -n "${ZFROM:-}" ]; then
+  awk -v z="$ZFROM" 'BEGIN{exit !(z ~ /^-?[0-9.]+$/)}' || { echo "ZFROM=$ZFROM: ns of the dehydration (-1: off)"; exit 1; }
+  set_opt zfrom "$ZFROM"
+fi
 for k in C01 C02; do
   v=${!k:-}; [ -n "$v" ] || continue
   case $v in z|iso) set_opt "$(echo $k | tr C c)" "$v";; *) echo "$k=$v: z (NPzT) or iso (NPT)"; exit 1;; esac

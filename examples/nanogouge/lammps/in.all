@@ -47,6 +47,7 @@ variable pdrag index 0.0              # NPT drag of 01 and 03 (go.sh 1 for a loo
 variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
 variable c02 index z                  # 02: the box during the dehydration: z (NPzT, x y fixed: a uniaxial dehydration, the particles align
                                       #     and stack) or iso (NPT the same in x y z: no direction preferred) (go.sh FABRIC=ori: z, dis: iso)
+variable zfrom index -1               # 02: >= 0: the removal runs that begin at or after zfrom ns of 02 in NPzT (z only; go.sh ZFROM=50), those before with c02
 variable stop02 index 0               # 1: the calculation ends after 02 (a fabric: 02_dehydrate.data; go.sh FABRIC=...)
 variable nsnap index 0                # 02: snapshots: the first state at or below each water content ws1 .. ws<nsnap> (m_w/m_c, wet to dry,
                                       #     at most 8; go.sh WSNAP) is written once: 02_w<value>.data, listed in snapshots.dat (initial
@@ -293,7 +294,10 @@ variable ndump equal $(v_nout*(1+floor((v_S1-v_S0)/(2*v_nout))))
 thermo ${nso}
 dump dm ${dump_group} custom ${ndump} 02_dehydrate.dump id mol type xu yu zu
 dump_modify dm append yes
-fix fnpt all npt temp ${T} ${T} 100.0 ${c02} 1.0 1.0 1000.0
+variable c02x string ${c02}
+if "${zfrom} >= 0 && $(v_S0*v_dt/1.0e6) >= ${zfrom}" then "variable c02x string z"
+if "${c02x} != ${c02}" then "print 'in.all: 02: NPzT (z only) from ${zfrom} ns of the dehydration on (this run begins at $(v_S0*v_dt/1.0e6:%.3f) ns)'"
+fix fnpt all npt temp ${T} ${T} 100.0 ${c02x} 1.0 1.0 1000.0
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
 print "$(v_kc+1) $(count(wO)) $(mass(water)/mass(clay):%.4f) $(mass(clay)*1.66054/vol:%.4f) $(lz:%.3f) 0" append dehydrate.dat
