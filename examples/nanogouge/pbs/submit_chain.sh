@@ -78,6 +78,11 @@ for f in gouge.data gouge.settings; do [ -f $f ] || { echo "missing $RUNDIR/$f (
 printf 'SIGMAS="%s"\nSTAGES="%s"\n' "$SIGMAS" "$STAGES" > chain.env
 # a shear (04) begun with an older in.04_shear (no shear_<s>.v2: no velocity steps, no particle outputs) is done again with the new one;
 # its files and those of the healing (05) after it go to old_04_<s>/ (nothing is deleted)
+# a job of this folder (its SUBDIR_PHYS): .chain.lock / chain.tail copied from another folder (cp -r) name jobs of that one
+job_here() { qstat -f "$1" 2>/dev/null | tr -d ' \t\n' | grep -q "SUBDIR_PHYS=$(pwd -P),"; }
+for f in .chain.lock chain.tail; do
+  if [ -f $f ]; then H=$(cat $f); if [ -n "$H" ] && qstat "$H" >/dev/null 2>&1 && ! job_here "$H"; then echo "$f names job $H of another folder (a copy?): removed"; rm -f $f; fi; fi
+done
 RUNNING=""
 if [ -f .chain.lock ]; then H=$(cat .chain.lock); if [ -n "$H" ] && qstat "$H" 2>/dev/null | grep -q " R "; then RUNNING=$H; fi; fi
 for S in $SIGMAS; do

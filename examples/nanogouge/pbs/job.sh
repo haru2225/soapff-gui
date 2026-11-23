@@ -439,7 +439,8 @@ extend_chain() {
 LOCK=.chain.lock
 if [ -f $LOCK ]; then
   H=$(cat $LOCK)
-  if [ -n "$H" ] && [ "$H" != "${PBS_JOBID:-$$}" ] && qstat "$H" 2>/dev/null | grep -q " R "; then
+  # (a job of this folder: .chain.lock copied from another folder names a job of that one)
+  if [ -n "$H" ] && [ "$H" != "${PBS_JOBID:-$$}" ] && qstat "$H" 2>/dev/null | grep -q " R " && qstat -f "$H" 2>/dev/null | tr -d ' \t\n' | grep -q "SUBDIR_PHYS=$(pwd -P),"; then
     echo "job $H is working in this folder; this job ends"; extend_chain "$H"; exit 0
   fi
 fi

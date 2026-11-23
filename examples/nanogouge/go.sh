@@ -65,6 +65,8 @@
 #                 also for a folder that runs (from its next LAMMPS start).  C01: the same for the NPT of 01.
 #   DT=2          time step 2 fs, SHAKE on every bond with H and the H-O-H angle (rigid SPC water and clay O-H, as U&B 2020): about 2x
 #                 faster; fabric folders; also for a folder that runs (from its next job).  DT=1: back to 1 fs, flexible.
+#   CONT=RUN_x    the new folder (5th argument) goes on from the last save of RUN_x (a copy of it but its jobs), e.g. with DT=2; RUN_x goes
+#                 on as it is.  NODUMP=1: without its trajectories (*.dump).
 #   ZFROM=50      the dehydration NPT iso until 50 ns of it, then NPzT (from the removal run that begins after that; also for a folder
 #                 that runs, from its next job).  ZFROM=-1: off.
 #   OMP=2         MPI x OpenMP: 2 threads per MPI rank (40 cores per node: 20 ranks x 2), LAMMPS -sf omp (its OPENMP package); the
@@ -174,6 +176,34 @@ if [ -n "${FROM:-}" ]; then
   done
   for s in $SIG; do for f in 03_consolidate_$s.done 03_consolidate_$s.data 03_consolidate_$s.dat; do [ -f "$FROM/$f" ] && [ ! -f "$RUN/$f" ] && cp "$FROM/$f" "$RUN/"; done; done
   echo "$RUN: starts from the compacted gouge of $FROM (finished there: $(cd "$FROM" && ls *.done 2>/dev/null | tr '\n' ' '))"
+fi
+# CONT: the new folder goes on from the last save of another one (all.restart + all.state, and every file of it but those of its jobs),
+# e.g. with other options:  env CONT=RUN_N54_fab_dis DT=2 ... ./go.sh 54 "5.6" one 16 RUN_N54_fab_dis_2.  The other folder goes on as it
+# is.  NODUMP=1: without the trajectories (*.dump; the new folder writes its own from here on).
+if [ -n "${CONT:-}" ]; then
+  CONT=${CONT%/}
+  [ -d "$CONT" ] || { echo "CONT=$CONT: no such folder here"; exit 1; }
+  [ "$(cd "$CONT" && pwd -P)" != "$(mkdir -p "$RUN" && cd "$RUN" && pwd -P)" ] || { echo "CONT=$CONT is the run folder itself: give another 5th argument (e.g. ${CONT}_2)"; exit 1; }
+  if [ -f "$RUN/all.state" ] || [ -f "$RUN/all.restart" ]; then
+    echo "$RUN has its own all.state / all.restart already: it goes on from them (CONT not used)"
+  else
+    { [ -f "$CONT/all.state" ] && [ -f "$CONT/all.restart" ]; } || { echo "CONT=$CONT: no all.state / all.restart there (the stages \"one\")"; exit 1; }
+    # all.restart and all.state are written together (end of a run, time limit): not while they are written
+    mt() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1"; }
+    for i in 1 2 3 4 5 6; do
+      now=$(date +%s); [ $((now - $(mt "$CONT/all.restart"))) -gt 20 ] && [ $((now - $(mt "$CONT/all.state"))) -gt 20 ] && break
+      echo "($CONT is writing its state: waiting 10 s)"; sleep 10
+    done
+    n=0
+    for f in $(cd "$CONT" && ls -A); do
+      [ -f "$CONT/$f" ] || continue
+      case $f in .chain.lock|chain.tail|chain.left|chain.failed|qsub.opts|jobs.log|lmp.screen|mpirun.log|procs.txt|hostfile.*|ng_*|*.o[0-9]*|*.e[0-9]*) continue;; esac
+      case $f in *.dump) [ "${NODUMP:-0}" = 1 ] && continue;; esac
+      cp -p "$CONT/$f" "$RUN/" && n=$((n + 1))
+    done
+    [ -f "$CONT/jobs.log" ] && cp -p "$CONT/jobs.log" "$RUN/jobs_of_$(basename "$CONT").log"
+    echo "$RUN: goes on from the last save of $CONT ($n files; stage $(sed -n 's/^variable st string //p' "$RUN/all.state" | tail -1), step $(sed -n 's/^variable S0 equal //p' "$RUN/all.state" | tail -1) .. $(sed -n 's/^variable S1 equal //p' "$RUN/all.state" | tail -1)); $CONT goes on as it is"
+  fi
 fi
 # FROMFAB: the snapshot of the dehydration of a FABRIC run at m_w/m_c MWMC0 (02_w<MWMC0>.data, with its own water); none (or REWATER
 # given): the clay of the fabric (02_dehydrate.data) with MWMC0 of water put in by rewater.py (packmol, else a grid)

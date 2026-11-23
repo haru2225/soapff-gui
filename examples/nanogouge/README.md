@@ -155,6 +155,10 @@ the first LAMMPS start at or after it (by the simulated time; also for a running
 O-H, as U&B 2020 constrained theirs), about 2x faster; also for a running folder from its next job (a run begun at 1 fs goes on as long in
 ns). A flexible water at 2 fs is not stable (O-H period ~9 fs). `DT=1`: back to 1 fs, flexible.
 
+A branch: `env CONT=RUN_N54_fab_dis DT=2 ... ./go.sh 54 "5.6" one 16 RUN_N54_fab_dis_2` makes a new folder that goes on from the last save of
+RUN_N54_fab_dis (a copy of every file but those of its jobs; `NODUMP=1`: without the trajectories), with the options given; the old folder
+goes on as it is. A job record copied from another folder (cp -r: .chain.lock, chain.tail) is not followed.
+
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
 (tactoids) of 3 at 15.5 A (2 water layers; `D001=12.5`: 1 layer), the stacks at random (structure in `RUN_N<N>_stack3`). Whether they are stacked:
