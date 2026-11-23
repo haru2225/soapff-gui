@@ -61,6 +61,8 @@
 #                 GPU_QSUB="-q <queue> -l select=1:ncpus=..:mpiprocs=..:ngpus=1" (default: the line of pbs/gpu_check.sh), GPU_MODULES="module
 #                 load cuda", GPU_PKG=gpu|kokkos, GPU_RPG=8 (ranks per GPU).  The 4th argument (nodes) does not count then; GPU=0: the CPU again.
 #                 env GPU=1 FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 1 RUN_N54_fab_dis
+#   OMP=2         MPI x OpenMP: 2 threads per MPI rank (40 cores per node: 20 ranks x 2), LAMMPS -sf omp (its OPENMP package); the
+#                 same cores, fewer ranks (less communication).  OMP=1: MPI only again.  The waiting jobs are replaced.
 #   MAXJOBS=5     at most 5 jobs of WALLTIME from this submission on (a job running now not counted), then the chain stops; the same command
 #                 again: 5 more (MAXJOBS=0: no limit).  MAXHOURS=72: the same in hours (WALLTIME=24: 3 jobs).  Without them the chain goes on
 #                 until the calculation is done.
@@ -315,6 +317,27 @@ if [ -n "${MAXHOURS:-}" ]; then
 fi
 if [ -n "${MAXJOBS:-}" ]; then
   case "$MAXJOBS" in 0) set_cfg MAX_JOBS ""; echo "$RUN: no limit on the number of jobs";; [1-9]*) set_cfg MAX_JOBS "$MAXJOBS"; set_cfg MAX_HOURS "";; *) echo "MAXJOBS=$MAXJOBS: a number of jobs"; exit 1;; esac
+fi
+# OMP=2: MPI x OpenMP: each MPI rank runs OMP threads (cores per node / OMP ranks per node; qsub mpiprocs=.. ompthreads=..; LAMMPS -sf omp,
+# its OPENMP package).  The same cores, fewer ranks: less communication (PPPM).  OMP=1: MPI only again.  The waiting jobs are replaced.
+omp_in() {   # $1 = LAMMPS program: has the OPENMP package (the style names are in the program or its liblammps.so)
+  LC_ALL=C grep -aq 'lj/cut/coul/long/omp' "$1" 2>/dev/null && return 0
+  local so; so=$(ldd "$1" 2>/dev/null | awk '/liblammps/ && $3 ~ /^\//{print $3; exit}')
+  [ -n "$so" ] && LC_ALL=C grep -aq 'lj/cut/coul/long/omp' "$so" 2>/dev/null
+}
+if [ -n "${OMP:-}" ]; then
+  case "$OMP" in
+    0|1) set_cfg OMP ""; echo "$RUN: MPI only (1 thread per rank)";;
+    [2-9]|[1-9][0-9])
+      [ "$ST" = one ] || { echo "OMP: with the stages \"one\" (3rd argument)"; exit 1; }
+      LMPB=$(sed -n 's/^LMP="\(.*\)"$/\1/p' "$RUN/lmp.auto" 2>/dev/null | tail -1)
+      if [ -n "$LMPB" ] && [ -f "$LMPB" ] && ! omp_in "$LMPB"; then
+        echo "OMP=$OMP: $LMPB (the LAMMPS of this folder, lmp.auto) has no OPENMP package (no lj/cut/coul/long/omp): not set, the jobs stay MPI only"; exit 1
+      fi
+      [ -n "$LMPB" ] && [ -f "$LMPB" ] && echo "$RUN: $LMPB has the OPENMP package"
+      set_cfg OMP "$OMP"; echo "$RUN: $OMP OpenMP threads per MPI rank (config.env; OMP=1: MPI only)";;
+    *) echo "OMP=$OMP: threads per MPI rank (2, 4, ...; 1: MPI only)"; exit 1;;
+  esac
 fi
 # WLIST (go_water.sh): the water contents m_w/m_c of in.water, wet to dry, at most 8
 if [ -n "${WLIST:-}" ]; then

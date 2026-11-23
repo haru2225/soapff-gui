@@ -36,6 +36,20 @@ if [ -n "${WALLTIME:-}" ]; then
   OLDWALL=$(cat walltime 2>/dev/null || true); echo "$W" > walltime; NEWWALL=1; echo "wall time of the jobs of this folder: $W (kept in $RUNDIR/walltime)"
 fi
 [ -f walltime ] && QSUB_OPTS=$(set_walltime "$QSUB_OPTS" "$(cat walltime)")
+# OMP (go.sh OMP=2): ncpus of a chunk as asked, mpiprocs = ncpus / OMP, ompthreads = OMP
+OMPN=$(sed -n 's/^OMP="\{0,1\}\([0-9][0-9]*\).*/\1/p' ./config.env | tail -1)
+if [ -n "$OMPN" ] && [ "$OMPN" -gt 1 ] && [ -z "$GPUMODE" ]; then
+  CH=$(echo "$QSUB_OPTS" | grep -o 'select=[0-9][^ ,]*' | head -1)
+  NCPU=$(echo "$CH" | grep -o 'ncpus=[0-9]*' | head -1 | cut -d= -f2)
+  [ -n "$NCPU" ] || { echo "OMP=$OMPN: no ncpus= in the qsub options ($QSUB_OPTS)"; exit 1; }
+  [ $((NCPU % OMPN)) -eq 0 ] || { echo "OMP=$OMPN does not divide ncpus=$NCPU (cores per node): OMP=2, 4, 5, 8, 10 or 20 for 40"; exit 1; }
+  NCH=$(echo "$CH" | sed -E 's/:mpiprocs=[0-9]+//; s/:ompthreads=[0-9]+//'):mpiprocs=$((NCPU / OMPN)):ompthreads=$OMPN
+  QSUB_OPTS=$(echo "$QSUB_OPTS" | sed "s|$CH|$NCH|")
+  echo "OMP=$OMPN: $((NCPU / OMPN)) MPI ranks x $OMPN OpenMP threads per node ($NCH)"
+fi
+# other qsub options than at the last submission (nodes, OMP, ...): the waiting jobs of this folder are replaced by new ones
+NEWQ=""
+if [ -f qsub.opts ]; then [ "$(cat qsub.opts)" != "$QSUB_OPTS" ] && NEWQ=1; elif [ -n "$OMPN" ] && [ "$OMPN" -gt 1 ]; then NEWQ=1; fi
 # MAX_HOURS (go.sh MAXHOURS=72): from this submission on, at most that many hours of jobs (72 h of 24 h jobs: 3 jobs, no more after them;
 # chain.left counts the jobs left; ./go.sh again gives MAX_HOURS more)
 MAXH=$(sed -n 's/^MAX_HOURS="\{0,1\}\([0-9][0-9]*\).*/\1/p' ./config.env | tail -1)
@@ -76,7 +90,7 @@ done
 [ -f chain.failed ] && { echo "removing chain.failed: $(cat chain.failed)"; rm -f chain.failed; }
 # a chain of this folder that is still queued or running: the new jobs start after it
 J=""; OLD=""
-if [ -n "$NEWWALL" ] || [ -f chain.left ]; then
+if [ -n "$NEWWALL" ] || [ -n "$NEWQ" ] || [ -f chain.left ]; then
   # new wall time (the waiting jobs of this folder still have the old one), or a limit of jobs (MAX_JOBS / MAX_HOURS: the waiting jobs are
   # replaced by the counted ones).  The new jobs start after the job working now; the waiting ones are deleted below.
   OLD=$(folder_jobs QH | tr '\n' ' ' | sed 's/ *$//')
@@ -102,4 +116,6 @@ for i in $(seq 1 ${N_JOBS}); do
   echo "$J" > chain.tail; echo "job $i: $J"
 done
 [ -n "$OLD" ] && { qdel $OLD && echo "deleted the waiting jobs of this folder (replaced by the new ones): $OLD"; }
+# the qsub options of these jobs: the jobs that the chain submits itself (job.sh) use the same
+echo "$QSUB_OPTS" > qsub.opts
 echo "stages: $STAGES   sigmas: $SIGMAS   ($N_JOBS jobs; $([ -f chain.left ] && echo "no more after them: MAX_JOBS / MAX_HOURS" || echo "the last one submits more while work is left"))   qsub options: ${QSUB_OPTS}"

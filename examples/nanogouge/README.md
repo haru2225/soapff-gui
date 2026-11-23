@@ -140,6 +140,12 @@ restart (all.restart, all.state), and the last one submits more while work is le
 it: from this submission on at most 5 jobs (a job running now not counted; its waiting jobs are replaced), then it stops; the same
 command again gives 5 more (`MAXJOBS=0`: no limit). `MAXHOURS=72` does the same in hours.
 
+MPI x OpenMP: `env OMP=2 ... ./go.sh ...` (stages "one") runs 2 OpenMP threads per MPI rank: the same cores, half the ranks (40 cores per
+node: `select=..:ncpus=40:mpiprocs=20:ompthreads=2`), LAMMPS `-sf omp -pk omp 2` (its OPENMP package; go.sh checks the LAMMPS of the folder),
+HPE MPT `omplace -nt 2` places the threads on cores of their own; the shear and the hold run plain pppm (pppm/omp may not take a triclinic
+box). Fewer ranks: less communication (PPPM); faster only when that takes much of the time (`grep -A12 "MPI task timing" log.one`).
+`OMP=1`: MPI only again. A change of the qsub options (nodes, OMP) replaces the waiting jobs of the folder.
+
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
 (tactoids) of 3 at 15.5 A (2 water layers; `D001=12.5`: 1 layer), the stacks at random (structure in `RUN_N<N>_stack3`). Whether they are stacked:

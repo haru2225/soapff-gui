@@ -41,6 +41,11 @@ fi
 # the wall time of the jobs (file "walltime" of the run folder, written by WALLTIME=3 ./go.sh): every walltime in the qsub options is replaced by it
 set_walltime() { echo "$1" | sed -E 's/walltime=[0-9:]+,//g; s/,walltime=[0-9:]+//g; s/-l[[:space:]]*walltime=[0-9:]+//g' | awk -v w="$2" '{ if (NF) { $1 = $1; print $0 " -l walltime=" w } else print "-l walltime=" w }'; }
 [ -f ./walltime ] && QSUB_OPTS=$(set_walltime "${QSUB_OPTS:-}" "$(cat ./walltime)")
+# the qsub options of the last ./go.sh (submit_chain.sh: nodes, OMP, GPU, wall time applied): the next job of the chain gets the same
+[ -f ./qsub.opts ] && QSUB_OPTS=$(cat ./qsub.opts)
+# OpenMP (go.sh OMP=<threads per MPI rank>, config.env; not with the GPU): cores per node / OMP ranks per node, OMP threads each
+OMPN=""; [ -z "$GPUMODE" ] && [ -f ./config.env ] && OMPN=$(sed -n 's/^OMP="\{0,1\}\([0-9][0-9]*\).*/\1/p' ./config.env | tail -1)
+[ -n "$OMPN" ] && [ "$OMPN" -le 1 ] && OMPN=""
 # a command with a time limit (a search through a large shared file system must not eat the job's wall time)
 tmo() { local t=$1; shift; if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi; }
 APP=${APP_ROOT:-/home/app}                     # the centre's software area
@@ -51,7 +56,7 @@ if [ -n "${MPI_OPTS}" ]; then
 fi
 if [ -n "${MODULES}" ]; then set +u; eval "${MODULES}"; set -u; fi
 [ -n "${LMP_LIBDIRS}" ] && export LD_LIBRARY_PATH="${LMP_LIBDIRS}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export OMP_NUM_THREADS=1
+export OMP_NUM_THREADS=${OMPN:-1}
 HOSTOPT=""
 NPROC=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)
 if [ -n "${PBS_NODEFILE:-}" ]; then
@@ -61,14 +66,28 @@ if [ -n "${PBS_NODEFILE:-}" ]; then
   C=${CORES_PER_NODE:-$(echo "$SLOTS $NPROC $NREQ" | tr ' ' '\n' | sort -rn | head -1)}
   NODES=$(sort -u "$PBS_NODEFILE" | wc -l | tr -d " ")
   echo "cores: slots/host in PBS_NODEFILE=${SLOTS}  nproc=${NPROC}  NCPUS=${NREQ}  -> ${C} per node x ${NODES} nodes"
+  # MPI ranks per node: the cores, or with OMP the cores / OMP (at most the slots PBS gives: mpiprocs)
+  # with OMP: the ranks per node PBS gives (mpiprocs = ncpus / OMP, submit_chain.sh).  A job submitted before OMP was set (no ompthreads in
+  # its select): MPI only (fewer ranks would crowd the first nodes).  PBS sets NCPUS to ompthreads, so C may not be the cores then.
+  RPN=$C
+  if [ -n "$OMPN" ]; then
+    JSEL=""; [ -n "${PBS_JOBID:-}" ] && JSEL=$(qstat -f "$PBS_JOBID" 2>/dev/null | tr -d '\n\t' | grep -o 'Resource_List.select = [^ ]*' | head -1)
+    case "$JSEL" in
+      *ompthreads=$OMPN*) RPN=${SLOTS:-0}; [ "$RPN" -gt 0 ] || RPN=$((C / OMPN));;
+      "") RPN=$((C / OMPN));;
+      *) echo "note: OMP=$OMPN, but this job was submitted for MPI only (${JSEL#Resource_List.}): MPI only in this job, the next ones use OMP"; OMPN="";;
+    esac
+    [ "$RPN" -lt 1 ] && RPN=1
+  fi
+  export OMP_NUM_THREADS=${OMPN:-1}
   [ "${C}" -le 1 ] && echo "WARNING: only 1 core per node. Ask for more cores in the resource line (e.g. -l select=${NODES}:ncpus=<cores>:mpiprocs=<cores>); see QSUB_OPTS in config.auto" 
   # default: no host option (a PBS-aware mpirun reads the allocation itself). Only if config sets HOSTFILE_FMT=openmpi|mpich a host file is passed.
   HF=hostfile.${PBS_JOBID:-$$}
-  if [ "${HOSTFILE_FMT}" = mpich ]; then sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1":"c}' > "$HF"; HOSTOPT="-machinefile $HF"
-  elif [ "${HOSTFILE_FMT}" = openmpi ]; then sort -u "$PBS_NODEFILE" | awk -v c="$C" '{print $1" slots="c}' > "$HF"; HOSTOPT="--hostfile $HF"; fi
-  NP=${NP:-$((NODES*C))}
+  if [ "${HOSTFILE_FMT}" = mpich ]; then sort -u "$PBS_NODEFILE" | awk -v c="$RPN" '{print $1":"c}' > "$HF"; HOSTOPT="-machinefile $HF"
+  elif [ "${HOSTFILE_FMT}" = openmpi ]; then sort -u "$PBS_NODEFILE" | awk -v c="$RPN" '{print $1" slots="c}' > "$HF"; HOSTOPT="--hostfile $HF"; fi
+  NP=${NP:-$((NODES*RPN))}
 else
-  NP=${NP:-$NPROC}
+  NP=${NP:-$((NPROC / ${OMPN:-1}))}; [ "$NP" -lt 1 ] && NP=1
 fi
 if [ -n "${SIF}" ]; then LMPCMD="singularity exec ${SING_OPTS} --bind $PWD ${SIF} ${LMP_IN_IMAGE}"; else LMPCMD="${LMP}"; fi
 if [ -z "${SIF}" ]; then
@@ -256,17 +275,30 @@ if [ -n "$GPUMODE" ]; then
   GVAR="-var gpu 1 -var gputri $GPUTRI"
   echo "GPU: package $GPKG, $GPUMODE GPU(s) per node x $NN node(s), MPI $NP ranks; pppm of the triclinic box (shear) on the $([ "$GPUTRI" = 1 ] && echo GPU || echo CPU)"
 fi
+# ---- OpenMP (OMP): LAMMPS with its OPENMP package (-sf omp: the /omp styles, OMP threads per rank); HPE MPT places the threads of each
+#      rank on cores of their own with omplace (without it, all threads of a rank share one core); in.all: plain pppm for a triclinic box
+OMPOPT=""; OMPW=""; OVAR=""
+if [ -n "$OMPN" ]; then
+  if [ -z "${SIF}" ] && ! in_lmp "$LMPABS" 'lj/cut/coul/long/omp'; then
+    echo "ERROR: OMP=$OMPN, but $LMPABS has no OPENMP package (no lj/cut/coul/long/omp).  env OMP=1 ./go.sh (the same command): MPI only"
+    echo "stage - job ${PBS_JOBID:-} $(date): OMP=$OMPN, but LAMMPS has no OPENMP package; env OMP=1 ./go.sh (the same command) runs MPI only" > chain.failed; exit 1
+  fi
+  OMPOPT="-sf omp -pk omp $OMPN"; OVAR="-var omp 1"
+  command -v omplace >/dev/null 2>&1 && OMPW="omplace -nt $OMPN"
+  export I_MPI_PIN_DOMAIN=omp
+  echo "OpenMP: MPI ${NP} ranks (${RPN:-?} per node) x ${OMPN} threads$([ -n "$OMPW" ] && echo ", placed with omplace")"
+fi
 # the normal stress of the shear (04): fix press/langevin if this LAMMPS has it, else none (-var pl 0: Lz of stage 03 kept; EXTRA="-var pl 1" overrides)
 PLVAR=""
 if [ -z "${SIF}" ] && ! has_pl "$LMPABS"; then PLVAR="-var pl 0"; echo "note: $LMPABS has no press/langevin: stage 04 shears at the Lz of stage 03 (constant volume; the normal stress is written in shear_<s>.dat)"; fi
 # the screen output of rank 0 goes to lmp.screen (each LAMMPS start overwrites it): an error that only one rank sees ("ERROR on proc N",
 # e.g. Out of range atoms, Bond atoms missing) is not in the log file, only on the screen (rank 0: lmp.screen; other ranks: this job's output)
-RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${LMPCMD} ${GPUOPT} -screen lmp.screen"
-SIGMA=${SIGMA:-5.6}; EXTRA="${EXTRA:-} ${GVAR}"
+RUN="${MPIRUN} -np ${NP} ${MPI_OPTS} ${HOSTOPT} ${OMPW} ${LMPCMD} ${GPUOPT} ${OMPOPT} -screen lmp.screen"
+SIGMA=${SIGMA:-5.6}; EXTRA="${EXTRA:-} ${GVAR} ${OVAR}"
 [ -f ./chain.env ] && source ./chain.env          # SIGMAS and STAGES of the chain (written by submit_chain.sh)
 [ -f ./lammps_seed ] && EXTRA="-var seed $(cat ./lammps_seed) ${EXTRA}"   # an independent run (go.sh, 6th argument)
 SIGMAS=${SIGMAS:-$SIGMA}; STAGES=${STAGES:-all}
-echo "MPI ${NP} (${C:-?} per node)  $(date)"
+echo "MPI ${NP} (${RPN:-${C:-?}} per node)${OMPN:+ x ${OMPN} OpenMP threads}  $(date)"
 echo "${RUN}"
 
 # ---- wall time.  LAMMPS gets the time left minus TIME_MARGIN (s), stops cleanly, writes a restart; the next job continues from it.
