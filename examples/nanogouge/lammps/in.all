@@ -47,7 +47,7 @@ variable pdrag index 0.0              # NPT drag of 01 and 03 (go.sh 1 for a loo
 variable final_mwmc index 0.2         # 02: water / clay mass ratio at its end
 variable c02 index z                  # 02: the box during the dehydration: z (NPzT, x y fixed: a uniaxial dehydration, the particles align
                                       #     and stack) or iso (NPT the same in x y z: no direction preferred) (go.sh FABRIC=ori: z, dis: iso)
-variable zfrom index -1               # 02: >= 0: the removal runs that begin at or after zfrom ns of 02 in NPzT (z only; go.sh ZFROM=50), those before with c02
+variable zfrom index -1               # 02: >= 0: NPzT (z only; go.sh ZFROM=50) from the first LAMMPS start at or after zfrom ns of 02 (time), before: c02
 variable stop02 index 0               # 1: the calculation ends after 02 (a fabric: 02_dehydrate.data; go.sh FABRIC=...)
 variable nsnap index 0                # 02: snapshots: the first state at or below each water content ws1 .. ws<nsnap> (m_w/m_c, wet to dry,
                                       #     at most 8; go.sh WSNAP) is written once: 02_w<value>.data, listed in snapshots.dat (initial
@@ -74,6 +74,10 @@ variable miniter index 2000           # 01: largest number of minimisation itera
 variable rc index 12.0                # real-space cutoff (A)
 variable acc index 1.0e-4             # PPPM accuracy
 variable dt index 1.0                 # fs
+variable shk index 0                  # 1: SHAKE: every bond with H (water and clay O-H) and the H-O-H angle of water (type sha) rigid, for dt 2
+                                      #     (go.sh DT=2; a rigid SPC water as U&B 2020; fix shake defined just before each run, after the other fixes)
+variable sha index 0                  # the angle type of H-O-H (water) (go.sh from gouge.settings)
+variable shktol index 1.0e-4          # SHAKE tolerance
 variable T index 300.0                # K
 variable nclay index 18               # clay atom types 1..nclay (particles + Na)
 variable thw index 19
@@ -125,6 +129,7 @@ variable S1 equal -1
 # when it is missing (no is_file() in every LAMMPS): a new folder starts from the beginning.  From the beginning again: delete all.state.
 variable resume index 0
 print "# all.state: where in.all is" append all.state screen no
+variable dtrun equal 1.0
 include all.state
 # an all.state of the first version of this file
 if "${st} == equil1" then "variable st string min"
@@ -176,6 +181,12 @@ group clay type 1:${nclay}
 group water type ${thw} ${tow}
 group wO type ${tow}
 timestep ${dt}
+# a run begun with another time step (go.sh DT=2 meanwhile): the rest of it as long in time as planned (its last step S1 rescaled)
+if "${mid} == 1 && $(v_dtrun!=v_dt) == 1" then "variable S1 equal $(step+round((v_S1-step)*v_dtrun/v_dt))" "print 'in.all: time step ${dtrun} -> ${dt} fs: the rest of this run now ends at step ${S1}'"
+variable dtrun equal ${dt}
+# SHAKE (shk 1, go.sh DT=2): here, before the fixes of the stage (LAMMPS: before any fix that changes the box; there is no fix that changes
+# forces before them in 01 02 03); not in the minimisation; the dehydration after its removal of water
+if "${shk} == 1 && ${st} != min && ${st} != dry" then "fix fshk all shake ${shktol} 50 0 m 1.0 a ${sha}"
 thermo_style custom step temp pe ke etotal press pxx pyy pzz pxz vol lx ly lz xz spcpu   # spcpu = time steps per second
 thermo_modify lost error flush yes
 thermo ${nout}
@@ -284,6 +295,7 @@ variable tau equal $(v_tdry*1.0e6/v_dt/((v_nw0-v_n1c)+2*(v_n1c-v_ntgt)+(v_nw0<=v
 variable nleft equal $(count(wO)-v_ntgt)
 variable ndel equal $(v_tst*v_nleft/((v_ndry-v_kc)*(v_ndry>v_kc)+(v_ndry<=v_kc))+(1-v_tst)*(v_ndel0*(v_ndel0<v_nleft)+v_nleft*(v_ndel0>=v_nleft)))
 if "${ndel} > 0 && ${mid} == 0" then "variable rsel atom type==${tow}&&random(0,1,$(v_seed+v_kc+1))<$(v_ndel/count(wO))" "group gdel variable rsel" "delete_atoms group gdel mol yes bond yes compress yes"
+if "${shk} == 1" then "fix fshk all shake ${shktol} 50 0 m 1.0 a ${sha}"
 variable slow equal $(1+(count(wO)<v_n1c))
 variable LDW equal $(round((v_tst*v_nrun+(1-v_tst)*v_ndel0*v_tau*v_slow)*v_nfac))
 print "in.all: 02 removal $(v_kc+1) (about $(ceil((v_nw0-v_ntgt)/v_ndel0)) in all; test: ${ndry}): $(count(wO)) water molecules left (target ${ntgt}, m_w/m_c 1 at ${n1c}), $(v_LDW*v_dt/1e6:%.4f) ns after it"
@@ -295,8 +307,8 @@ thermo ${nso}
 dump dm ${dump_group} custom ${ndump} 02_dehydrate.dump id mol type xu yu zu
 dump_modify dm append yes
 variable c02x string ${c02}
-if "${zfrom} >= 0 && $(v_S0*v_dt/1.0e6) >= ${zfrom}" then "variable c02x string z"
-if "${c02x} != ${c02}" then "print 'in.all: 02: NPzT (z only) from ${zfrom} ns of the dehydration on (this run begins at $(v_S0*v_dt/1.0e6:%.3f) ns)'"
+if "${zfrom} >= 0 && $(time/1.0e6) >= ${zfrom}" then "variable c02x string z"
+if "${c02x} != ${c02}" then "print 'in.all: 02: NPzT (z only) from ${zfrom} ns of the dehydration on (now $(time/1.0e6:%.3f) ns)'"
 fix fnpt all npt temp ${T} ${T} 100.0 ${c02x} 1.0 1.0 1000.0
 run ${S1} upto
 if "$(step) < ${S1}" then "jump SELF stop"
@@ -488,6 +500,7 @@ print "variable kcm equal ${kcm}" append all.state
 print "variable ksn equal ${ksn}" append all.state
 print "variable S0 equal ${S0}" append all.state
 print "variable S1 equal ${S1}" append all.state
+print "variable dtrun equal ${dtrun}" append all.state
 if "${quitnow} == 1" then "print 'in.all: the time limit stopped ${st} at step $(step); the next job goes on from all.restart'" "quit 0"
 if "x${tlimit} != xoff" then "print 'in.all: run done, next: ${st} (one run per LAMMPS when tlimit is given; job.sh starts the next one)'" "quit 0"
 jump SELF unit

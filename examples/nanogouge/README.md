@@ -150,7 +150,10 @@ The box in the dehydration: `FABRIC=dis` NPT iso (a cube, no direction preferred
 z only), as U&B 2020 for their particles: the particles lie down and align as the water goes. For a new folder also the NPT of 01 and a tall
 box that ends about a cube (as ori); for a running folder from its next job (the box then ends thin along z). Options given once (C02,
 DRYNS, DFRAC) stay when the same command is given again. `ZFROM=50`: NPT iso until 50 ns of the dehydration, NPzT from
-the removal run that begins after that (also for a running folder, from its next job; `ZFROM=-1`: off).
+the first LAMMPS start at or after it (by the simulated time; also for a running folder, from its next job; `ZFROM=-1`: off).
+`DT=2` (fabric folders): time step 2 fs with SHAKE on every bond with H and on the H-O-H angle of water (a rigid SPC water and rigid clay
+O-H, as U&B 2020 constrained theirs), about 2x faster; also for a running folder from its next job (a run begun at 1 fs goes on as long in
+ns). A flexible water at 2 fs is not stable (O-H period ~9 fs). `DT=1`: back to 1 fs, flexible.
 
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks

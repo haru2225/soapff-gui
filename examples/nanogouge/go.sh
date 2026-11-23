@@ -63,6 +63,8 @@
 #                 env GPU=1 FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 1 RUN_N54_fab_dis
 #   C02=z         the dehydration (02) in NPzT (x y fixed, z only), as U&B 2020 for their particles (FABRIC=dis: NPT iso, ori: z);
 #                 also for a folder that runs (from its next LAMMPS start).  C01: the same for the NPT of 01.
+#   DT=2          time step 2 fs, SHAKE on every bond with H and the H-O-H angle (rigid SPC water and clay O-H, as U&B 2020): about 2x
+#                 faster; fabric folders; also for a folder that runs (from its next job).  DT=1: back to 1 fs, flexible.
 #   ZFROM=50      the dehydration NPT iso until 50 ns of it, then NPzT (from the removal run that begins after that; also for a folder
 #                 that runs, from its next job).  ZFROM=-1: off.
 #   OMP=2         MPI x OpenMP: 2 threads per MPI rank (40 cores per node: 20 ranks x 2), LAMMPS -sf omp (its OPENMP package); the
@@ -293,6 +295,20 @@ if [ -n "$FABRIC" ]; then
 fi
 # C02=z: the dehydration (02) in NPzT (x y fixed, z only: the box shrinks along z, the particles lie down and align, as U&B 2020 for
 # their particles); C02=iso: NPT the same in x y z.  C01: the same for the NPT of 01.  Also for a folder that runs: from its next LAMMPS start.
+# DT=2: time step 2 fs with SHAKE (every bond with H rigid, the H-O-H angle of water rigid: a rigid SPC water and rigid clay O-H, as U&B
+# 2020), about 2x faster; a fabric folder (FABRIC, the dehydration counts its time in ns); also for a folder that runs, from its next
+# job: a run begun with 1 fs goes on as long in ns.  DT=1: 1 fs and flexible O-H again.
+if [ -n "${DT:-}" ]; then
+  case "$DT" in
+    1|1.0) set_opt dt 1.0; set_opt shk 0;;
+    2|2.0)
+      [ -n "$FABRIC" ] || [ -f "$RUN/fabric.env" ] || { echo "DT=2: for a fabric folder (FABRIC=...); its other stages count their lengths in steps"; exit 1; }
+      SHA=$(awk '/^angle_coeff/ && /HOH \(water\)/ {print $2; exit}' "$RUN/gouge.settings" 2>/dev/null)
+      [ -n "$SHA" ] || { echo "DT=2: no 'angle_coeff ... # HOH (water)' line in $RUN/gouge.settings"; exit 1; }
+      set_opt dt 2.0; set_opt shk 1; set_opt sha "$SHA";;
+    *) echo "DT=$DT: 1 or 2 (fs)"; exit 1;;
+  esac
+fi
 # ZFROM=50: the dehydration as before (c02) until 50 ns of it, NPzT (z only) from the removal run that begins after that on (ZFROM=-1: off)
 if [ -n "${ZFROM:-}" ]; then
   awk -v z="$ZFROM" 'BEGIN{exit !(z ~ /^-?[0-9.]+$/)}' || { echo "ZFROM=$ZFROM: ns of the dehydration (-1: off)"; exit 1; }
