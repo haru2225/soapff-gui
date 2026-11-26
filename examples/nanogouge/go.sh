@@ -57,12 +57,18 @@
 #                 no packmol: a grid, the sites nearest to the clay first; REWATER=grid chooses that); then in.all: minimisation, NVT
 #                 0.1 ns, the compaction at the first normal stress (ori: along z, dis: x y z) and the shear as for the dense gouges
 #                 env FROMFAB=RUN_N54_fab_dis MWMC0=0.2 WALLTIME=24 ./go.sh 54 "5.6 56" one 4 RUN_N54_dis_w0.2
+#   NRO=1         with FROMFAB: the initial random state of the fabric instead of its dehydration (FROMFAB/01_equil.data, else its
+#                 gouge.data: the same particles, at random, before any water was taken), all its water out, MWMC0 of water on the
+#                 clay surfaces first (rewater.py, REWATER=grid by default), then compacted the same in x y z and sheared as above: the
+#                 nominally random (NRO) gouge to compare with the fabric.  Both at once (dry and 5 %, two chains): go_nro.sh
+#                 env FROMFAB=RUN_N54_fab_dis NRO=1 MWMC0=0 WALLTIME=24 ./go.sh 54 "5.6" one 16 RUN_N54_nro_w0
 #   GPU=1         the jobs on a GPU node (GPUs per node), with a LAMMPS of the GPU or KOKKOS package (found by pbs/job.sh, or GPU_LMP=/path/lmp);
 #                 GPU_QSUB="-q <queue> -l select=1:ncpus=..:mpiprocs=..:ngpus=1" (default: the line of pbs/gpu_check.sh), GPU_MODULES="module
 #                 load cuda", GPU_PKG=gpu|kokkos, GPU_RPG=8 (ranks per GPU).  The 4th argument (nodes) does not count then; GPU=0: the CPU again.
 #                 env GPU=1 FABRIC=dis WALLTIME=24 ./go.sh 54 "5.6" one 1 RUN_N54_fab_dis
 #   C02=z         the dehydration (02) in NPzT (x y fixed, z only), as U&B 2020 for their particles (FABRIC=dis: NPT iso, ori: z);
-#                 also for a folder that runs (from its next LAMMPS start).  C01: the same for the NPT of 01.
+#                 also for a folder that runs (from its next LAMMPS start).  C01: the same for the NPT of 01; C01=aniso: x, y, z each to the
+#                 pressure (the flexible box of Lin & Hatano 2024; a loose structure: compacted the same in x y z first, then that NPT).
 #   DT=2          time step 2 fs, SHAKE on every bond with H and the H-O-H angle (rigid SPC water and clay O-H, as U&B 2020): about 2x
 #                 faster; fabric folders; also for a folder that runs (from its next job).  DT=1: back to 1 fs, flexible.
 #   CONT=RUN_x    the new folder (5th argument) goes on from the last save of RUN_x (a copy of it but its jobs), e.g. with DT=2; RUN_x goes
@@ -76,6 +82,7 @@
 #                 until the calculation is done.
 #   NOSUB=1       build the structure only (RUN/gouge.data and RUN/gouge.xyz to look at in OVITO), submit nothing; the same command
 #                 without NOSUB then submits it
+#   NPT01=150000  steps of the NPT of 01 after the compaction of a loose structure (default 300000); CRATE=2e9 its compaction rate (1/s)
 #   NFAC=2        "one": 02, 03, 04, 05 twice as long (04: twice the strain); also in a running folder: from its next run on
 #   NVS=4         velocity steps after GMAX (default 4: the rate x3.16 each, 0.5 of strain each; 1e8 -> 1e10 /s; 0 = none), VFAC=3.16227766 their factor
 #   The jobs draw the figures (analysis/hot_spots.py) in RUN_<..>/figs after each job of the shear; a shear begun with an older input is done again.
@@ -105,6 +112,13 @@ if [ -n "$FROMFAB" ]; then
   [ -n "$MWMC0_GIVEN" ] || { echo "FROMFAB=$FROMFAB: give the water content of the new structure, e.g. MWMC0=0, 0.1 or 0.2 (m_w/m_c)"; exit 1; }
   FFAB=$(sed -n 's/^FABRIC=//p' "$FROMFAB/fabric.env" 2>/dev/null | head -1)
   case "$FFAB" in ori) ORIENT=po;; dis) ORIENT=nro;; *) FFAB="";; esac
+fi
+# NRO=1: the initial random state of the fabric FROMFAB (its 01_equil.data or gouge.data), compacted the same in x y z
+NRO=${NRO:-0}
+case "$NRO" in 0|1) ;; *) echo "NRO=$NRO: 1 (the initial random state of FROMFAB) or 0"; exit 1;; esac
+if [ "$NRO" = 1 ]; then
+  [ -n "$FROMFAB" ] || { echo "NRO=1: with FROMFAB=<a fabric folder> (its initial random state)"; exit 1; }
+  ORIENT=nro
 fi
 MWMC0=${MWMC0:-3}
 awk -v w="$MWMC0" 'BEGIN{ exit !(w + 0 >= 0 && w + 0 <= 5) }' || { echo "MWMC0=$MWMC0: the water content of the new structure, 0 <= m_w/m_c <= 5"; exit 1; }
@@ -208,7 +222,7 @@ fi
 # FROMFAB: the snapshot of the dehydration of a FABRIC run at m_w/m_c MWMC0 (02_w<MWMC0>.data, with its own water); none (or REWATER
 # given): the clay of the fabric (02_dehydrate.data) with MWMC0 of water put in by rewater.py (packmol, else a grid)
 WS0=$(awk -v w="$MWMC0" 'BEGIN{printf "%g", w}')
-if [ -n "$FROMFAB" ] && [ ! -f "$RUN/gouge.data" ] && [ -z "${REWATER:-}" ] && [ -f "$FROMFAB/02_w$WS0.data" ]; then
+if [ -n "$FROMFAB" ] && [ "$NRO" != 1 ] && [ ! -f "$RUN/gouge.data" ] && [ -z "${REWATER:-}" ] && [ -f "$FROMFAB/02_w$WS0.data" ]; then
   [ "$FROMFAB" != "$RUN" ] || { echo "FROMFAB=$FROMFAB is the run folder itself: give another 5th argument"; exit 1; }
   mkdir -p "$RUN"
   cp "$FROMFAB/02_w$WS0.data" "$RUN/gouge.data"; cp "$FROMFAB/gouge.settings" "$RUN/"
@@ -217,22 +231,34 @@ if [ -n "$FROMFAB" ] && [ ! -f "$RUN/gouge.data" ] && [ -z "${REWATER:-}" ] && [
 fi
 if [ -n "$FROMFAB" ] && [ ! -f "$RUN/gouge.data" ]; then
   [ "$FROMFAB" != "$RUN" ] || { echo "FROMFAB=$FROMFAB is the run folder itself: give another 5th argument"; exit 1; }
-  if [ -z "${REWATER:-}" ] && [ ! -f "$FROMFAB/02_dehydrate.done" ]; then
+  SRC=$FROMFAB/02_dehydrate.data
+  if [ "$NRO" = 1 ]; then
+    # the initial random state: after 01 (minimised, 0.1 ns NVT, NPT at 1 atm), else as built
+    SRC=$FROMFAB/01_equil.data; [ -f "$SRC" ] || SRC=$FROMFAB/gouge.data
+    [ -f "$SRC" ] || { echo "NRO=1: no $FROMFAB/01_equil.data or $FROMFAB/gouge.data"; exit 1; }
+    REWATER=${REWATER:-grid}
+  fi
+  if [ "$NRO" != 1 ] && [ -z "${REWATER:-}" ] && [ ! -f "$FROMFAB/02_dehydrate.done" ]; then
     echo "FROMFAB=$FROMFAB: no snapshot at m_w/m_c $WS0 yet ($FROMFAB/02_w$WS0.data); there: $(cd "$FROMFAB" 2>/dev/null && ls 02_w*.data 2>/dev/null | tr '\n' ' ')"
     echo "  wait for it (the dehydration is going on), or REWATER=packmol to put the water into the end of the dehydration when it is done"; exit 1
   fi
-  [ -f "$FROMFAB/02_dehydrate.done" ] && [ -f "$FROMFAB/02_dehydrate.data" ] || { echo "FROMFAB=$FROMFAB: the fabric is not ready (no $FROMFAB/02_dehydrate.done yet)"; exit 1; }
+  [ "$NRO" = 1 ] || { [ -f "$FROMFAB/02_dehydrate.done" ] && [ -f "$FROMFAB/02_dehydrate.data" ]; } || { echo "FROMFAB=$FROMFAB: the fabric is not ready (no $FROMFAB/02_dehydrate.done yet)"; exit 1; }
   [ -n "$FFAB" ] || echo "(no $FROMFAB/fabric.env: compacted as ORIENT=$ORIENT, $([ "$ORIENT" = po ] && echo "along z" || echo "the same in x y z"))"
   mkdir -p "$RUN"
   pick_py || exit 1
   if [ "${REWATER:-auto}" != grid ] && [ -z "${PACKMOL:-}" ] && [ ! -x bin/packmol ] && ! command -v packmol >/dev/null 2>&1 && [ ! -f .packmol_failed ]; then
     echo "making ./bin/packmol (once): ./get_packmol.sh"; ./get_packmol.sh || { touch .packmol_failed; echo "(get_packmol.sh failed, not tried again: the water goes on a grid; ./get_packmol.sh by hand)"; }
   fi
-  $PY rewater.py "$FROMFAB/02_dehydrate.data" --mwmc "$MWMC0" --seed "$SEED" --method "${REWATER:-auto}" -o "$RUN/gouge.data" \
+  $PY rewater.py "$SRC" --mwmc "$MWMC0" --seed "$SEED" --method "${REWATER:-auto}" -o "$RUN/gouge.data" \
     || { rm -f "$RUN/gouge.data"; echo "rewater.py failed"; exit 1; }
   cp "$FROMFAB/gouge.settings" "$RUN/"
-  { echo "FROMFAB=$FROMFAB"; echo "FABRIC=${FFAB:-unknown}"; echo "MWMC0=$MWMC0"; } > "$RUN/fabric.env"
-  echo "$RUN: the fabric of $FROMFAB (${FFAB:-?}) with m_w/m_c $MWMC0 of water"
+  if [ "$NRO" = 1 ]; then
+    { echo "FROMFAB=$FROMFAB"; echo "FABRIC=nro"; echo "MWMC0=$MWMC0"; echo "SNAPSHOT=$(basename "$SRC")"; echo "NRO=1"; } > "$RUN/fabric.env"
+    echo "$RUN: the initial random state of $FROMFAB ($(basename "$SRC")) with m_w/m_c $MWMC0 of water (NRO)"
+  else
+    { echo "FROMFAB=$FROMFAB"; echo "FABRIC=${FFAB:-unknown}"; echo "MWMC0=$MWMC0"; } > "$RUN/fabric.env"
+    echo "$RUN: the fabric of $FROMFAB (${FFAB:-?}) with m_w/m_c $MWMC0 of water"
+  fi
 fi
 # random configurations to try (the most random one is kept): 300 for small systems; 30 for N > 20 (keeps the login node busy for minutes, not hours)
 NCONF=${NCONF:-$(if [ -n "$FABRIC" ]; then echo 2; elif [ "$STACK" -gt 1 ] || [ "$LOOSE" = 1 ]; then echo 10; elif [ "$N" -gt 20 ]; then echo 30; else echo 300; fi)}   # stacks: 10 (N=22: about 20 s each)
@@ -298,9 +324,9 @@ if [ "$LOOSE" = 1 ] && [ "$ST" = one ]; then
   # first a slow compaction at a set rate (fix deform, CRATE 1/s, default 1e9: nro ~0.35 ns, po ~1 ns) until the pressure reaches the
   # first normal stress, then 0.3 ns NPT at it
   [ -z "${NRUN:-}" ] && set_opt crate "$(awk -v r="${CRATE:-1e9}" 'BEGIN{printf "%.6g", r / 1e15}')"
-  [ -z "${NRUN:-}" ] && set_opt npt01 300000
+  [ -z "${NRUN:-}" ] && set_opt npt01 "${NPT01:-300000}"
   # 03 in pieces of 20 ps (each a LAMMPS start: PPPM set for the box of the moment while it still shrinks), at most 1 ns
-  [ -z "${NRUN:-}" ] && [ -z "${NCONS:-}" ] && set_opt ncons 20000 && set_opt nconsmax 50
+  [ -z "${NRUN:-}" ] && [ -z "${NCONS:-}" ] && set_opt ncons 20000 && set_opt nconsmax "${NCONSMAX:-50}"
   [ -z "${NRUN:-}" ] && [ -z "${CONSTOL:-}" ] && set_opt constol 0.0005
   [ -z "${DRYNS:-}" ] && set_opt tdry 0
 fi
@@ -346,7 +372,7 @@ if [ -n "${ZFROM:-}" ]; then
 fi
 for k in C01 C02; do
   v=${!k:-}; [ -n "$v" ] || continue
-  case $v in z|iso) set_opt "$(echo $k | tr C c)" "$v";; *) echo "$k=$v: z (NPzT) or iso (NPT)"; exit 1;; esac
+  case $k:$v in C0[12]:z|C0[12]:iso|C01:aniso) set_opt "$(echo $k | tr C c)" "$v";; *) echo "$k=$v: z (NPzT) or iso (NPT)$([ $k = C01 ] && echo ' or aniso (x y z each to the pressure: Lin & Hatano 2024)')"; exit 1;; esac
 done
 # GPU=<GPUs per node>: the jobs on a GPU node with a LAMMPS of the GPU or KOKKOS package (pbs/job.sh finds it, or GPU_LMP=/path/lmp);
 # GPU_QSUB: their qsub options (default: the line pbs/gpu_check.sh suggests), GPU_MODULES: modules for them (CUDA ...), GPU_PKG=gpu|kokkos,

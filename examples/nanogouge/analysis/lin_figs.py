@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
-"""Figures of the kind of Lin & Hatano (2024, JGR Solid Earth 129, e2024JB028850, Figs. 5-10) for a series of water contents (porosities):
-the run folder of in.water (go_water.sh) with water_contents.dat and one folder w<m_w/m_c>/ per water content.
+"""Figures of the kind of Lin & Hatano (2024, JGR Solid Earth 129, e2024JB028850, Figs. 3, 5-10) for a series of water contents (porosities):
+the run folder of in.water (go_water.sh) with water_contents.dat and one folder w<m_w/m_c>/ per water content; or several run folders of
+"one" (go.sh, e.g. go_nro.sh: RUN_N54_nro_w0 RUN_N54_nro_w0.05), their water content from fabric.env (MWMC0) or the name (_w<m_w/m_c>).
 
+  lin_fig3_strain_<s>.png    shear stress, porosity, nematic order S (largest eigenvalue of Q = <3 n n - I> / 2 of the particle normals)
+                             and friction coefficient against the shear strain, one line per water content                        (their Fig. 3)
   lin_fig5_rate.png          friction coefficient and porosity against the strain rate (the velocity steps), per water content       (their Fig. 5)
   lin_fig6_profiles_<s>.png  velocity profile vx / (rate Lz) across the gouge, one line per rate, and the angle between the particle normals
                              and z (dots: particles at the end of the first rate; line: layer means; grey: start of the shear)          (their Fig. 6)
   lin_fig7_stacking.png      parallel radial distribution function g||(r) of the particles (along each particle's normal, within its radius)
-                             at the start and at the end of the shear, and the stacked neighbours per particle against the strain      (their Fig. 7)
+                             at several strains (frames within 0.3 of each), and the stacked neighbours per particle against the strain (their Fig. 7)
   lin_fig8_healing.png       stacked neighbours per particle against the rest time in the hold (05, constant normal stress),
                              fit a + b log10(t); the slope b against the porosity of the hold                                            (their Fig. 8)
   lin_fig9_a_b.png           velocity dependence (a - b) = d(mu_ss) / ln(V2 / V1) between the velocity steps, against the porosity       (their Fig. 9)
   lin_fig10_band.png         R^2 of the velocity profile (1 = uniform shear) against the strain; the share of the height that shears
                              at least half as fast as the mean (100 % = uniform, small = a shear band), against the porosity            (their Fig. 10)
   lin_porosity.png           summary against the porosity during the shear: mu, (a - b), R^2, stacked neighbours
-  lin_points.csv, lin_heal.csv   the numbers
+  lin_points.csv, lin_heal.csv, lin_fig3_<s>.csv   the numbers
 Porosity phi = 1 - rho_b / rho_s (rho_b = dry bulk density written by the shear, rho_s = 2.7 g/cm3); m_w/m_c from water_contents.dat.
 A stacked pair: normals within 25 deg, water film < 12 A between the faces, lateral offset < 0.75 (R1 + R2) (as hot_spots.py).
 The steady state of a rate is the second half of its strain.  Few particles (N = 22) make g||(r), the orientation profile and the band noisy.
   python3 lin_figs.py RUN_N22_water [--outdir RUN_N22_water/figs]
+  python3 lin_figs.py RUN_N54_nro_w0 RUN_N54_nro_w0.05 [--outdir RUN_N54_nro_w0/figs]
 numpy, matplotlib (hot_spots.py next to this file).
 """
 import argparse, glob, os, re, sys
@@ -49,6 +53,30 @@ def water_table(root):
             if m:
                 out.append(dict(folder=d.rstrip('/'), target=float(m.group(1)), mwmc=float(m.group(1))))
     return sorted(out, key=lambda w: -w['mwmc'])
+
+
+def run_table(folders):
+    """run folders of "one" (shear_<s>.dat in each): water content from fabric.env (MWMC0), else the name (_w<m_w/m_c>); kind: NRO or the fabric"""
+    out = []
+    for d in folders:
+        d = d.rstrip('/'); env = {}
+        f = os.path.join(d, 'fabric.env')
+        if os.path.exists(f):
+            env = dict(l.strip().split('=', 1) for l in open(f) if '=' in l)
+        mw = env.get('MWMC0')
+        if mw is None:
+            m = re.search(r'_w([0-9.]+)', os.path.basename(d)); mw = m.group(1).rstrip('.') if m else 'nan'
+        kind = 'NRO' if env.get('NRO') == '1' else {'dis': 'dis', 'ori': 'ori'}.get(env.get('FABRIC', ''), '')
+        out.append(dict(folder=d, target=float(mw), mwmc=float(mw), kind=kind, name=os.path.basename(d)))
+    return sorted(out, key=lambda w: (w['kind'], -w['mwmc']))
+
+
+def nematic(gyr):
+    """nematic order S: the largest eigenvalue of Q = (1/2N) sum (3 n n - I) of the particle normals n (0 random, 1 aligned), and its director"""
+    n = hs.particle_frame(gyr)[0]
+    Q = 1.5 * (n.T @ n) / len(n) - 0.5 * np.eye(3)
+    ev, evec = np.linalg.eigh(Q)
+    return ev[-1], evec[:, -1]
 
 
 def min_image(d, H, Hinv):
@@ -178,10 +206,49 @@ def stack_series(r):
 
 
 def wlab(w):
-    return f"m_w/m_c {w['mwmc']:.2g}"
+    lab = 'dry' if w['mwmc'] == 0 else f"m_w/m_c {w['mwmc']:.2g}"
+    return f"{w['kind']} {lab}" if w.get('kind') else lab
 
 
 # ---------------- figures ----------------
+def fig3(R, sig, ws, cols, fn, rows):
+    """shear stress, porosity, nematic order and mu against the shear strain (Lin & Hatano 2024, Fig. 3)"""
+    ws = [w for w in ws if (w['folder'], sig) in R]
+    if not ws:
+        return
+    fig, ax = plt.subplots(2, 2, figsize=(7.6, 6.2 + HEAD), squeeze=False)
+    bounds = {}
+    for w, col in zip(ws, cols):
+        r = R[(w['folder'], sig)]; sh = r['sh']; g = sh['gamma']; phi = 1 - sh['rho'] / RHO_S
+        ax[0, 0].plot(g, sh['tau'], color=col, lw=LW)
+        ax[0, 1].plot(g, phi, color=col, lw=LW)
+        ax[1, 1].plot(g, sh['mu'], color=col, lw=LW)
+        for sg in r['segs'][1:]:
+            bounds[round(float(g[sg['rows'][0]]), 2)] = sg['rate']
+        S = np.full(len(g), np.nan)
+        if 'pst' in r:
+            gp = np.interp(r['pst'], sh['step'], g)
+            Sp = np.array([nematic(r['gyr'][i])[0] for i in range(len(r['pst']))])
+            ax[1, 0].plot(gp, Sp, color=col, lw=LW)
+            S = np.interp(sh['step'], r['pst'], Sp, left=np.nan, right=np.nan)
+        for i in range(len(g)):
+            rows.append([w['name'], w['mwmc'], sig, sh['step'][i], g[i], sh['tau'][i], sh['sn'][i], sh['mu'][i], phi[i], S[i], sh['rate'][i]])
+    for a in ax.ravel():
+        for gb, rt in sorted(bounds.items()):
+            a.axvline(gb, color=MUTED, lw=PX, ls=(0, (2, 2)), zorder=1)
+    for gb, rt in sorted(bounds.items()):
+        ax[0, 0].annotate(hs.rl(rt), (gb, 1), xycoords=('data', 'axes fraction'), xytext=(3, -3), textcoords='offset points',
+                          ha='left', va='top', fontsize=8, color=INK2)
+    for (i, j), lab in {(0, 0): 'shear stress τ (MPa)', (0, 1): 'porosity φ = 1 − ρb / ρs', (1, 0): 'nematic order S',
+                        (1, 1): 'friction coefficient μ = τ / σn'}.items():
+        a = ax[i, j]; style(a); a.set_xlabel('shear strain γ'); a.set_ylabel(lab)
+    ax[1, 0].set_ylim(0, 1)
+    rk = sorted({p['rate'] for w in ws for p in R[(w['folder'], sig)]['ph']})
+    head(fig, f'Shear at σn = {sig} MPa, {hs.rl(rk[0])} to the strain {max(np.nanmax(R[(w["folder"], sig)]["sh"]["gamma"]) for w in ws):.1f}'
+         f'{", then the velocity steps" if len(rk) > 1 else ""} (cf. Lin & Hatano 2024, Fig. 3)', [(wlab(w), col, 'line') for w, col in zip(ws, cols)])
+    layout(fig); fig.savefig(fn); plt.close(fig)
+
+
 def fig5(R, sigs, ws, cols, fn):
     fig, ax = plt.subplots(2, len(sigs), figsize=(max(6.4, 4.4 * len(sigs) + 0.4), 6.2 + HEAD), squeeze=False)
     for c, sig in enumerate(sigs):
@@ -249,9 +316,18 @@ def fig7(R, sigs, ws, cols, fn):
         for k, (w, col) in enumerate(zip(ws, cols)):
             a = fig.add_subplot(gs[c, k]); r = R.get((w['folder'], sig))
             if r and 'pst' in r:
-                for i, cc in ((0, MUTED), (len(r['pst']) - 1, col)):
-                    rr, g = pardf([(r['com'][i], r['gyr'][i], r['box'](r['pst'][i]))])
+                gp = np.interp(r['pst'], r['sh']['step'], r['sh']['gamma'])
+                targets = [t for t in (0, 1, 2, 5, 10, 20) if t <= gp[-1] + 0.3]
+                if gp[-1] - targets[-1] > 0.5:
+                    targets.append(round(float(gp[-1]), 1))
+                gcol = seq(len(targets))
+                for t, cc in zip(targets, gcol):
+                    m = np.where(np.abs(gp - t) <= 0.3)[0][:10]
+                    if not len(m):
+                        continue
+                    rr, g = pardf([(r['com'][i], r['gyr'][i], r['box'](r['pst'][i])) for i in m])
                     a.plot(rr / 10, g, color=cc, lw=LW)
+                    a.annotate(f'γ {t:g}', (rr[np.argmax(g)] / 10, g.max()), xytext=(3, 0), textcoords='offset points', fontsize=7, color=INK2)
                 a.axhline(1, color=MUTED, lw=PX)
             style(a, f'{wlab(w)} · {sig} MPa'); a.set_xlabel('r|| (nm)')
             if k == 0:
@@ -266,8 +342,8 @@ def fig7(R, sigs, ws, cols, fn):
                     a.plot(g, s, color=col, lw=LW, ls='-' if c == 0 else (0, (4, 2)))
     style(a, 'stacked neighbours per particle during the shear' + (f'  (solid {sigs[0]} MPa, dashed {sigs[1]} MPa)' if len(sigs) > 1 else ''))
     a.set_xlabel('shear strain γ'); a.set_ylabel('stacked neighbours')
-    head(fig, 'Stacking of the particles during the shear (cf. Lin & Hatano 2024, Fig. 7)',
-         [('start of the shear', MUTED, 'line')] + [(wlab(w), col, 'line') for w, col in zip(ws, cols)])
+    head(fig, 'Stacking of the particles during the shear (cf. Lin & Hatano 2024, Fig. 7; top: light to dark = larger strain)',
+         [(wlab(w), col, 'line') for w, col in zip(ws, cols)])
     layout(fig); fig.savefig(fn); plt.close(fig)
 
 
@@ -375,13 +451,15 @@ def fig_summary(R, sigs, ws, fn):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('root', help='run folder of in.water (water_contents.dat, w*/)')
+    ap.add_argument('root', nargs='+', help='run folder of in.water (water_contents.dat, w*/), or run folders of "one" (shear_<s>.dat) to compare')
     ap.add_argument('--outdir', default=None, help='default: <root>/figs')
     args = ap.parse_args()
-    root = args.root.rstrip('/'); out = args.outdir or os.path.join(root, 'figs'); os.makedirs(out, exist_ok=True)
+    roots = [r.rstrip('/') for r in args.root]; root = roots[0]
+    out = args.outdir or os.path.join(root, 'figs'); os.makedirs(out, exist_ok=True)
     o = lambda n: os.path.join(out, n)
     dt, _ = hs.run_params(root)
-    ws = water_table(root)
+    series = len(roots) == 1 and (os.path.exists(os.path.join(root, 'water_contents.dat')) or glob.glob(os.path.join(root, 'w*/shear_*.dat')))
+    ws = water_table(root) if series else run_table(roots)
     if not ws:
         print(f'{root}: no water contents yet (water_contents.dat, w*/)'); return
     sigs = sorted({re.match(r'shear_(.+)\.dat$', os.path.basename(f)).group(1) for w in ws for f in glob.glob(os.path.join(w['folder'], 'shear_*.dat'))}, key=float)
@@ -399,8 +477,9 @@ def main():
             for r in R.values() for p in r['ph']]
     csv(o('lin_points.csv'), ['folder', 'mw_mc', 'sigma_MPa', 'rate_1_s', 'porosity_shear', 'tau_MPa', 'sigma_n_MPa', 'mu', 'V_m_s', 'a_minus_b_to_next_rate',
                                'R2_end', 'shearing_share_pct_end', 'stacked_per_particle_end', 'strain_end'], rows)
-    hrows = []
-    for name, draw in (('fig5', lambda: fig5(R, sigs, ws, cols, o('lin_fig5_rate.png'))),
+    hrows = []; f3rows = {s: [] for s in sigs}
+    for name, draw in (('fig3', lambda: [fig3(R, s, ws, cols, o(f'lin_fig3_strain_{s}.png'), f3rows[s]) for s in sigs]),
+                    ('fig5', lambda: fig5(R, sigs, ws, cols, o('lin_fig5_rate.png'))),
                     ('fig6', lambda: [fig6(R, s, ws, o(f'lin_fig6_profiles_{s}.png')) for s in sigs]),
                     ('fig7', lambda: fig7(R, sigs, ws, cols, o('lin_fig7_stacking.png'))),
                     ('fig8', lambda: fig8(R, sigs, ws, cols, o('lin_fig8_healing.png'), hrows)),
@@ -411,11 +490,16 @@ def main():
             draw()
         except Exception as e:                       # one figure without its data must not stop the others
             print(f'{name}: not drawn ({type(e).__name__}: {e})')
+    for s, rr in f3rows.items():
+        if rr:
+            csv(o(f'lin_fig3_{s}.csv'), ['folder', 'mw_mc', 'sigma_MPa', 'step', 'gamma', 'tau_MPa', 'sigma_n_MPa', 'mu', 'porosity', 'nematic_S', 'rate_1_s'], rr)
     if hrows:
         csv(o('lin_heal.csv'), ['folder', 'mw_mc', 'sigma_MPa', 'rest_time_ps', 'stacked_per_particle'], hrows)
     for r in R.values():
         p = r['ph'][0]
-        print(f"{os.path.basename(r['w']['folder'])} (m_w/m_c {r['w']['mwmc']:.3g}) {r['sig']} MPa: porosity {p['phi']:.3f}  mu {p['mu']:.4f}  (a-b) {p['a_b']:.4g}  R2 {p['r2']:.3f}  stacked {p['stack']:.2f}")
+        S0 = nematic(r['gyr'][0])[0] if 'pst' in r else np.nan; S1 = nematic(r['gyr'][-1])[0] if 'pst' in r else np.nan
+        print(f"{os.path.basename(r['w']['folder'])} (m_w/m_c {r['w']['mwmc']:.3g}) {r['sig']} MPa: strain {np.nanmax(r['sh']['gamma']):.2f}  porosity {p['phi']:.3f}"
+              f"  mu {p['mu']:.4f}  (a-b) {p['a_b']:.4g}  R2 {p['r2']:.3f}  stacked {p['stack']:.2f}  S {S0:.2f} -> {S1:.2f}")
     print(f'figures and numbers in {out}')
 
 

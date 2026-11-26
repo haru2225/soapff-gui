@@ -480,6 +480,19 @@ if [ -f hot_spots.py ] && ls shear_*.dat >/dev/null 2>&1; then
     else echo "note: hot_spots.py did not finish (figs/hot_spots.log): $(tail -2 figs/hot_spots.log | tr '\n' ' ')"; fi
   else echo "note: $PYF on this node has no numpy/matplotlib: no figures here.  On the login node: cd $(dirname $PWD); ./figs.sh $(basename $PWD)"; fi
 fi
+# a group of "one" folders to compare (go_nro.sh: lin_group.txt, their names, next to this one): figures of the kind of Lin & Hatano (2024) of all
+# of them (lin_figs.py, figs/lin_*)
+if [ -f lin_figs.py ] && [ -f lin_group.txt ] && ls shear_*.dat >/dev/null 2>&1; then
+  PYF=${PYTHON:-python3}
+  FT=$(( WALLSEC > 0 ? WALLSEC - SECONDS - 60 : 900 ))
+  LG=$(for d in $(cat lin_group.txt); do ls ../$d/shear_*.dat >/dev/null 2>&1 && echo "../$d"; done | tr '\n' ' ')
+  if [ "$FT" -lt 60 ]; then echo "figures (lin_figs.py): no time left in this job"
+  elif $PYF -c "import numpy, matplotlib" >/dev/null 2>&1; then
+    mkdir -p figs
+    if tmo "$FT" $PYF lin_figs.py $LG --outdir figs > figs/lin_figs.log 2>&1; then echo "figures: $PWD/figs/lin_*.png ($LG)"
+    else echo "note: lin_figs.py did not finish (figs/lin_figs.log): $(tail -2 figs/lin_figs.log | tr '\n' ' ')"; fi
+  fi
+fi
 # a series of water contents (in.water): figures of the kind of Lin & Hatano (2024) against the porosity (lin_figs.py, figs/lin_*), then the hot-spot
 # figures of each water content (hot_spots.py, w<m_w/m_c>/figs) in the time left
 if [ "$STAGES" = water ] && [ -f lin_figs.py ] && [ -f hot_spots.py ] && ls w*/shear_*.dat >/dev/null 2>&1; then

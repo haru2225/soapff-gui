@@ -159,6 +159,13 @@ A branch: `env CONT=RUN_N54_fab_dis DT=2 ... ./go.sh 54 "5.6" one 16 RUN_N54_fab
 RUN_N54_fab_dis (a copy of every file but those of its jobs; `NODUMP=1`: without the trajectories), with the options given; the old folder
 goes on as it is. A job record copied from another folder (cp -r: .chain.lock, chain.tail) is not followed.
 
+NRO, the initial random state sheared as Lin & Hatano (2024): `./go_nro.sh RUN_N54_fab_dis "0 0.05" "5.6" 16` makes RUN_N54_nro_w0 (dry) and
+RUN_N54_nro_w0.05 (m_w/m_c 0.05) from the particles of the fabric at random before its dehydration (its 01_equil.data; go.sh `FROMFAB=... NRO=1
+MWMC0=...`), the water on the clay surfaces first, and submits one chain each (16 nodes each): compaction the same in x y z, NPT with x y z
+each to the normal stress (C01=aniso), NPzT, the shear at 3.16e9 /s to the strain 10 (Lees-Edwards, Langevin on the deviation from the linear
+profile, barostat on z), 1e10 and 3.16e10 /s one unit of strain each, a hold; about 4 ns each.  Each job draws Lin & Hatano's figures of both
+folders in figs/lin_*.png (Fig. 3: shear stress, porosity, nematic order S, mu against the strain; Figs. 5-10); by hand: `./figs.sh RUN_N54_nro_w0`.
+
 Stacks: the particles start apart at random (U&B 2020) and come together face to face during the slow dehydration (U&B: S from 0.1 to 0.7-0.8 over
 134 ns; the particles rotate in tens of ns). `env STACK=3 ./go.sh ...` builds them in stacks
 (tactoids) of 3 at 15.5 A (2 water layers; `D001=12.5`: 1 layer), the stacks at random (structure in `RUN_N<N>_stack3`). Whether they are stacked:

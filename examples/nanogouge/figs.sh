@@ -173,6 +173,14 @@ for r in $RUNS; do
     done
   fi
   ls $r/shear_*.dat >/dev/null 2>&1 && hs $r
+  # a group of folders to compare (go_nro.sh: lin_group.txt): Lin & Hatano's figures of all of them, in this folder's figs/
+  if [ -f $r/lin_group.txt ] && ls $r/shear_*.dat >/dev/null 2>&1; then
+    LG=$(for d in $(cat $r/lin_group.txt); do ls $d/shear_*.dat >/dev/null 2>&1 && echo "$HERE/$d"; done | tr '\n' ' ')
+    mkdir -p "$r/figs"
+    echo "== lin_figs.py $LG (log: $r/figs/lin_figs.log)"
+    $NICE $PY -u $A/lin_figs.py $LG --outdir "$HERE/$r/figs" 2>&1 | tee "$r/figs/lin_figs.log" | sed 's/^/   /'
+    [ "${PIPESTATUS[0]}" = 0 ] || echo "   lin_figs.py failed (see above; $r/figs/lin_figs.log)"
+  fi
 done
 echo
 echo "figures:"
