@@ -25,7 +25,12 @@ ap.add_argument('--seed', type=int, default=1)
 ap.add_argument('--tow', type=int, default=0, help='type of water O (default: from the Masses comments, else the highest type)')
 ap.add_argument('--thw', type=int, default=0, help='type of water H (default: from the Masses comments, else the second highest type)')
 a = ap.parse_args()
-rng = np.random.default_rng(a.seed)
+class _OldRng:                                    # numpy < 1.17 (the python3 of a login node) has no default_rng
+    def __init__(self, seed): self.r = np.random.RandomState(seed)
+    def random(self, size=None): return self.r.random_sample(size)
+    def normal(self, size=None): return self.r.normal(size=size)
+    def permutation(self, n): return self.r.permutation(n)
+rng = np.random.default_rng(a.seed) if hasattr(np.random, 'default_rng') else _OldRng(a.seed)
 M_WATER = 18.0153                                      # as in.all: n_water = m_w/m_c * mass(clay) / 18.0153
 
 SECTIONS = ('Masses', 'Pair Coeffs', 'PairIJ Coeffs', 'Bond Coeffs', 'Angle Coeffs', 'Dihedral Coeffs', 'Improper Coeffs', 'Atoms', 'Velocities',
