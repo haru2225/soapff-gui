@@ -14,7 +14,9 @@
 # Defaults (about 4 ns per folder: 01 + 03 ~0.6 ns, 04 3.3 ns), any of them given as env VAR=... instead:
 #   NEQ=50000 CRATE=2e9 NPT01=150000 C01=aniso NCONSMAX=10  RATE=3.16e9 GMAX=10 NVS=2 VFAC=3.16227766 GSTEP=1 (3.16e9 /s to the strain 10,
 #   then 1e10 and 3.16e10 /s, one unit of strain each) HOLD=50000;  WALLTIME=24 MAXJOBS=2 (jobs per folder)
-#   NAME=nro: the folders RUN_N<N>_<NAME>_w<w>
+#   NAME=nro: the folders RUN_N<N>_<NAME>_w<w>; another NAME for another series of the same fabric, e.g. the fastest rate of Lin & Hatano:
+#   env NAME=nro_r6.93e8 RATE=6.93e8 GMAX=3 GSTEP=0.5 WALLTIME=24 ./go_nro.sh RUN_N54_fab_dis "0 0.05" "5.6" 16   (about 5 ns each)
+#   (the figures of each folder then show every NRO folder of the fabric together: lin_group.txt)
 # Figures: each job draws those of its folder (figs/: hot_spots.py) and Lin & Hatano's of all the folders (figs/lin_*.png, lin_figs.py;
 # lin_group.txt lists them).  By hand at any time:  ./figs.sh RUN_N54_nro_w0   (or ./sifpy analysis/lin_figs.py RUN_N54_nro_w0 RUN_N54_nro_w0.05)
 # The same command again: the folders that exist go on from where they are (with the defaults above or the env VAR=... given).
@@ -43,8 +45,12 @@ for w in $WL; do
   for kv in $LIN; do k=${kv%%=*}; ENVS="$ENVS $k=${!k:-${kv#*=}}"; done
   echo "==== $RUN: m_w/m_c $w ($(awk -v w=$w 'BEGIN{ if (w == 0) print "dry"; else printf "%g %% water", 100 * w }'))  $ENVS"
   env $ENVS FROMFAB="$FAB" NRO=1 MWMC0="$w" ./go.sh "$N" "$SIG" one "$NOD" "$RUN"
-  echo "$RUNS" > "$RUN/lin_group.txt"
 done
+# the figures of every NRO folder of this fabric together (also those of an earlier go_nro.sh, e.g. another NAME / RATE): lin_group.txt
+# in each (read by its jobs after LAMMPS; the calculations are not touched)
+ALL=$(for d in RUN_*/; do d=${d%/}; f=$d/fabric.env; [ -f "$f" ] && grep -qx "NRO=1" "$f" && grep -qx "FROMFAB=$FAB" "$f" && echo "$d"; done)
+for d in $ALL; do echo "$ALL" > "$d/lin_group.txt"; done
+echo "figures of all of them together (figs/lin_*.png of each): $(echo $ALL)"
 echo
 echo "two chains (one per folder), $NOD nodes each: qstat -u \$USER"
 for r in $RUNS; do echo "  progress: tail -2 $r/log.one;  grep 'in.all: 0' $r/log.one | tail -2"; done

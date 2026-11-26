@@ -207,7 +207,8 @@ def stack_series(r):
 
 def wlab(w):
     lab = 'dry' if w['mwmc'] == 0 else f"m_w/m_c {w['mwmc']:.2g}"
-    return f"{w['kind']} {lab}" if w.get('kind') else lab
+    lab = f"{w['kind']} {lab}" if w.get('kind') else lab
+    return f"{lab} · {w['tag']}" if w.get('tag') else lab
 
 
 # ---------------- figures ----------------
@@ -243,9 +244,7 @@ def fig3(R, sig, ws, cols, fn, rows):
                         (1, 1): 'friction coefficient μ = τ / σn'}.items():
         a = ax[i, j]; style(a); a.set_xlabel('shear strain γ'); a.set_ylabel(lab)
     ax[1, 0].set_ylim(0, 1)
-    rk = sorted({p['rate'] for w in ws for p in R[(w['folder'], sig)]['ph']})
-    head(fig, f'Shear at σn = {sig} MPa, {hs.rl(rk[0])} to the strain {max(np.nanmax(R[(w["folder"], sig)]["sh"]["gamma"]) for w in ws):.1f}'
-         f'{", then the velocity steps" if len(rk) > 1 else ""} (cf. Lin & Hatano 2024, Fig. 3)', [(wlab(w), col, 'line') for w, col in zip(ws, cols)])
+    head(fig, f'Shear at σn = {sig} MPa against the strain (cf. Lin & Hatano 2024, Fig. 3)', [(wlab(w), col, 'line') for w, col in zip(ws, cols)])
     layout(fig); fig.savefig(fn); plt.close(fig)
 
 
@@ -470,6 +469,14 @@ def main():
             if r:
                 r['ph'] = phase_numbers(r); R[(w['folder'], sig)] = r
     ws = [w for w in ws if any((w['folder'], s) in R for s in sigs)]
+    # folders of the same water content (and kind) told apart by their first shear rate
+    for w in ws:
+        r0 = next((R[(w['folder'], s)] for s in sigs if (w['folder'], s) in R and R[(w['folder'], s)]['ph']), None)
+        w['rate0'] = r0['ph'][0]['rate'] if r0 else np.nan
+    for w in ws:
+        if sum(1 for v in ws if (v.get('kind'), v['mwmc']) == (w.get('kind'), w['mwmc'])) > 1 and np.isfinite(w['rate0']):
+            w['tag'] = hs.rl(w['rate0'])
+    ws.sort(key=lambda w: (w.get('kind', ''), -w['mwmc'], w['rate0'] if np.isfinite(w['rate0']) else 0))
     if not R:
         print(f'{root}: no shear yet'); return
     cols = seq(len(ws))
