@@ -28,6 +28,7 @@ variable ncons index 50000            # 03: steps of each piece of the consolida
 variable constol index 0.001          # 03: done when Lz (mean of the last tenth of a piece) changed by less than this fraction over a piece
 variable nconsmax index 20            # 03: at most this many pieces (1 ns)
 variable nhold index 50000            # 05: steps of the hold (50 ps)
+variable lostbond index warn          # missing angle/bond atoms (an edge OH far from its metal): warn (left out) | error | ignore
 variable nfac index 1                 # 02, 03, 04, 05 nfac x as long (04: nfac x the strain) (go.sh: NFAC=2)
 variable sig1 index 5.6               # MPa
 variable sig2 index 56                # MPa; 0 = none
@@ -188,7 +189,10 @@ variable dtrun equal ${dt}
 # forces before them in 01 02 03); not in the minimisation; the dehydration after its removal of water
 if "${shk} == 1 && ${st} != min && ${st} != dry" then "fix fshk all shake ${shktol} 50 0 m 1.0 a ${sha}"
 thermo_style custom step temp pe ke etotal press pxx pyy pzz pxz vol lx ly lz xz spcpu   # spcpu = time steps per second
-thermo_modify lost error flush yes
+# lostbond warn: an angle (or bond) whose atoms are no longer near each other is left out (a warning) instead of stopping LAMMPS: in ClayFF
+# the edge M-O-H (Si-O-H) is an angle only (no M-O bond), so an edge OH can leave its metal (seen: a few of 33696 angles, 5-18 A, in a
+# dry or nearly dry gouge), then 'Angle atoms missing'; error: stop as before
+thermo_modify lost error lost/bond ${lostbond} flush yes
 thermo ${nout}
 jump SELF s_${st}
 
